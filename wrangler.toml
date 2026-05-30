@@ -1,0 +1,13 @@
+name = "rdf-label-resolver"
+main = "src/index.ts"
+compatibility_date = "2025-04-19"
+
+[[r2_buckets]]
+binding = "PUBLIC_LABELS"
+bucket_name = "rdf-public-labels"
+
+[vars]
+ENVIRONMENT = "production"
+
+[dev]
+port = 8787
