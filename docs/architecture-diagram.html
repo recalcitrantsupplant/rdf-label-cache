@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RDF Label Resolver — Architecture</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --ink:#e7eaf0; --muted:#9aa4b2;
+    --line:#2b303b; --accent:#5b8cff; --accent2:#37c9a3; --amber:#e0a458;
+    --r2:#c07be0; --shadow:0 1px 0 rgba(255,255,255,.03),0 8px 30px rgba(0,0,0,.35);
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:light){
+    :root{--bg:#f4f6fa;--panel:#ffffff;--panel2:#f7f9fc;--ink:#161a22;--muted:#5b6472;
+      --line:#e2e7ef;--shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.08);}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased;padding:48px 20px 80px}
+  .wrap{max-width:1000px;margin:0 auto}
+  header{margin-bottom:40px}
+  .eyebrow{font:600 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:12px}
+  h1{font-size:32px;margin:0 0 8px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:15px;max-width:60ch}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:28px 28px 20px;margin:24px 0;box-shadow:var(--shadow)}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    margin:0 0 4px;font-weight:600}
+  .lead{font-size:15px;color:var(--ink);margin:0 0 20px}
+  .lead em{color:var(--muted);font-style:italic}
+  svg{width:100%;height:auto;display:block;overflow:visible}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;margin-top:18px;
+    font:500 12.5px/1.2 var(--sans);color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+  footer{color:var(--muted);font-size:12.5px;text-align:center;margin-top:32px;
+    font-family:var(--mono)}
+
+  /* ---- SVG styling via CSS (presentation attrs don't accept var()) ---- */
+  svg text{font-family:var(--sans);fill:var(--ink)}
+  .lbl{font-weight:600;font-size:15px}
+  .lbl.sm{font-size:13px}
+  .desc{fill:var(--muted);font-size:11.5px}
+  .tag{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+  .stepnum{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+  .t-green{fill:var(--accent2)} .t-amber{fill:var(--amber)}
+  .t-r2{fill:var(--r2)} .t-muted{fill:var(--muted)}
+  .b{font-weight:700}
+  .mono{font-family:var(--mono)}
+
+  .node{fill:var(--panel2);stroke:var(--line);stroke-width:1.2}
+  .node.accent{stroke:var(--accent);stroke-width:1.5}
+  .node.r2{stroke:var(--r2);stroke-width:1.5}
+  .node.green{stroke:var(--accent2)}
+  .node.amber{stroke:var(--amber)}
+  .inner{fill:var(--panel);stroke:var(--line);stroke-width:1}
+  .bar-accent{fill:var(--accent)} .bar-r2{fill:var(--r2)}
+  line.link{stroke:var(--muted);stroke-width:1.5;fill:none}
+  path.link{stroke:var(--muted);stroke-width:1.5;fill:none}
+  .link.green{stroke:var(--accent2);stroke-width:1.75}
+  .link.r2{stroke:var(--r2)}
+  .ll{stroke:var(--line);stroke-width:1.5;stroke-dasharray:3 5}
+  .divider{stroke:var(--line);stroke-width:1}
+  .m-muted{fill:var(--muted)} .m-green{fill:var(--accent2)} .m-r2{fill:var(--r2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Cloudflare Workers · Workers Cache · R2</div>
+    <h1>RDF Label Resolver</h1>
+    <p class="sub">A globally distributed, low-latency service for resolving human-readable
+      labels for RDF IRIs. One Worker, one R2 bucket, a platform-managed tiered cache in front.
+      No databases, no auth, no middleware.</p>
+  </header>
+
+  <!-- ============ 1. COMPONENT / ARCHITECTURE OVERVIEW ============ -->
+  <section>
+    <h2>1 · Architecture overview</h2>
+    <p class="lead">Requests flow top-to-bottom. Workers Cache sits <em>in front of</em> the
+      Worker — cache hits are served without ever invoking it.</p>
+
+    <svg viewBox="0 0 900 470" role="img" aria-label="Component architecture diagram">
+      <defs>
+        <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" class="m-muted"/>
+        </marker>
+        <marker id="arwUp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" class="m-green"/>
+        </marker>
+      </defs>
+
+      <!-- Client -->
+      <rect x="330" y="10" width="240" height="60" rx="12" class="node"/>
+      <text class="lbl" x="450" y="38" text-anchor="middle">Client</text>
+      <text class="desc" x="450" y="56" text-anchor="middle">SPARQL UIs, catalogues, RDF tooling</text>
+
+      <line x1="450" y1="70" x2="450" y2="102" class="link" marker-end="url(#arw)"/>
+      <text class="tag" x="462" y="90">HTTPS · GET /label?iri=…&amp;lang=</text>
+
+      <!-- Workers Cache (tiered) -->
+      <rect x="120" y="106" width="660" height="112" rx="14" class="node accent"/>
+      <rect x="120" y="106" width="6" height="112" rx="3" class="bar-accent"/>
+      <text class="lbl" x="146" y="132">Workers Cache <tspan class="desc">— platform-managed, tiered, keyed on full URL</tspan></text>
+      <rect x="146" y="146" width="290" height="56" rx="10" class="inner"/>
+      <text class="lbl sm" x="162" y="170">Regional tier</text>
+      <text class="desc" x="162" y="188">near the requesting PoP</text>
+      <rect x="464" y="146" width="290" height="56" rx="10" class="inner"/>
+      <text class="lbl sm" x="480" y="170">Upper tier</text>
+      <text class="desc" x="480" y="188">network-wide, shields R2</text>
+      <text class="tag" x="450" y="178" text-anchor="middle">→</text>
+
+      <!-- HIT return path (up, green) -->
+      <path d="M96 162 L96 40 L322 40" class="link green" stroke-dasharray="5 4" marker-end="url(#arwUp)"/>
+      <line x1="96" y1="162" x2="120" y2="162" class="link green"/>
+      <text class="tag t-green" x="70" y="108" transform="rotate(-90 70 108)">HIT · Worker not invoked</text>
+
+      <!-- miss down to worker -->
+      <line x1="450" y1="218" x2="450" y2="252" class="link" marker-end="url(#arw)"/>
+      <text class="tag" x="462" y="240">MISS</text>
+
+      <!-- Worker -->
+      <rect x="230" y="256" width="440" height="92" rx="14" class="node"/>
+      <text class="lbl" x="450" y="284" text-anchor="middle">label-resolver Worker</text>
+      <text class="desc" x="450" y="304" text-anchor="middle">parse ?iri= &amp; ?lang=  →  build R2 key  →  stream bytes</text>
+      <text class="tag" x="450" y="330" text-anchor="middle">sets Cache-Control + Cache-Tag · no auth · no proxy</text>
+
+      <line x1="450" y1="348" x2="450" y2="382" class="link" marker-end="url(#arw)"/>
+      <text class="tag" x="462" y="370">r2.get(key)</text>
+
+      <!-- R2 -->
+      <rect x="300" y="386" width="300" height="72" rx="14" class="node r2"/>
+      <rect x="300" y="386" width="6" height="72" rx="3" class="bar-r2"/>
+      <text class="lbl" x="450" y="414" text-anchor="middle">R2 · label store</text>
+      <text class="desc" x="450" y="434" text-anchor="middle"><tspan class="mono">labels/{ns}/{local}/{lang}</tspan> · gzip blobs · JSON-LD</text>
+    </svg>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--accent)"></i>Cache layer (hits skip the Worker)</span>
+      <span><i class="dot" style="background:var(--accent2)"></i>Fast return path — no CPU billed</span>
+      <span><i class="dot" style="background:var(--r2)"></i>Blob store</span>
+    </div>
+  </section>
+
+  <!-- ============ 2. REQUEST LIFECYCLE FLOW ============ -->
+  <section>
+    <h2>2 · Request lifecycle</h2>
+    <p class="lead">The cold path only — a warm cache short-circuits at step&nbsp;2.</p>
+
+    <svg viewBox="0 0 900 150" role="img" aria-label="Request lifecycle flow">
+      <defs>
+        <marker id="flowarw" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" class="m-muted"/>
+        </marker>
+      </defs>
+      <rect x="10" y="46" width="150" height="58" rx="12" class="node"/>
+      <text class="stepnum" x="26" y="66">01</text>
+      <text class="lbl sm" x="26" y="86">Edge arrival</text>
+      <text class="desc" x="26" y="99">nearest PoP</text>
+      <line x1="164" y1="75" x2="188" y2="75" class="link" marker-end="url(#flowarw)"/>
+
+      <rect x="192" y="46" width="150" height="58" rx="12" class="node accent"/>
+      <text class="stepnum" x="208" y="66">02</text>
+      <text class="lbl sm" x="208" y="86">Cache check</text>
+      <text class="desc" x="208" y="99">hit → return ✓</text>
+      <line x1="346" y1="75" x2="370" y2="75" class="link" marker-end="url(#flowarw)"/>
+
+      <rect x="374" y="46" width="150" height="58" rx="12" class="node"/>
+      <text class="stepnum" x="390" y="66">03</text>
+      <text class="lbl sm" x="390" y="86">Parse &amp; key</text>
+      <text class="desc" x="390" y="99">iri + lang → key</text>
+      <line x1="528" y1="75" x2="552" y2="75" class="link" marker-end="url(#flowarw)"/>
+
+      <rect x="556" y="46" width="150" height="58" rx="12" class="node r2"/>
+      <text class="stepnum" x="572" y="66">04</text>
+      <text class="lbl sm" x="572" y="86">R2 lookup</text>
+      <text class="desc" x="572" y="99">miss → 404</text>
+      <line x1="710" y1="75" x2="734" y2="75" class="link" marker-end="url(#flowarw)"/>
+
+      <rect x="738" y="46" width="150" height="58" rx="12" class="node green"/>
+      <text class="stepnum" x="754" y="66">05</text>
+      <text class="lbl sm" x="754" y="86">Stream + cache</text>
+      <text class="desc" x="754" y="99">Cache-Control</text>
+    </svg>
+  </section>
+
+  <!-- ============ 3. SEQUENCE DIAGRAM ============ -->
+  <section>
+    <h2>3 · Sequence — cache hit vs. miss</h2>
+    <p class="lead">Two request paths across the same participants. The hit path (green)
+      never reaches the Worker or R2.</p>
+
+    <svg viewBox="0 0 900 430" role="img" aria-label="Sequence diagram">
+      <defs>
+        <marker id="sq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" class="m-muted"/>
+        </marker>
+        <marker id="sqG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" class="m-green"/>
+        </marker>
+        <marker id="sqP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" class="m-r2"/>
+        </marker>
+      </defs>
+
+      <!-- participant heads : Client 120 · Cache 370 · Worker 620 · R2 830 -->
+      <rect x="60" y="10" width="120" height="42" rx="9" class="node"/>
+      <text class="lbl sm" x="120" y="36" text-anchor="middle">Client</text>
+      <rect x="310" y="10" width="120" height="42" rx="9" class="node accent"/>
+      <text class="lbl sm" x="370" y="36" text-anchor="middle">Cache</text>
+      <rect x="560" y="10" width="120" height="42" rx="9" class="node"/>
+      <text class="lbl sm" x="620" y="36" text-anchor="middle">Worker</text>
+      <rect x="770" y="10" width="120" height="42" rx="9" class="node r2"/>
+      <text class="lbl sm" x="830" y="36" text-anchor="middle">R2</text>
+
+      <line x1="120" y1="52" x2="120" y2="410" class="ll"/>
+      <line x1="370" y1="52" x2="370" y2="410" class="ll"/>
+      <line x1="620" y1="52" x2="620" y2="410" class="ll"/>
+      <line x1="830" y1="52" x2="830" y2="410" class="ll"/>
+
+      <!-- ===== HIT ===== -->
+      <text class="tag t-green b" x="60" y="82">SCENARIO A — CACHE HIT</text>
+      <line x1="120" y1="104" x2="362" y2="104" class="link" marker-end="url(#sq)"/>
+      <text class="tag" x="126" y="98">GET /label?iri=…</text>
+      <line x1="370" y1="132" x2="128" y2="132" class="link green" marker-end="url(#sqG)"/>
+      <text class="tag t-green" x="150" y="126">200 JSON-LD · from cache</text>
+      <text class="tag t-green" x="392" y="120">Worker never invoked ✓</text>
+
+      <line x1="60" y1="158" x2="890" y2="158" class="divider"/>
+
+      <!-- ===== MISS ===== -->
+      <text class="tag t-amber b" x="60" y="188">SCENARIO B — CACHE MISS</text>
+      <line x1="120" y1="210" x2="362" y2="210" class="link" marker-end="url(#sq)"/>
+      <text class="tag" x="126" y="204">GET /label?iri=…</text>
+      <line x1="370" y1="238" x2="612" y2="238" class="link" marker-end="url(#sq)"/>
+      <text class="tag" x="392" y="232">miss → invoke</text>
+      <line x1="620" y1="266" x2="822" y2="266" class="link r2" marker-end="url(#sqP)"/>
+      <text class="tag t-r2" x="642" y="260">r2.get(labels/…/lang)</text>
+      <line x1="830" y1="294" x2="628" y2="294" class="link r2" marker-end="url(#sqP)"/>
+      <text class="tag t-r2" x="642" y="288">gzip bytes + metadata</text>
+      <line x1="620" y1="322" x2="378" y2="322" class="link" marker-end="url(#sq)"/>
+      <text class="tag" x="392" y="316">Response + Cache-Control/Tag → stored</text>
+      <line x1="370" y1="350" x2="128" y2="350" class="link green" marker-end="url(#sqG)"/>
+      <text class="tag t-green" x="150" y="344">200 JSON-LD · now warm</text>
+
+      <line x1="60" y1="376" x2="890" y2="376" class="divider"/>
+      <text class="tag t-muted" x="60" y="400">Invalidation — ingestion pipeline calls
+        <tspan class="t-amber mono">ctx.cache.purge({ tags: ["public-labels"] })</tspan> after refreshing R2.</text>
+    </svg>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--accent2)"></i>Response to client</span>
+      <span><i class="dot" style="background:var(--r2)"></i>R2 round-trip (miss only)</span>
+      <span><i class="dot" style="background:var(--amber)"></i>Cache invalidation</span>
+    </div>
+  </section>
+
+  <footer>rdf-label-resolver · architecture overview · see architecture.md &amp; 2026-07-06-workers-cache-migration.md</footer>
+
+</div>
+</body>
+</html>

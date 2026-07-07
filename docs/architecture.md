@@ -1,8 +1,13 @@
 # RDF Label Resolver — Architecture Design Document
 
-**Version:** 0.3 (draft)  
+**Version:** 0.4 (draft)  
 **Status:** Design / Pre-implementation  
-**Platform:** Cloudflare Workers + R2
+**Platform:** Cloudflare Workers (Workers Cache) + R2
+
+> **Caching:** this document reflects the move to **Workers Cache** — a platform-managed,
+> regionally tiered cache in front of the Worker. See
+> [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for the
+> rationale, before/after, and migration checklist.
 
 ---
 
@@ -10,7 +15,7 @@
 
 A globally distributed, low-latency HTTP service for resolving human-readable labels for RDF IRIs.
 
-Serves a curated set of well-known public namespaces from R2, cached at the Cloudflare edge. The stack is intentionally minimal: one Worker, one R2 bucket, edge cache. No databases, no auth, no middleware.
+Serves a curated set of well-known public namespaces from R2, fronted by Workers Cache. The stack is intentionally minimal: one Worker, one R2 bucket, platform-managed cache. No databases, no auth, no middleware.
 
 **Supported namespaces:** rdfs, owl, skos, skos-xl, dc, dcterms, schema.org, foaf, prov, void, xsd, rdf
 
@@ -71,14 +76,15 @@ Client
   │ HTTPS
   ▼
 ┌─────────────────────────────────────────┐
-│         Cloudflare Edge Cache           │  ← Free. Handles repeat requests
-│         (caches.default, TTL 24h)       │    from same PoP automatically
+│              Workers Cache              │  ← Platform-managed, tiered.
+│  regional (near PoP) → upper (network)  │    Hits served WITHOUT invoking
+│         keyed on full request URL       │    the Worker (no CPU billed).
 └────────────────┬────────────────────────┘
                  │ miss
                  ▼
 ┌─────────────────────────────────────────┐
-│           Cloudflare Worker             │  ← Routing only; no auth, no proxy
-│         (label-resolver Worker)         │
+│           Cloudflare Worker             │  ← Routing only; no auth, no proxy.
+│         (label-resolver Worker)         │    Sets Cache-Control + Cache-Tag.
 └──────────────────┬──────────────────────┘
                    │
                    ▼
@@ -92,18 +98,18 @@ Client
 
 ```
 1. Request arrives at Cloudflare edge
-2. Edge cache check (caches.default.match)
-   └── HIT  → return immediately (gzipped bytes, no Worker invoked)
+2. Workers Cache check (regional tier → upper tier), keyed on full request URL
+   └── HIT  → return immediately (gzipped bytes, Worker NOT invoked, no CPU billed)
    └── MISS → Worker invoked
 
 3. Worker: parse ?iri=, extract ?lang=
 4. Construct R2 key: labels/{ns}/{local}/{lang}  (or labels/{ns}/{local} if no lang)
 5. r2.get(key)
-   └── HIT  → stream response to client; populate edge cache (ctx.waitUntil)
+   └── HIT  → stream response with Cache-Control + Cache-Tag; platform caches it
    └── MISS → 404
 ```
 
-No fallback chain, no proxy, no external calls. The Worker either finds the object in R2 or returns 404.
+No fallback chain, no proxy, no external calls. The Worker either finds the object in R2 or returns 404. Caching is driven entirely by the response `Cache-Control` header — the Worker no longer calls `cache.match`/`cache.put` itself (see the migration doc).
 
 ---
 
@@ -189,9 +195,11 @@ Stored in R2 at `context/labels-v1.json`. Served with an immutable TTL. Version 
 }
 ```
 
-### 4.3 Edge Cache
+### 4.3 Cache — Workers Cache
 
-The primary cache layer. Cloudflare caches at the PoP closest to the requester. Cache keys are the full request URL (IRI + lang param). Pre-gzipped objects are stored and served compressed — no recompression overhead.
+The primary cache layer. **Workers Cache** is a platform-managed, regionally tiered cache that sits *in front of* the Worker: a lower regional tier near the requester and an upper network-wide tier. Hits are served **without invoking the Worker** (no CPU billed); cold PoPs are served from the upper tier instead of round-tripping to R2. Cache keys are the full request URL (IRI + lang param). Pre-gzipped objects are stored and served compressed — no recompression overhead.
+
+Caching is enabled via config (`[cache] enabled = true`) and driven by the response `Cache-Control` header. The Worker does **not** call `caches.default` — no manual `match`/`put`/`waitUntil`.
 
 | Response type | Cache-Control |
 |---|---|
@@ -199,7 +207,9 @@ The primary cache layer. Cloudflare caches at the PoP closest to the requester. 
 | 404 | `public, max-age=60` |
 | Context document | `public, max-age=31536000, immutable` |
 
-Purge on ontology refresh via cache tag `public-labels`.
+Every cacheable response also carries a `Cache-Tag` header (`public-labels`, plus a per-namespace tag such as `ns:skos`). Purge on ontology refresh via `ctx.cache.purge({ tags: [...] })`.
+
+See [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for migration detail and open caveats (404 cacheability, plan/GA status, `compatibility_date`).
 
 ---
 
@@ -234,6 +244,9 @@ name = "rdf-label-resolver"
 main = "src/index.ts"
 compatibility_date = "2025-04-19"
 
+[cache]
+enabled = true
+
 [[r2_buckets]]
 binding = "PUBLIC_LABELS"
 bucket_name = "rdf-public-labels"
@@ -242,7 +255,7 @@ bucket_name = "rdf-public-labels"
 ENVIRONMENT = "production"
 ```
 
-No secrets, no KV, no D1.
+No secrets, no KV, no D1. `[cache] enabled = true` turns on Workers Cache; confirm it is available on the account plan and stable on the pinned `compatibility_date` (see migration doc caveat 2).
 
 ### 6.2 Label Data Bootstrap
 
@@ -294,7 +307,8 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 7. Write to R2: labels/{ns}/{local}/{lang}
 8. Write context/labels-v1.json (only if not exists — never overwrite)
 9. Publish tarball to GitHub releases
-10. Purge edge cache by tag (public-labels)
+10. Purge Workers Cache by tag: ctx.cache.purge({ tags: ["public-labels"] })
+    (or per-namespace tags, e.g. ["ns:skos"], to invalidate only refreshed namespaces)
 ```
 
 ---
