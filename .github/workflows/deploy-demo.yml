@@ -1,0 +1,27 @@
+name: deploy-demo
+
+# Manual redeploy of the maintainer demo (the automatic deploy happens in
+# release.yml when a release is cut). Maintainer repo only; needs Cloudflare
+# secrets, which forks don't have.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.repository_owner == 'recalcitrantsupplant'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: ./scripts/ci.sh
+      - run: ./scripts/deploy-demo.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

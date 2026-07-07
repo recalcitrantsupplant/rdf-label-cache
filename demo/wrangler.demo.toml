@@ -1,0 +1,16 @@
+# Maintainer-only demo deployment (David's public demo instance).
+# Self-hosters do NOT need this — deploy the root wrangler.toml with your own
+# bucket. Paths here resolve relative to this file's directory.
+name = "rdf-label-cache"
+main = "../src/index.ts"
+compatibility_date = "2025-04-19"
+
+[[r2_buckets]]
+binding = "PUBLIC_LABELS"
+bucket_name = "rdf-public-labels"
+
+[vars]
+ENVIRONMENT = "production"
+
+# Optional custom domain instead of the free *.workers.dev URL:
+# routes = [{ pattern = "labels.example.com", custom_domain = true }]
