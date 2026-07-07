@@ -2,3 +2,10 @@ allowBuilds:
   esbuild: true
   sharp: true
   workerd: true
+
+# Supply-chain note: the 7-day minimum-package-age guard is enforced via
+# Dependabot `cooldown` (.github/dependabot.yml) — the point where new versions
+# actually enter the repo. pnpm's `minimumReleaseAge` is intentionally NOT set
+# here: it re-validates the whole committed lockfile on every install and would
+# brick CI for a week after any legitimate adoption of current tooling. It can
+# be enabled later (once deps have aged) for belt-and-suspenders on manual adds.

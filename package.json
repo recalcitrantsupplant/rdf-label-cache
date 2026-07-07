@@ -2,15 +2,25 @@
   "name": "rdf-label-resolver",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --var ENVIRONMENT:development",
     "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "prepare": "husky"
   },
   "packageManager": "pnpm@11.3.0",
-"devDependencies": {
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.18.0",
     "@cloudflare/workers-types": "^4.20250525.0",
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
+    "husky": "^9.1.7",
     "typescript": "^5.0.0",
+    "vitest": "^4.1.10",
     "wrangler": "^4.0.0"
   }
 }
