@@ -1,5 +1,3 @@
-const CONTEXT_URL = "http://localhost:8787/context/labels-v1.json";
-
 const CONTEXT_DOC = {
   "@context": {
     rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -51,9 +49,9 @@ const SEED_LABELS: LabelEntry[] = [
   { ns: "skos", local: "ConceptScheme", iri: "http://www.w3.org/2004/02/skos/core#ConceptScheme", prefLabel: "Concept Scheme", definition: "A set of concepts, optionally including statements about semantic relationships between those concepts." },
 ];
 
-function labelDoc(entry: LabelEntry): string {
+function labelDoc(entry: LabelEntry, contextUrl: string): string {
   const doc: Record<string, unknown> = {
-    "@context": CONTEXT_URL,
+    "@context": contextUrl,
     "@id": entry.iri,
     prefLabel: { en: entry.prefLabel },
   };
@@ -64,7 +62,13 @@ function labelDoc(entry: LabelEntry): string {
 
 const TEXT = { contentType: "application/ld+json" };
 
-export async function handleDevSeed(env: Env): Promise<Response> {
+export async function handleDevSeed(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  // Objects embed an absolute @context URL. Default to this request's origin so
+  // deployed objects point at the deployed host; ?base= overrides (e.g. when
+  // seeding remote R2 from `wrangler dev --remote` on localhost).
+  const base = (url.searchParams.get("base") || url.origin).replace(/\/$/, "");
+  const contextUrl = `${base}/context/labels-v1.json`;
   const written: string[] = [];
 
   // Context document
@@ -75,7 +79,7 @@ export async function handleDevSeed(env: Env): Promise<Response> {
 
   // Label objects — English and all-languages bundle (same content for now)
   for (const entry of SEED_LABELS) {
-    const body = labelDoc(entry);
+    const body = labelDoc(entry, contextUrl);
     const enKey = `labels/${entry.ns}/${entry.local}/en`;
     const bundleKey = `labels/${entry.ns}/${entry.local}`;
 

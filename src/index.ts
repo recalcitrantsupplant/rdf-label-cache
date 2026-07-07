@@ -16,7 +16,7 @@ export default {
     const { pathname } = url;
 
     if (pathname === "/dev/seed" && env.ENVIRONMENT !== "production") {
-      return handleDevSeed(env);
+      return handleDevSeed(request, env);
     }
 
     if (pathname === "/label") {
