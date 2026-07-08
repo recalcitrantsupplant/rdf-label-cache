@@ -10,6 +10,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
+    "seed:ingest": "node scripts/ingest.mjs",
+    "seed:upload": "node scripts/upload-seed.mjs",
     "prepare": "husky"
   },
   "packageManager": "pnpm@11.3.0",
@@ -18,7 +20,9 @@
     "@cloudflare/workers-types": "^4.20260630.1",
     "@commitlint/cli": "^21.2.0",
     "@commitlint/config-conventional": "^21.2.0",
+    "aws4fetch": "1.0.20",
     "husky": "^9.1.7",
+    "n3": "2.1.0",
     "typescript": "^5.0.0",
     "vitest": "^4.1.10",
     "wrangler": "^4.107.0"

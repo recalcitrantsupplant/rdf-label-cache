@@ -1,0 +1,37 @@
+# OWL vocabulary (common terms) — hand-curated (w3.org unfetchable). Labels/
+# definitions per the OWL 2 specification. https://www.w3.org/2002/07/owl#
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+owl:Class          rdfs:label "Class" ; rdfs:comment "The class of OWL classes." .
+owl:Thing          rdfs:label "Thing" ; rdfs:comment "The class of OWL individuals." .
+owl:Nothing        rdfs:label "Nothing" ; rdfs:comment "This is the empty class." .
+owl:ObjectProperty rdfs:label "ObjectProperty" ; rdfs:comment "The class of object properties." .
+owl:DatatypeProperty rdfs:label "DatatypeProperty" ; rdfs:comment "The class of data properties." .
+owl:AnnotationProperty rdfs:label "AnnotationProperty" ; rdfs:comment "The class of annotation properties." .
+owl:NamedIndividual rdfs:label "NamedIndividual" ; rdfs:comment "The class of named individuals." .
+owl:Ontology       rdfs:label "Ontology" ; rdfs:comment "The class of ontologies." .
+owl:Restriction    rdfs:label "Restriction" ; rdfs:comment "The class of property restrictions." .
+owl:onProperty     rdfs:label "onProperty" ; rdfs:comment "The property that determines the property that a property restriction refers to." .
+owl:someValuesFrom rdfs:label "someValuesFrom" ; rdfs:comment "The property that determines the class that an existential property restriction refers to." .
+owl:allValuesFrom  rdfs:label "allValuesFrom" ; rdfs:comment "The property that determines the class that a universal property restriction refers to." .
+owl:hasValue       rdfs:label "hasValue" ; rdfs:comment "The property that determines the individual that a has-value restriction refers to." .
+owl:cardinality    rdfs:label "cardinality" ; rdfs:comment "The property that determines the cardinality of an exact cardinality restriction." .
+owl:minCardinality rdfs:label "minCardinality" ; rdfs:comment "The property that determines the cardinality of a minimum cardinality restriction." .
+owl:maxCardinality rdfs:label "maxCardinality" ; rdfs:comment "The property that determines the cardinality of a maximum cardinality restriction." .
+owl:sameAs         rdfs:label "sameAs" ; rdfs:comment "The property that determines that two given individuals are equal." .
+owl:differentFrom  rdfs:label "differentFrom" ; rdfs:comment "The property that determines that two given individuals are different." .
+owl:equivalentClass rdfs:label "equivalentClass" ; rdfs:comment "The property that determines that two given classes are equivalent, and that is used to specify datatype definitions." .
+owl:equivalentProperty rdfs:label "equivalentProperty" ; rdfs:comment "The property that determines that two given properties are equivalent." .
+owl:inverseOf      rdfs:label "inverseOf" ; rdfs:comment "The property that determines that two given properties are inverse." .
+owl:disjointWith   rdfs:label "disjointWith" ; rdfs:comment "The property that determines that two given classes are disjoint." .
+owl:unionOf        rdfs:label "unionOf" ; rdfs:comment "The property that determines the collection of classes or data ranges that build a union." .
+owl:intersectionOf rdfs:label "intersectionOf" ; rdfs:comment "The property that determines the collection of classes or data ranges that build an intersection." .
+owl:complementOf   rdfs:label "complementOf" ; rdfs:comment "The property that determines that a given class is the complement of another class." .
+owl:TransitiveProperty rdfs:label "TransitiveProperty" ; rdfs:comment "The class of transitive properties." .
+owl:SymmetricProperty rdfs:label "SymmetricProperty" ; rdfs:comment "The class of symmetric properties." .
+owl:FunctionalProperty rdfs:label "FunctionalProperty" ; rdfs:comment "The class of functional properties." .
+owl:InverseFunctionalProperty rdfs:label "InverseFunctionalProperty" ; rdfs:comment "The class of inverse-functional properties." .
+owl:imports        rdfs:label "imports" ; rdfs:comment "The property that is used for importing other ontologies into a given ontology." .
+owl:versionInfo    rdfs:label "versionInfo" ; rdfs:comment "The annotation property that provides version information for an ontology or another OWL construct." .
+owl:deprecated     rdfs:label "deprecated" ; rdfs:comment "The annotation property that indicates that a given entity has been deprecated." .

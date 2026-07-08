@@ -28,7 +28,9 @@ curl "https://<host>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore
 #     "prefLabel": { "en": "Concept" }, "definition": { "en": "An idea …" } }
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the full design.
+See [`docs/architecture.md`](docs/architecture.md) for the full design, and
+[`docs/FAQ.md`](docs/FAQ.md) for design rationale (including why "one request per label"
+is fine over HTTP/2/3).
 
 ## Develop
 

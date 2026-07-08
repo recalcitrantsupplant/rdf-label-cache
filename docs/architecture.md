@@ -8,6 +8,9 @@
 > regionally tiered cache in front of the Worker. See
 > [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for the
 > rationale, before/after, and migration checklist.
+>
+> **FAQ:** design rationale for common objections — notably "it's one request per label,
+> isn't that slow?" — lives in [`FAQ.md`](./FAQ.md).
 
 ---
 
@@ -315,7 +318,7 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 
 ## 7. Open Questions / Future Work
 
-- **Bulk resolution** — `POST /labels` with an array of IRIs. Worker fetches each R2 key and concatenates pre-built objects into a JSON-LD array. No per-object processing needed.
+- **Bulk resolution** — `POST /labels` with an array of IRIs. Worker fetches each R2 key and concatenates pre-built objects into a JSON-LD array. No per-object processing needed. **Caveat:** an arbitrary batch is a near-unique cache key, so this bypasses per-IRI edge caching and moves work into Worker CPU — scope it to cold/bulk workloads; per-IRI `GET` over H2/H3 stays the hot path. See [`FAQ.md`](./FAQ.md) for the full rationale on the "one request per label" concern.
 - **Label search** — full-text search across all stored labels (IRI → label and label → IRI). Requires an index; out of scope for the initial Worker but a natural companion service.
 - **`/.well-known/prefixes`** — canonical prefix map endpoint for tooling.
 - **Context versioning** — when a v2 context is needed, determine migration path (rewrite all R2 keys vs dual-serve both versions during transition).
