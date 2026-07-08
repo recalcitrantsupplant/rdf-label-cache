@@ -1,7 +1,7 @@
-// Maps IRI prefix → short namespace alias used as R2 key segment.
-// Single source of truth shared with scripts/ingest.mjs. To serve labels for
-// your own namespace, add it here (prefix → alias) and redeploy — the Worker
-// only resolves IRIs whose namespace is registered.
+// Maps IRI prefix → short namespace alias. NOT required for resolution — the
+// Worker keys R2 by the full IRI, so any namespace resolves. This map only
+// drives the /namespaces listing and the best-effort per-namespace cache tag
+// (labels:{alias}) used for targeted purging.
 import namespaces from "./namespaces.json";
 
 export const KNOWN_NAMESPACES: Record<string, string> = namespaces;
