@@ -1,0 +1,31 @@
+name: seed
+
+# Ingest common ontologies and upload label data to R2. Manual, plus a monthly
+# refresh. Maintainer repo only — needs Cloudflare R2 secrets, which forks lack.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 1 * *" # 04:00 UTC on the 1st of each month
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    if: github.repository_owner == 'recalcitrantsupplant'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ./scripts/seed.sh
+        env:
+          SEED_BASE: ${{ vars.SEED_BASE }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PURGE_TOKEN: ${{ secrets.PURGE_TOKEN }}

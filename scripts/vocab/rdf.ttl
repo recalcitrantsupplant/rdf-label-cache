@@ -1,0 +1,26 @@
+# RDF vocabulary — hand-curated (w3.org namespace docs are Cloudflare-challenged,
+# so cannot be fetched by the ingest script). Labels/definitions per the RDF 1.1
+# specification. https://www.w3.org/1999/02/22-rdf-syntax-ns#
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+rdf:type       rdfs:label "type" ; rdfs:comment "The subject is an instance of a class." .
+rdf:Property   rdfs:label "Property" ; rdfs:comment "The class of RDF properties." .
+rdf:Statement  rdfs:label "Statement" ; rdfs:comment "The class of RDF statements." .
+rdf:subject    rdfs:label "subject" ; rdfs:comment "The subject of the subject RDF statement." .
+rdf:predicate  rdfs:label "predicate" ; rdfs:comment "The predicate of the subject RDF statement." .
+rdf:object     rdfs:label "object" ; rdfs:comment "The object of the subject RDF statement." .
+rdf:value      rdfs:label "value" ; rdfs:comment "Idiomatic property used for structured values." .
+rdf:List       rdfs:label "List" ; rdfs:comment "The class of RDF Lists." .
+rdf:first      rdfs:label "first" ; rdfs:comment "The first item in the subject RDF list." .
+rdf:rest       rdfs:label "rest" ; rdfs:comment "The rest of the subject RDF list after the first item." .
+rdf:nil        rdfs:label "nil" ; rdfs:comment "The empty list, with no items in it. If the rest of a list is nil then the list has no more items in it." .
+rdf:Bag        rdfs:label "Bag" ; rdfs:comment "The class of unordered containers." .
+rdf:Seq        rdfs:label "Seq" ; rdfs:comment "The class of ordered containers." .
+rdf:Alt        rdfs:label "Alt" ; rdfs:comment "The class of containers of alternatives." .
+rdf:langString rdfs:label "langString" ; rdfs:comment "The datatype of language-tagged string values." .
+rdf:HTML       rdfs:label "HTML" ; rdfs:comment "The datatype of RDF literals storing fragments of HTML content." .
+rdf:XMLLiteral rdfs:label "XMLLiteral" ; rdfs:comment "The datatype of XML literal values." .
+rdf:JSON       rdfs:label "JSON" ; rdfs:comment "The datatype of RDF literals storing JSON content." .
+rdf:PlainLiteral rdfs:label "PlainLiteral" ; rdfs:comment "The class of plain (i.e. untyped) literal values, as used in RIF and OWL 2." .
+rdf:direction  rdfs:label "direction" ; rdfs:comment "The base direction component of a directional language-tagged string." .
