@@ -8,6 +8,9 @@ permissions:
 
 jobs:
   commitlint:
+    # Dependabot writes "Bump …" (sentence-case), which config-conventional
+    # rejects; its commits are machine-generated, so skip linting them.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
