@@ -2,6 +2,11 @@ name = "rdf-label-resolver"
 main = "src/index.ts"
 compatibility_date = "2025-04-19"
 
+# Workers Cache: platform-managed, tiered cache in front of the Worker. Cache
+# hits skip the Worker entirely. Invalidation is via POST /admin/purge (tags).
+[cache]
+enabled = true
+
 [[r2_buckets]]
 binding = "PUBLIC_LABELS"
 bucket_name = "rdf-public-labels"

@@ -5,12 +5,21 @@ name = "rdf-label-cache"
 main = "../src/index.ts"
 compatibility_date = "2025-04-19"
 
+[cache]
+enabled = true
+
 [[r2_buckets]]
 binding = "PUBLIC_LABELS"
 bucket_name = "rdf-public-labels"
 
 [vars]
 ENVIRONMENT = "production"
+
+# Static demo page. Assets are matched first; requests that don't match a file
+# (e.g. /label, /namespaces, /context/*) fall through to the Worker. Same origin
+# means the page calls /label with a bare relative path — no CORS needed.
+[assets]
+directory = "./public"
 
 # Optional custom domain instead of the free *.workers.dev URL:
 # routes = [{ pattern = "labels.example.com", custom_domain = true }]

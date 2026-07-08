@@ -1,31 +1,15 @@
-export async function handleContext(
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext
-): Promise<Response> {
-  const cache = caches.default;
-  const cached = await cache.match(request);
-  if (cached) return cached;
+import { cacheHeaders } from "../lib/cache";
 
+export async function handleContext(env: Env): Promise<Response> {
   const object = await env.PUBLIC_LABELS.get("context/labels-v1.json");
 
   if (!object) {
     return new Response(JSON.stringify({ error: "not_found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" },
     });
   }
 
-  const headers = new Headers({
-    "Content-Type": "application/ld+json",
-    "Cache-Control": "public, max-age=31536000, immutable",
-  });
-
-  const ce = object.httpMetadata?.contentEncoding;
-  if (ce) headers.set("Content-Encoding", ce);
-
-  const response = new Response(object.body, { status: 200, headers });
-  ctx.waitUntil(cache.put(request, response.clone()));
-
-  return response;
+  const headers = cacheHeaders("application/ld+json", ["context"], object.httpMetadata?.contentEncoding);
+  return new Response(object.body, { status: 200, headers });
 }

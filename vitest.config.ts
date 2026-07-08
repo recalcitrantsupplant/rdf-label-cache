@@ -8,7 +8,7 @@ export default defineConfig({
       miniflare: {
         // wrangler.toml pins ENVIRONMENT=production (disables /dev/seed);
         // override to "test" so the suite can seed the local R2.
-        bindings: { ENVIRONMENT: "test" },
+        bindings: { ENVIRONMENT: "test", PURGE_TOKEN: "test-token" },
       },
     }),
   ],
