@@ -20,4 +20,16 @@ fi
 echo "==> Deploying demo worker"
 pnpm wrangler deploy --config demo/wrangler.demo.toml
 
+# Invalidate the whole cache after a code deploy (response shapes may change).
+# Best-effort: skipped until PURGE_TOKEN is set as a secret on both the Worker
+# (wrangler secret) and here (CI env). See docs migration doc.
+DEMO_URL="${DEMO_URL:-https://rdf-label-cache.dhabgood.workers.dev}"
+if [ -n "${PURGE_TOKEN:-}" ]; then
+  echo "==> Purging cache (tag: all)"
+  curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+    "$DEMO_URL/admin/purge?tags=all" && echo || echo "WARN: purge failed (non-fatal)"
+else
+  echo "==> PURGE_TOKEN unset — skipping cache purge (cache self-expires per TTL)"
+fi
+
 echo "==> Deployed. Seed data is managed separately via scripts/seed-remote.sh"

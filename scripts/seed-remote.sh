@@ -31,4 +31,14 @@ done
 echo "==> Seeding via ?base=$BASE"
 curl -fsS "http://localhost:$PORT/dev/seed?base=$BASE"
 echo
+
+# Data changed → invalidate label + context caches (best-effort; needs PURGE_TOKEN).
+if [ -n "${PURGE_TOKEN:-}" ]; then
+  echo "==> Purging cache (tags: labels,context)"
+  curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+    "$BASE/admin/purge?tags=labels,context" && echo || echo "WARN: purge failed (non-fatal)"
+else
+  echo "==> PURGE_TOKEN unset — skipping purge; cached labels self-expire per TTL"
+fi
+
 echo "==> Seed complete"
