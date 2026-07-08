@@ -21,12 +21,28 @@ import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import N3 from "n3";
+import NS from "../src/lib/namespaces.json" with { type: "json" };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
 const OUT = join(ROOT, "dist", "seed");
 const BASE = (process.env.SEED_BASE || "https://rdf-label-cache.dhabgood.workers.dev").replace(/\/$/, "");
 const CONTEXT_URL = `${BASE}/context/labels-v1.json`;
+// `--input <file>` ingests your own RDF dump instead of the public ontologies.
+const inputIdx = process.argv.indexOf("--input");
+const INPUT = inputIdx > -1 ? process.argv[inputIdx + 1] : null;
+
+// Mirror of the Worker's parseIRI (src/lib/namespaces.ts): split on the last #
+// or / (# wins), look up the namespace alias. Returns null for namespaces not
+// registered in namespaces.json — those IRIs would 404, so we skip them.
+function parseKey(iri) {
+  const hashIdx = iri.lastIndexOf("#");
+  const at = hashIdx !== -1 ? hashIdx : iri.lastIndexOf("/");
+  if (at === -1 || at === iri.length - 1) return null;
+  const alias = NS[iri.slice(0, at + 1)];
+  const local = iri.slice(at + 1);
+  return alias && local ? { alias, local } : null;
+}
 
 // Kept in sync with src/routes/dev-seed.ts CONTEXT_DOC.
 const CONTEXT_DOC = {
@@ -99,23 +115,54 @@ function parseRDF(text) {
   });
 }
 
-async function ingestSource(src) {
-  const quads = await parseRDF(await loadText(src));
+// Collect the best label + description literal for each accepted subject IRI.
+function collectLiterals(quads, accept) {
   const labels = new Map(); // iri -> {lang, value}
   const defs = new Map();
   for (const q of quads) {
     if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
-    const iri = q.subject.value;
-    if (!iri.startsWith(src.base)) continue;
-    const local = iri.slice(src.base.length);
-    if (!local || /[/#?]/.test(local)) continue; // must be a flat local name in this namespace
+    if (!accept(q.subject.value)) continue;
     const lit = { lang: q.object.language || "", value: q.object.value };
-    if (LABEL_PREDS.has(q.predicate.value)) labels.set(iri, better(labels.get(iri), lit));
-    else if (DESC_PREDS.has(q.predicate.value)) defs.set(iri, better(defs.get(iri), lit));
+    if (LABEL_PREDS.has(q.predicate.value)) labels.set(q.subject.value, better(labels.get(q.subject.value), lit));
+    else if (DESC_PREDS.has(q.predicate.value)) defs.set(q.subject.value, better(defs.get(q.subject.value), lit));
   }
+  return { labels, defs };
+}
+
+// A public ontology: terms are those defined in the namespace, keyed by its alias.
+async function ingestSource(src) {
+  const quads = await parseRDF(await loadText(src));
+  const { labels, defs } = collectLiterals(
+    quads,
+    (iri) => iri.startsWith(src.base) && iri.length > src.base.length && !/[/#?]/.test(iri.slice(src.base.length))
+  );
   const terms = [];
   for (const [iri, label] of labels) {
     terms.push({ iri, ns: src.ns, local: iri.slice(src.base.length), label: label.value, definition: defs.get(iri)?.value });
+  }
+  return terms;
+}
+
+// A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props):
+// every subject IRI is a candidate, keyed via the registered namespaces.
+async function ingestDump(file) {
+  const { labels, defs } = collectLiterals(await parseRDF(await readFile(file, "utf8")), () => true);
+  const terms = [];
+  const unregistered = new Map(); // namespace prefix -> count
+  for (const [iri, label] of labels) {
+    const k = parseKey(iri);
+    if (!k) {
+      const hashIdx = iri.lastIndexOf("#");
+      const at = hashIdx !== -1 ? hashIdx : iri.lastIndexOf("/");
+      unregistered.set(iri.slice(0, at + 1), (unregistered.get(iri.slice(0, at + 1)) || 0) + 1);
+      continue;
+    }
+    terms.push({ iri, ns: k.alias, local: k.local, label: label.value, definition: defs.get(iri)?.value });
+  }
+  if (unregistered.size) {
+    const dropped = [...unregistered.values()].reduce((a, b) => a + b, 0);
+    console.warn(`\n  ⚠ skipped ${dropped} labelled IRIs in unregistered namespaces — add these to src/lib/namespaces.json and redeploy:`);
+    for (const [pfx, n] of [...unregistered].sort((a, b) => b[1] - a[1])) console.warn(`      ${String(n).padStart(6)}  ${pfx}`);
   }
   return terms;
 }
@@ -132,9 +179,7 @@ async function main() {
   let total = 0;
   const seen = new Set(); // exact-key duplicate guard (across namespaces)
 
-  for (const src of SOURCES) {
-    process.stdout.write(`  ${src.ns.padEnd(8)} ${src.file || src.url}\n`);
-    const terms = await ingestSource(src);
+  const writeTerms = (label, terms) => {
     for (const t of terms) {
       const key = `labels/${t.ns}/${t.local}/en`;
       if (seen.has(key)) continue;
@@ -143,8 +188,18 @@ async function main() {
       if (t.definition) doc.definition = { en: t.definition };
       emit(key, JSON.stringify(doc));
     }
-    summary.push({ ns: src.ns, terms: terms.length, withDefinition: terms.filter((t) => t.definition).length });
+    summary.push({ ns: label, terms: terms.length, withDefinition: terms.filter((t) => t.definition).length });
     total += terms.length;
+  };
+
+  if (INPUT) {
+    process.stdout.write(`  dump      ${INPUT}\n`);
+    writeTerms("your-data", await ingestDump(INPUT));
+  } else {
+    for (const src of SOURCES) {
+      process.stdout.write(`  ${src.ns.padEnd(8)} ${src.file || src.url}\n`);
+      writeTerms(src.ns, await ingestSource(src));
+    }
   }
 
   await writeFile(join(OUT, "manifest.ndjson"), lines.join("\n") + "\n");
