@@ -124,18 +124,28 @@ No fallback chain, no proxy, no external calls. The Worker either finds the obje
 
 #### Key structure
 
+Keyed by the **full IRI** — namespace-agnostic, so any namespace resolves without
+registration, and the IRI's own path becomes the R2 hierarchy (browsable for debugging).
+
 ```
-labels/{namespace}/{local_name}/en          ← English only
-labels/{namespace}/{local_name}/fr          ← French only
-labels/{namespace}/{local_name}/x-none      ← untagged literals (no lang tag)
-labels/{namespace}/{local_name}             ← all-languages bundle (optional)
+labels/{iri}/en          ← English only     e.g. labels/https://schema.org/name/en
+labels/{iri}/fr          ← French only
+labels/{iri}/x-none      ← untagged literals (no lang tag)
+labels/{iri}             ← all-languages bundle (optional)
 
-context/labels-v1.json                      ← shared JSON-LD context document
+context/labels-v1.json   ← shared JSON-LD context document
 ```
 
-Language is encoded in the key — the Worker does no filtering or transformation. Untagged literals use `x-none` (BCP47 convention) to avoid a null key edge case.
+The Worker builds the key from `?iri=` with no namespace lookup: `labels/${iri}/${lang}`.
+Language is encoded in the key — no filtering or transformation. Untagged literals use
+`x-none` (BCP47 convention) to avoid a null key edge case.
 
-**All-languages bundle** (`labels/{ns}/{local}`) is optional. Omit it if per-language objects already cover the use case. A no-`?lang=` request that hits a missing bundle returns 404.
+**All-languages bundle** (`labels/{iri}`) is optional. Omit it if per-language objects
+already cover the use case. A no-`?lang=` request that hits a missing bundle returns 404.
+
+> **Note:** the `wrangler r2 object put` CLI can't write these keys (it truncates `#` as a
+> URL fragment and percent-decodes `%`). Seed via the R2 binding (`/dev/load` locally) or
+> the S3 API (`scripts/upload-seed.mjs`), both of which store keys verbatim.
 
 **Namespace dumps** (`namespaces/{ns}/*.json`) are omitted. Schema.org has ~2,500 terms; a full dump would be tens of MB and has no clear use case for per-IRI resolution. Use the ingestion pipeline output directly if bulk access is needed.
 

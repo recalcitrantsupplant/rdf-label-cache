@@ -27,6 +27,9 @@ const ROOT = join(HERE, "..");
 const OUT = join(ROOT, "dist", "seed");
 const BASE = (process.env.SEED_BASE || "https://rdf-label-cache.dhabgood.workers.dev").replace(/\/$/, "");
 const CONTEXT_URL = `${BASE}/context/labels-v1.json`;
+// `--input <file>` ingests your own RDF dump instead of the public ontologies.
+const inputIdx = process.argv.indexOf("--input");
+const INPUT = inputIdx > -1 ? process.argv[inputIdx + 1] : null;
 
 // Kept in sync with src/routes/dev-seed.ts CONTEXT_DOC.
 const CONTEXT_DOC = {
@@ -99,23 +102,42 @@ function parseRDF(text) {
   });
 }
 
-async function ingestSource(src) {
-  const quads = await parseRDF(await loadText(src));
+// Collect the best label + description literal for each accepted subject IRI.
+function collectLiterals(quads, accept) {
   const labels = new Map(); // iri -> {lang, value}
   const defs = new Map();
   for (const q of quads) {
     if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
-    const iri = q.subject.value;
-    if (!iri.startsWith(src.base)) continue;
-    const local = iri.slice(src.base.length);
-    if (!local || /[/#?]/.test(local)) continue; // must be a flat local name in this namespace
+    if (!accept(q.subject.value)) continue;
     const lit = { lang: q.object.language || "", value: q.object.value };
-    if (LABEL_PREDS.has(q.predicate.value)) labels.set(iri, better(labels.get(iri), lit));
-    else if (DESC_PREDS.has(q.predicate.value)) defs.set(iri, better(defs.get(iri), lit));
+    if (LABEL_PREDS.has(q.predicate.value)) labels.set(q.subject.value, better(labels.get(q.subject.value), lit));
+    else if (DESC_PREDS.has(q.predicate.value)) defs.set(q.subject.value, better(defs.get(q.subject.value), lit));
   }
+  return { labels, defs };
+}
+
+// A public ontology: terms are those defined in the namespace, keyed by its alias.
+async function ingestSource(src) {
+  const quads = await parseRDF(await loadText(src));
+  const { labels, defs } = collectLiterals(
+    quads,
+    (iri) => iri.startsWith(src.base) && iri.length > src.base.length && !/[/#?]/.test(iri.slice(src.base.length))
+  );
   const terms = [];
   for (const [iri, label] of labels) {
-    terms.push({ iri, ns: src.ns, local: iri.slice(src.base.length), label: label.value, definition: defs.get(iri)?.value });
+    terms.push({ iri, label: label.value, definition: defs.get(iri)?.value });
+  }
+  return terms;
+}
+
+// A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props):
+// every labelled subject IRI is emitted — keying is namespace-agnostic, so no
+// registration is needed.
+async function ingestDump(file) {
+  const { labels, defs } = collectLiterals(await parseRDF(await readFile(file, "utf8")), () => true);
+  const terms = [];
+  for (const [iri, label] of labels) {
+    terms.push({ iri, label: label.value, definition: defs.get(iri)?.value });
   }
   return terms;
 }
@@ -132,19 +154,27 @@ async function main() {
   let total = 0;
   const seen = new Set(); // exact-key duplicate guard (across namespaces)
 
-  for (const src of SOURCES) {
-    process.stdout.write(`  ${src.ns.padEnd(8)} ${src.file || src.url}\n`);
-    const terms = await ingestSource(src);
+  const writeTerms = (label, terms) => {
     for (const t of terms) {
-      const key = `labels/${t.ns}/${t.local}/en`;
+      const key = `labels/${t.iri}/en`;
       if (seen.has(key)) continue;
       seen.add(key);
       const doc = { "@context": CONTEXT_URL, "@id": t.iri, prefLabel: { en: t.label } };
       if (t.definition) doc.definition = { en: t.definition };
       emit(key, JSON.stringify(doc));
     }
-    summary.push({ ns: src.ns, terms: terms.length, withDefinition: terms.filter((t) => t.definition).length });
+    summary.push({ ns: label, terms: terms.length, withDefinition: terms.filter((t) => t.definition).length });
     total += terms.length;
+  };
+
+  if (INPUT) {
+    process.stdout.write(`  dump      ${INPUT}\n`);
+    writeTerms("your-data", await ingestDump(INPUT));
+  } else {
+    for (const src of SOURCES) {
+      process.stdout.write(`  ${src.ns.padEnd(8)} ${src.file || src.url}\n`);
+      writeTerms(src.ns, await ingestSource(src));
+    }
   }
 
   await writeFile(join(OUT, "manifest.ndjson"), lines.join("\n") + "\n");

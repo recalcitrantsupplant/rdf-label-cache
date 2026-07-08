@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Why label-cache?</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
+    --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
+    --bad: #b91c1c; --good: #166534; --code: #f3f4f6;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
+      --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
+      --bad: #f85149; --good: #4ade80; --code: #161b22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); background: var(--bg); line-height: 1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 80px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back { font-size: 13px; }
+  h1 { font-size: 26px; letter-spacing: -0.02em; margin: 20px 0 6px; }
+  h2 { font-size: 18px; margin: 40px 0 10px; letter-spacing: -0.01em; }
+  .lede { font-size: 16px; color: var(--muted); margin: 0 0 8px; }
+  p { margin: 10px 0; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  strong { font-weight: 600; }
+
+  /* dumb diagram */
+  .diagram { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 22px 20px; margin: 22px 0; }
+  .lane { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; font-size: 13.5px; }
+  .lane .tag { width: 62px; flex-shrink: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 600; }
+  .box { border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; background: var(--bg); font-weight: 600; font-size: 13px; }
+  .box.app { border-color: var(--accent); color: var(--accent); }
+  .box.kg { border-style: dashed; }
+  .box.cache { border-color: var(--good); color: var(--good); }
+  .arrow { color: var(--faint); font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  .arrow b { color: var(--fg); font-weight: 500; }
+  .caption { font-size: 12.5px; color: var(--muted); margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 12px; }
+
+  /* mode cards */
+  .mode { border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: 8px; padding: 14px 16px; margin: 14px 0; background: var(--panel); }
+  .mode h3 { margin: 0 0 6px; font-size: 15px; }
+  .mode .why { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
+  .mode .why b { color: var(--bad); font-weight: 600; }
+  .solution { border-left-color: var(--good); }
+  .solution .why b { color: var(--good); }
+  ul { margin: 8px 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+  @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
+  .stat-n { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--good); }
+  .stat-n span { display: block; font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0; text-transform: uppercase; margin-top: 2px; }
+  .stat-d { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← back to the demo</a>
+  <h1>Why label-cache?</h1>
+  <p class="lede">RDF names everything with IRIs. Turning those IRIs into words is the same boring problem in every app — and most ways of solving it are bad.</p>
+
+  <p>RDF identifies everything with an IRI: <code>skos:broader</code>, <code>https://schema.org/jobTitle</code>,
+  <code>wd:Q42</code>. They're globally unique but unreadable. Any app that shows RDF to a human has to
+  resolve <em>IRI → label</em> — over and over, for predicates, classes, and entities. That lookup is
+  identical everywhere, yet it's usually solved in ways that don't scale.</p>
+
+  <div class="diagram">
+    <div class="lane"><span class="tag">Data</span>
+      <span class="box app">Your app</span>
+      <span class="arrow">— query <b>→</b></span>
+      <span class="box kg">Knowledge graph</span>
+      <span class="arrow"><b>←</b> results (opaque IRIs)</span>
+    </div>
+    <div class="lane"><span class="tag">Labels</span>
+      <span class="box app">Your app</span>
+      <span class="arrow">— <b>GET /label?iri=…</b> →</span>
+      <span class="box cache">Label cache</span>
+      <span class="arrow">→ edge cache → R2</span>
+    </div>
+    <div class="caption">Labels come from a globally distributed <strong>edge CDN</strong>, not your triplestore.
+      Popular vocabulary IRIs are a cache hit almost every time, so the knowledge graph only ever serves your <em>data</em>.</div>
+  </div>
+
+  <h2>The usual ways to get labels — and why they hurt</h2>
+
+  <div class="mode">
+    <h3>1. Hard-code labels into the app</h3>
+    <p>Ship a big <code>{ iri: "label" }</code> table in the frontend.</p>
+    <p class="why"><b>Why it's bad:</b> stale the moment a vocabulary changes, duplicated in every app you
+    build, no shared source of truth, needs a redeploy to fix a typo — and it only covers the IRIs you
+    thought of in advance.</p>
+  </div>
+
+  <div class="mode">
+    <h3>2. Ask for labels in the query (complicated SPARQL)</h3>
+    <p><code>OPTIONAL</code>-join <code>rdfs:label</code> / <code>skos:prefLabel</code>, with language
+    fallbacks, for every variable you project.</p>
+    <p class="why"><b>Why it's bad:</b> the query balloons — every term needs its own <code>OPTIONAL</code> +
+    <code>COALESCE</code>, language fallback in SPARQL is miserable, it's slow, and you paste the same label
+    boilerplate into <em>every</em> query you ever write.</p>
+  </div>
+
+  <div class="mode">
+    <h3>3. A follow-up query for the labels</h3>
+    <p>Run the main query, collect the IRIs it returned, then query the graph again for their labels.</p>
+    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> — this is exactly what label-cache does — but
+    it always hits your triplestore: uncached, extra load, a round trip per batch. And the labels for common
+    terms like <code>rdfs:label</code> or <code>schema:name</code> are identical across every graph on earth,
+    yet you re-fetch them from <em>your</em> KG every single time.</p>
+  </div>
+
+  <div class="mode">
+    <h3>4. Shadow &ldquo;label&rdquo; named graphs</h3>
+    <p>Materialise a named graph — e.g. one per focus node — that holds all the labels for its IRIs, so you
+    can pull them alongside the data.</p>
+    <p class="why"><b>Why it's bad:</b> now you maintain a <em>copy</em>. It drifts from the source, bloats
+    storage, needs a sync/materialisation pipeline to stay current — and it's still inside the triplestore, so
+    every read still lands on the KG.</p>
+  </div>
+
+  <h2>What label-cache does instead</h2>
+  <div class="mode solution">
+    <h3>Follow-up lookups — from an edge CDN, not your KG</h3>
+    <p class="why">Take approach&nbsp;3 (a per-IRI lookup) and move it off the triplestore entirely. Labels are
+    pre-materialised <b>once</b> into blob storage (R2) and fronted by a tiered edge cache. A lookup is a plain
+    <code>GET /label?iri=…</code>, resolved at the nearest edge location; popular vocabulary IRIs are served
+    from cache without ever touching a database. Your triplestore serves <strong>data</strong>; the CDN serves
+    <strong>labels</strong>. They're decoupled.</p>
+  </div>
+
+  <h2>What that buys you: cost and latency</h2>
+  <div class="stats">
+    <div class="stat"><div class="stat-n">$0.30<span>/ million hits</span></div><div class="stat-d">first 100k/day free · no egress fees</div></div>
+    <div class="stat"><div class="stat-n">shared<span>per region</span></div><div class="stat-d">one user warms it, everyone rides it</div></div>
+    <div class="stat"><div class="stat-n">&lt;50&nbsp;ms<span>for 95% of users</span></div><div class="stat-d">served from the nearest of 330+ cities</div></div>
+  </div>
+  <p><strong>It's a shared edge cache, not per-user.</strong> Cloudflare caches each label response <em>per data
+  centre</em>, shared across everyone routed there. The first request for an IRI in a region warms the cache; with a
+  long TTL, every later user in that region is served the cached copy — the request never reaches R2. Tiered caching
+  aggregates this across the network, so cold locations pull from a regional tier rather than round-tripping to
+  storage. Since the same vocabulary IRIs (<code>rdfs:label</code>, <code>schema:name</code>, …) appear in
+  everyone's data, hit rates on popular terms are very high.</p>
+  <p><strong>A hit costs almost nothing.</strong> It's a single Cloudflare Workers request — $0.30 per million,
+  ~$0.0000003 each, with the first 100,000 a day free. On a hit no compute is billed and R2 is never read, and
+  Cloudflare charges <strong>no bandwidth or egress fees at all</strong> — unlike the hyperscalers. Serving hundreds
+  of millions of lookups a month is dollars, not a database bill.</p>
+  <p><strong>And it's faster than calling your backend.</strong> Workers, R2, and the cache are all on Cloudflare's
+  edge — the same network your request already lands on, not a hop out to a cloud region and then an app plus a
+  database. 95% of internet users are within 50&nbsp;ms of a Cloudflare data centre (most within 20&nbsp;ms), and a
+  cache hit is served right there. Resolving a label is typically quicker than a <em>single</em> round trip to your
+  origin — before that origin has queried anything.</p>
+
+  <h2>Populating it — for the demo, and for you</h2>
+  <p>Nothing is pre-loaded by magic. You populate R2 <strong>once</strong> with the labels your data needs — the
+  same way this demo was populated. Two things go in:</p>
+  <ul>
+    <li><strong>Your own IRIs</strong> — their <strong>annotation properties</strong> (labels, descriptions, …),
+    extracted from your data.</li>
+    <li><strong>The public vocabulary terms you actually use</strong> — the handful of Schema.org / SKOS /
+    Dublin&nbsp;Core predicates and classes your data references, without loading whole ontologies you don't need.</li>
+  </ul>
+  <p>At triplestore scale, a single SPARQL <code>CONSTRUCT</code> can do both: find every IRI your data mentions
+  and emit its label and description from wherever they're defined. That dump feeds the same generate → upload step
+  the demo used. (Prefer whole public vocabularies over stripping to just what's used? Storage is cheap — load the
+  lot.) Recipes and scripts for this live in the repo.</p>
+
+  <p class="foot"><a href="/">← Try the demo</a> &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; design docs</a></p>
+</div>
+</body>
+</html>

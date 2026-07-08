@@ -77,11 +77,12 @@ export async function handleDevSeed(request: Request, env: Env): Promise<Respons
   });
   written.push("context/labels-v1.json");
 
-  // Label objects — English and all-languages bundle (same content for now)
+  // Label objects — English and all-languages bundle (same content for now).
+  // Keyed by the full IRI itself (see src/routes/label.ts).
   for (const entry of SEED_LABELS) {
     const body = labelDoc(entry, contextUrl);
-    const enKey = `labels/${entry.ns}/${entry.local}/en`;
-    const bundleKey = `labels/${entry.ns}/${entry.local}`;
+    const enKey = `labels/${entry.iri}/en`;
+    const bundleKey = `labels/${entry.iri}`;
 
     await env.PUBLIC_LABELS.put(enKey, body, { httpMetadata: TEXT });
     await env.PUBLIC_LABELS.put(bundleKey, body, { httpMetadata: TEXT });

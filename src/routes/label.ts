@@ -17,29 +17,28 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
     return errorResponse({ error: "invalid_param", message: "?iri= is not valid percent-encoding" }, 400);
   }
 
-  const parsed = parseIRI(iri);
-  if (!parsed) {
-    return errorResponse({ error: "not_found", iri, message: "Namespace not in public store." }, 404);
-  }
-
-  const { namespaceAlias, localName } = parsed;
-  const r2Key = lang
-    ? `labels/${namespaceAlias}/${localName}/${lang}`
-    : `labels/${namespaceAlias}/${localName}`;
+  // Namespace-agnostic keying: the R2 key is the full IRI itself, so any
+  // namespace resolves without registration — and the IRI's own path becomes
+  // the R2 hierarchy, readable/browsable for debugging:
+  //   labels/https://schema.org/name/en
+  const r2Key = lang ? `labels/${iri}/${lang}` : `labels/${iri}`;
 
   const object = await env.PUBLIC_LABELS.get(r2Key);
   if (!object) {
     return errorResponse(
-      { error: "not_found", iri, ...(lang ? { lang } : {}), message: "Label not found in public store." },
+      { error: "not_found", iri, ...(lang ? { lang } : {}), message: "Label not found in store." },
       404
     );
   }
 
   // Cached by Workers Cache per Cache-Control; invalidated by purging the
-  // `labels` tag (or `labels:{ns}` for one namespace) on a data refresh.
+  // `labels` tag (or `labels:{ns}` for one namespace) on a data refresh. The
+  // per-namespace tag is best-effort — known namespaces only; others just get
+  // `labels`. Keying no longer depends on it.
+  const ns = parseIRI(iri)?.namespaceAlias;
   const headers = cacheHeaders(
     "application/ld+json",
-    ["labels", `labels:${namespaceAlias}`],
+    ns ? ["labels", `labels:${ns}`] : ["labels"],
     object.httpMetadata?.contentEncoding
   );
   return new Response(object.body, { status: 200, headers });
