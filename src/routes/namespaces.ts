@@ -32,8 +32,8 @@ export async function handleNamespaces(
     return response;
   }
 
-  // List all known public namespaces
-  const list = Object.entries(KNOWN_NAMESPACES).map(([iri, alias]) => ({ alias, iri }));
+  // List all known public namespaces: prefix (short name) + namespace (base URI)
+  const list = Object.entries(KNOWN_NAMESPACES).map(([namespace, prefix]) => ({ prefix, namespace }));
   const body = JSON.stringify({ namespaces: list });
   const response = new Response(body, {
     status: 200,

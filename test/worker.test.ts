@@ -59,9 +59,12 @@ describe("/namespaces", () => {
     const res = await SELF.fetch(`${BASE}/namespaces`);
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    const aliases = body.namespaces.map((n: any) => n.alias);
-    expect(aliases).toContain("skos");
-    expect(aliases).toContain("owl");
+    const prefixes = body.namespaces.map((n: any) => n.prefix);
+    expect(prefixes).toContain("skos");
+    expect(prefixes).toContain("owl");
+    // each entry exposes prefix + namespace (base URI)
+    const skos = body.namespaces.find((n: any) => n.prefix === "skos");
+    expect(skos.namespace).toBe("http://www.w3.org/2004/02/skos/core#");
   });
 });
 
