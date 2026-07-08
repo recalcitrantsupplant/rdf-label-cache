@@ -1,50 +1,27 @@
 #!/usr/bin/env bash
-# Load the ingest manifest into a LOCAL wrangler R2 (miniflare) for demoing.
-# For real R2 use scripts/upload-seed.mjs (S3 API) — this is the slow, dev-only
-# path (one `wrangler r2 object put` per object).
+# Load the ingest manifest into a running dev server's R2 via POST /dev/load,
+# which writes through the R2 binding. This is the dev-only local path — the
+# `wrangler r2 object put` CLI mangles keys containing "#" or "%", but the
+# binding stores them verbatim. For real R2 use scripts/upload-seed.mjs (S3).
 #
-# Usage: scripts/seed-local.sh [WRANGLER_CONFIG] [KEY_REGEX]
-#   scripts/seed-local.sh demo/wrangler.demo.toml '^labels/(rdf|rdfs|owl|skos)/'
+# Usage: scripts/seed-local.sh [DEV_URL] [KEY_REGEX]
+#   scripts/seed-local.sh http://localhost:8801 '^labels/http://www.w3.org'
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-CONFIG="${1:-demo/wrangler.demo.toml}"
+URL="${1:-http://localhost:8801}"
 FILTER="${2:-.}"
-BUCKET="rdf-public-labels"
 MANIFEST="dist/seed/manifest.ndjson"
-WRANGLER="node_modules/.bin/wrangler"
 [ -f "$MANIFEST" ] || { echo "no $MANIFEST — run: node scripts/ingest.mjs" >&2; exit 1; }
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
-
-# One Python pass: write each matching body to a temp file, emit "key<TAB>file".
-python3 - "$MANIFEST" "$FILTER" "$TMP" > "$TMP/index.tsv" <<'PY'
+# Filter the manifest by key regex, then POST the NDJSON to /dev/load in one shot.
+python3 - "$MANIFEST" "$FILTER" <<'PY' | curl -sS -X POST --data-binary @- "${URL%/}/dev/load"
 import sys, json, re
-manifest, pattern, tmp = sys.argv[1], re.compile(sys.argv[2]), sys.argv[3]
-i = 0
+manifest, pattern = sys.argv[1], re.compile(sys.argv[2])
 with open(manifest) as f:
     for line in f:
         line = line.strip()
-        if not line:
-            continue
-        rec = json.loads(line)
-        if not pattern.search(rec["key"]):
-            continue
-        p = f"{tmp}/{i}.json"
-        with open(p, "w") as o:
-            o.write(rec["body"])
-        print(f'{rec["key"]}\t{p}')
-        i += 1
+        if line and pattern.search(json.loads(line)["key"]):
+            print(line)
 PY
-
-n=$(wc -l < "$TMP/index.tsv" | tr -d ' ')
-echo "==> loading $n objects into local R2 ($CONFIG)"
-i=0
-while IFS=$'\t' read -r key file; do
-  "$WRANGLER" r2 object put "$BUCKET/$key" --file "$file" --local --config "$CONFIG" \
-    --content-type application/ld+json >/dev/null 2>&1
-  i=$((i + 1))
-  [ $((i % 25)) -eq 0 ] && echo "    $i/$n"
-done < "$TMP/index.tsv"
-echo "==> loaded $i objects"
+echo

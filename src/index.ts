@@ -2,6 +2,7 @@ import { handleLabel } from "./routes/label";
 import { handleContext } from "./routes/context";
 import { handleNamespaces } from "./routes/namespaces";
 import { handleDevSeed } from "./routes/dev-seed";
+import { handleDevLoad } from "./routes/dev-load";
 import { handlePurge } from "./routes/purge";
 
 export default {
@@ -12,6 +13,11 @@ export default {
     // Cache purge is POST + authenticated; handle before the GET-only guard.
     if (pathname === "/admin/purge") {
       return handlePurge(request, env, ctx);
+    }
+
+    // Dev-only bulk loader (POST); handle before the GET-only guard.
+    if (pathname === "/dev/load" && env.ENVIRONMENT !== "production") {
+      return handleDevLoad(request, env);
     }
 
     if (request.method !== "GET") {
