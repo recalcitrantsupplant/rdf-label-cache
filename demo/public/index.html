@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RDF Label Cache — demo</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
+    --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
+    --badge: #ede9fe; --badge-fg: #5b21b6; --code: #f3f4f6; --err: #b91c1c;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
+      --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
+      --badge: #2d2140; --badge-fg: #c9a9ff; --code: #161b22; --err: #f85149;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: var(--sans); color: var(--fg); background: var(--bg); font-size: 15px; line-height: 1.5; }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  header a { color: var(--accent); text-decoration: none; }
+  main { display: grid; grid-template-columns: 1fr 0.95fr 1fr; gap: 0; height: calc(100% - 66px); }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
+  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .pane.left, .pane.middle { border-right: 1px solid var(--line); }
+  @media (max-width: 1000px) { .pane.left, .pane.middle { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+  .toolbar label { font-size: 12px; color: var(--muted); }
+  select, button { font: inherit; font-size: 13px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: var(--bg); }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); }
+  textarea { flex: 1; width: 100%; border: 0; padding: 16px; resize: none; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg); color: var(--fg); outline: none; tab-size: 2; }
+  .out { flex: 1; overflow: auto; padding: 16px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; background: var(--panel); }
+  .card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .card-title { font-weight: 600; font-size: 15px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--badge); color: var(--badge-fg); font-weight: 600; }
+  .rows { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px 16px; }
+  .k { color: var(--muted); }
+  .v { min-width: 0; word-break: break-word; }
+  .v .item { display: block; }
+  .term { border-bottom: 1px dotted var(--faint); cursor: help; }
+  .term.unresolved { font-family: var(--mono); font-size: 12.5px; color: var(--muted); border-bottom-color: transparent; }
+  .term.local { border-bottom-style: dashed; border-bottom-color: var(--accent); }
+  .lit { }
+  .tag { font-size: 10.5px; color: var(--faint); font-family: var(--mono); margin-left: 5px; }
+  table.triples { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.triples th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  table.triples td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  /* middle: requests */
+  .snippet-wrap { position: relative; margin: 16px; }
+  pre.snippet { margin: 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
+  pre.snippet .cm { color: var(--faint); }
+  pre.snippet .st { color: var(--accent); }
+  .copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 3px 8px; }
+  .calls-head { padding: 4px 16px 8px; color: var(--muted); font-size: 12px; }
+  .skipnote { font-size: 12px; color: var(--muted); padding: 2px 2px 8px; border-bottom: 1px dashed var(--line); margin-bottom: 6px; }
+  .calls { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .call { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: var(--mono); font-size: 12px; text-decoration: none; color: var(--fg); }
+  .call:hover { border-color: var(--accent); }
+  .call .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .call .lbl { color: var(--fg); }
+  .pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex-shrink: 0; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.miss { background: var(--code); color: var(--faint); }
+  @media (prefers-color-scheme: dark) { .pill.ok { background: #10331d; color: #4ade80; } }
+  .legend { padding: 10px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; background: var(--panel); }
+  .legend .term { color: var(--fg); }
+  .msg { color: var(--muted); padding: 8px 0; }
+  .msg.error { color: var(--err); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>RDF Label Cache</h1>
+  <p>Paste RDF on the left. Vocabulary IRIs (predicates &amp; classes) are resolved to human-readable labels via <a href="/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23Concept&amp;lang=en"><code>/label</code></a>. Your own entity IRIs fall back to their in-graph label or a prefixed name.</p>
+</header>
+<main>
+  <section class="pane left">
+    <div class="toolbar">
+      <label for="ex">Example</label>
+      <select id="ex"></select>
+      <button id="render" class="primary" type="button">Render →</button>
+    </div>
+    <textarea id="ttl" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+  </section>
+  <section class="pane middle">
+    <div class="toolbar">
+      <span style="font-size:12px;color:var(--muted)">Requests</span>
+      <span class="seg">
+        <button id="code-fetch" class="on" type="button">fetch</button>
+        <button id="code-curl" type="button">curl</button>
+      </span>
+    </div>
+    <div class="snippet-wrap">
+      <button id="copy" class="copy" type="button">Copy</button>
+      <pre id="snippet" class="snippet"></pre>
+    </div>
+    <div class="calls-head">Calls fired for this graph — one per unique IRI, deduped &amp; cached. Click to see the raw JSON-LD.</div>
+    <div id="calls" class="calls"></div>
+  </section>
+  <section class="pane">
+    <div class="toolbar">
+      <span class="seg">
+        <button id="view-cards" class="on" type="button">Records</button>
+        <button id="view-triples" type="button">Triples</button>
+      </span>
+      <span id="status" class="msg" style="padding:0"></span>
+    </div>
+    <div id="out" class="out"></div>
+    <div class="legend">
+      <span class="term">underlined</span> = resolved from the label cache &nbsp;·&nbsp;
+      <span class="term local">dashed</span> = label already in your data (not fetched) &nbsp;·&nbsp;
+      <span class="term unresolved">prefix:name</span> = not in cache, shown as CURIE
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { Parser } from "https://esm.sh/n3@2.1.0";
+
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+// Predicates whose literal object can name an entity when the cache can't (its data supplies its own label).
+const NAME_PREDS = new Set([
+  "http://www.w3.org/2000/01/rdf-schema#label",
+  "http://www.w3.org/2004/02/skos/core#prefLabel",
+  "https://schema.org/name", "http://schema.org/name",
+  "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
+]);
+// Fallback prefixes for CURIEs even if the document doesn't declare them.
+const WELL_KNOWN = {
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+  owl: "http://www.w3.org/2002/07/owl#",
+  skos: "http://www.w3.org/2004/02/skos/core#",
+  dcterms: "http://purl.org/dc/terms/",
+  schema: "https://schema.org/", foaf: "http://xmlns.com/foaf/0.1/",
+  xsd: "http://www.w3.org/2001/XMLSchema#",
+};
+
+const EXAMPLES = {
+  "RDFS / OWL classes": `@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix ex:   <https://example.org/animals#> .
+
+ex:Animal a owl:Class ;
+    rdfs:label "Animal"@en ;
+    rdfs:comment "A living organism that feeds on organic matter."@en .
+
+ex:Dog a owl:Class ;
+    rdfs:label "Dog"@en ;
+    rdfs:comment "A domesticated carnivorous mammal."@en ;
+    rdfs:subClassOf ex:Animal .`,
+  "SKOS concept scheme": `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ex:   <https://example.org/colours/> .
+
+ex:scheme a skos:ConceptScheme ;
+    skos:prefLabel "Colours"@en .
+
+ex:red a skos:Concept ;
+    skos:prefLabel "Red"@en ;
+    skos:definition "The colour of blood and rubies."@en ;
+    skos:inScheme ex:scheme .
+
+ex:crimson a skos:Concept ;
+    skos:prefLabel "Crimson"@en ;
+    skos:definition "A deep, slightly bluish red."@en ;
+    skos:broader ex:red ;
+    skos:inScheme ex:scheme .`,
+};
+
+// ---- label resolution (dedup + session cache) ----
+const labelCache = new Map(); // iri -> Promise<{label, definition}|null>
+function pickText(v) {
+  if (v == null) return null;
+  if (typeof v === "string") return v;
+  if (typeof v === "object") return v.en ?? Object.values(v)[0] ?? null;
+  return null;
+}
+function pickLabel(doc) {
+  for (const k of ["prefLabel", "label", "title", "name"]) {
+    const t = pickText(doc[k]);
+    if (t) return t;
+  }
+  return null;
+}
+function resolve(iri) {
+  if (labelCache.has(iri)) return labelCache.get(iri);
+  const p = fetch(`/label?iri=${encodeURIComponent(iri)}&lang=en`)
+    .then(async (r) => {
+      const doc = r.ok ? await r.json() : null;
+      return {
+        status: r.status,
+        label: doc ? pickLabel(doc) : null,
+        definition: doc ? (pickText(doc.definition) ?? pickText(doc.comment)) : null,
+      };
+    })
+    .catch(() => ({ status: 0, label: null, definition: null }));
+  labelCache.set(iri, p);
+  return p;
+}
+
+// ---- helpers ----
+function curie(iri, prefixes) {
+  for (const [pfx, ns] of Object.entries(prefixes)) {
+    if (iri.startsWith(ns) && iri.length > ns.length) return `${pfx}:${iri.slice(ns.length)}`;
+  }
+  const m = iri.match(/[#/]([^#/]+)$/);
+  return m ? m[1] : iri;
+}
+function el(tag, attrs = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k === "title") n.title = v;
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids) n.append(kid);
+  return n;
+}
+
+// Render a named-node IRI as a resolved label (if cached) or a CURIE fallback.
+function termNode(iri, resolved, prefixes) {
+  const r = resolved.get(iri);
+  if (r && r.label) {
+    if (r.source === "graph") {
+      return el("span", { class: "term local", title: `${iri}\n\n(label already in your data)` }, r.label);
+    }
+    return el("span", { class: "term", title: r.definition ? `${iri}\n\n${r.definition}` : iri }, r.label);
+  }
+  return el("span", { class: "term unresolved", title: iri }, curie(iri, prefixes));
+}
+function literalNode(obj) {
+  const span = el("span", { class: "lit" }, obj.value);
+  if (obj.language) span.append(el("span", { class: "tag" }, `@${obj.language}`));
+  else if (obj.datatype && !obj.datatype.value.endsWith("#string")) {
+    span.append(el("span", { class: "tag" }, curie(obj.datatype.value, WELL_KNOWN)));
+  }
+  return span;
+}
+function objectNode(obj, resolved, prefixes) {
+  if (obj.termType === "Literal") return literalNode(obj);
+  if (obj.termType === "NamedNode") return termNode(obj.value, resolved, prefixes);
+  return el("span", { class: "term unresolved" }, "[ blank node ]");
+}
+
+// ---- parse ----
+function parse(input) {
+  return new Promise((res, rej) => {
+    const quads = [];
+    const prefixes = {};
+    new Parser().parse(input, (err, quad, pfx) => {
+      if (err) return rej(err);
+      if (quad) quads.push(quad);
+      else {
+        for (const [k, v] of Object.entries(pfx || {})) prefixes[k] = typeof v === "string" ? v : v.value;
+        res({ quads, prefixes: { ...WELL_KNOWN, ...prefixes } });
+      }
+    });
+  });
+}
+
+function groupBySubject(quads) {
+  const subs = new Map(); // subjectKey -> { term, byPred: Map<pred, obj[]> }
+  for (const q of quads) {
+    const key = q.subject.termType + ":" + q.subject.value;
+    if (!subs.has(key)) subs.set(key, { term: q.subject, byPred: new Map() });
+    const g = subs.get(key).byPred;
+    if (!g.has(q.predicate.value)) g.set(q.predicate.value, []);
+    g.get(q.predicate.value).push(q.object);
+  }
+  return subs;
+}
+
+function collectIRIs(quads) {
+  const s = new Set();
+  for (const q of quads) {
+    if (q.subject.termType === "NamedNode") s.add(q.subject.value);
+    s.add(q.predicate.value);
+    if (q.object.termType === "NamedNode") s.add(q.object.value);
+  }
+  return [...s];
+}
+
+// Priority order for in-graph labels (earlier wins).
+const NAME_PRED_ORDER = [
+  "http://www.w3.org/2000/01/rdf-schema#label",
+  "http://www.w3.org/2004/02/skos/core#prefLabel",
+  "https://schema.org/name", "http://schema.org/name",
+  "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
+];
+// IRIs the graph already labels itself — no need to ask the cache.
+function buildGraphLabels(quads) {
+  const best = new Map(); // iri -> { value, pred, score }
+  for (const q of quads) {
+    if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
+    const rank = NAME_PRED_ORDER.indexOf(q.predicate.value);
+    if (rank === -1) continue;
+    const score = rank + (q.object.language && q.object.language !== "en" ? 0.5 : 0);
+    const cur = best.get(q.subject.value);
+    if (!cur || score < cur.score) best.set(q.subject.value, { value: q.object.value, pred: q.predicate.value, score });
+  }
+  return best;
+}
+
+// subject display name: in-graph label literal, else CURIE
+function subjectName(group, prefixes) {
+  for (const [pred, objs] of group.byPred) {
+    if (NAME_PREDS.has(pred)) {
+      const lit = objs.find((o) => o.termType === "Literal");
+      if (lit) return lit.value;
+    }
+  }
+  return group.term.termType === "BlankNode" ? "anonymous" : curie(group.term.value, prefixes);
+}
+
+function renderCards(subs, resolved, prefixes) {
+  const frag = document.createDocumentFragment();
+  for (const { term, byPred } of subs.values()) {
+    const group = { term, byPred };
+    const card = el("div", { class: "card" });
+    const head = el("div", { class: "card-head" }, el("span", { class: "card-title" }, subjectName(group, prefixes)));
+    for (const t of byPred.get(RDF_TYPE) || []) {
+      if (t.termType === "NamedNode") {
+        const r = resolved.get(t.value);
+        head.append(el("span", { class: "badge", title: t.value }, (r && r.label) || curie(t.value, prefixes)));
+      }
+    }
+    card.append(head);
+    const rows = el("div", { class: "rows" });
+    for (const [pred, objs] of byPred) {
+      if (pred === RDF_TYPE) continue;
+      rows.append(el("div", { class: "k" }, termNode(pred, resolved, prefixes)));
+      const vcell = el("div", { class: "v" });
+      for (const o of objs) vcell.append(el("span", { class: "item" }, objectNode(o, resolved, prefixes)));
+      rows.append(vcell);
+    }
+    if (rows.childElementCount) card.append(rows);
+    frag.append(card);
+  }
+  return frag;
+}
+
+function renderTriples(quads, resolved, prefixes) {
+  const table = el("table", { class: "triples" });
+  const head = el("tr");
+  for (const h of ["Subject", "Predicate", "Object"]) head.append(el("th", {}, h));
+  table.append(head);
+  for (const q of quads) {
+    const tr = el("tr");
+    tr.append(el("td", {}, q.subject.termType === "NamedNode" ? termNode(q.subject.value, resolved, prefixes) : el("span", { class: "term unresolved" }, "[ blank node ]")));
+    tr.append(el("td", {}, termNode(q.predicate.value, resolved, prefixes)));
+    tr.append(el("td", {}, objectNode(q.object, resolved, prefixes)));
+    table.append(tr);
+  }
+  return table;
+}
+
+// ---- requests pane ----
+const labelPath = (iri) => `/label?iri=${encodeURIComponent(iri)}&lang=en`;
+
+function drawSnippet() {
+  const pre = $("snippet");
+  pre.textContent = "";
+  // Pick a representative IRI — prefer one that resolved, else the first.
+  const iri = last
+    ? (last.fetched.find((i) => { const r = last.resolved.get(i); return r && r.label; }) || last.fetched[0] || last.iris[0])
+    : "http://www.w3.org/2004/02/skos/core#Concept";
+  if (!iri) { pre.textContent = "// no IRIs in graph"; return; }
+  const cm = (t) => el("span", { class: "cm" }, t);
+  const st = (t) => el("span", { class: "st" }, t);
+  if (codeMode === "fetch") {
+    pre.append(
+      st("const"), ` iri = ${JSON.stringify(iri)};\n`,
+      st("const"), ` res = `, st("await"), ` fetch(\n`,
+      `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}&lang=en\`\n`,
+      `);\n`,
+      st("const"), ` { prefLabel, definition } = `, st("await"), ` res.json();\n`,
+      cm(`// prefLabel → { en: "…" }  ·  404 if not in the cache`),
+    );
+  } else {
+    pre.append(`curl "${location.origin}${labelPath(iri)}"\n`, cm("# → application/ld+json"));
+  }
+}
+
+function drawCalls() {
+  const box = $("calls");
+  box.textContent = "";
+  if (!last) return;
+  if (last.skipped.length) {
+    box.append(el("div", { class: "skipnote" }, `${last.skipped.length} IRI${last.skipped.length > 1 ? "s" : ""} already labeled in your data — not fetched.`));
+  }
+  for (const iri of last.fetched) {
+    const r = last.resolved.get(iri) || {};
+    const ok = !!(r && r.label);
+    const a = el("a", { class: "call", href: labelPath(iri), target: "_blank", rel: "noopener", title: iri });
+    a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
+    a.append(el("span", { class: "path" }, `GET /label?iri=${curie(iri, last.prefixes)}`));
+    if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
+    box.append(a);
+  }
+}
+
+// ---- app ----
+const $ = (id) => document.getElementById(id);
+const out = $("out"), status = $("status");
+let view = "cards";
+let codeMode = "fetch";
+let last = null; // { quads, prefixes, subs, resolved, iris }
+
+async function run() {
+  const input = $("ttl").value;
+  status.textContent = "parsing…";
+  out.textContent = "";
+  let parsed;
+  try {
+    parsed = await parse(input);
+  } catch (e) {
+    status.textContent = "";
+    out.append(el("div", { class: "msg error" }, "Parse error: " + (e.message || e)));
+    last = null;
+    return;
+  }
+  const iris = collectIRIs(parsed.quads);
+  const graphLabels = buildGraphLabels(parsed.quads);
+  const toFetch = iris.filter((i) => !graphLabels.has(i));
+  const skipped = iris.filter((i) => graphLabels.has(i));
+  status.textContent = `resolving ${toFetch.length} IRIs…`;
+  const resolved = new Map();
+  // Already labeled by the data itself — no cache call.
+  for (const iri of skipped) resolved.set(iri, { source: "graph", label: graphLabels.get(iri).value });
+  // The rest: ask the cache.
+  await Promise.all(toFetch.map(async (iri) => { resolved.set(iri, { source: "cache", ...(await resolve(iri)) }); }));
+  const hits = toFetch.filter((i) => resolved.get(i).label).length;
+  status.textContent = `${parsed.quads.length} triples · ${toFetch.length} cache lookups · ${hits} resolved`
+    + (skipped.length ? ` · ${skipped.length} already in data` : "");
+  last = { ...parsed, subs: groupBySubject(parsed.quads), resolved, iris, fetched: toFetch, skipped };
+  drawSnippet();
+  drawCalls();
+  draw();
+}
+
+function draw() {
+  if (!last) return;
+  out.textContent = "";
+  out.append(view === "cards"
+    ? renderCards(last.subs, last.resolved, last.prefixes)
+    : renderTriples(last.quads, last.resolved, last.prefixes));
+}
+
+function setView(v) {
+  view = v;
+  $("view-cards").classList.toggle("on", v === "cards");
+  $("view-triples").classList.toggle("on", v === "triples");
+  draw();
+}
+
+// wire up
+const sel = $("ex");
+for (const name of Object.keys(EXAMPLES)) sel.append(el("option", {}, name));
+sel.addEventListener("change", () => { $("ttl").value = EXAMPLES[sel.value]; run(); });
+$("render").addEventListener("click", run);
+$("view-cards").addEventListener("click", () => setView("cards"));
+$("view-triples").addEventListener("click", () => setView("triples"));
+function setCode(m) {
+  codeMode = m;
+  $("code-fetch").classList.toggle("on", m === "fetch");
+  $("code-curl").classList.toggle("on", m === "curl");
+  drawSnippet();
+}
+$("code-fetch").addEventListener("click", () => setCode("fetch"));
+$("code-curl").addEventListener("click", () => setCode("curl"));
+$("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("snippet").textContent); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy"), 1200); }
+  catch { /* clipboard blocked */ }
+});
+let debounce;
+$("ttl").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(run, 400); });
+
+$("ttl").value = EXAMPLES[Object.keys(EXAMPLES)[0]];
+run();
+</script>
+</body>
+</html>
