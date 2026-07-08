@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Getting started · label-cache</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
+    --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
+    --code: #f3f4f6; --good: #166534;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
+      --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
+      --code: #161b22; --good: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); background: var(--bg); line-height: 1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 80px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back { font-size: 13px; }
+  h1 { font-size: 26px; letter-spacing: -0.02em; margin: 20px 0 6px; }
+  .lede { font-size: 16px; color: var(--muted); margin: 0 0 8px; }
+  p { margin: 10px 0; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  pre { margin: 12px 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+
+  .step { display: flex; gap: 16px; margin: 26px 0; }
+  .num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 999px; background: var(--accent); color: #fff;
+         display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .step-body { min-width: 0; flex: 1; }
+  .step-body h2 { font-size: 17px; margin: 3px 0 6px; letter-spacing: -0.01em; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 0; }
+  .note.reg { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--accent-soft); border-radius: 0 6px 6px 0; }
+  .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← back to the demo</a>
+  <h1>Getting started</h1>
+  <p class="lede">Cache the labels your app needs — your own IRIs plus the public-vocabulary terms your data uses — in five steps. Nothing ships pre-loaded; you populate R2 once.</p>
+
+  <div class="step">
+    <div class="num">1</div>
+    <div class="step-body">
+      <h2>Clone &amp; install</h2>
+      <pre><code>git clone https://github.com/recalcitrantsupplant/label-cdn &amp;&amp; cd label-cdn
+pnpm install</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">2</div>
+    <div class="step-body">
+      <h2>Dump the annotation properties you want cached</h2>
+      <p>From your triplestore, <code>CONSTRUCT</code> the labels and descriptions for every IRI your data uses —
+      your own entities <em>and</em> the public-vocabulary terms they reference — and save it as <code>data.ttl</code>:</p>
+      <pre><code>PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;
+PREFIX skos: &lt;http://www.w3.org/2004/02/skos/core#&gt;
+PREFIX dcterms: &lt;http://purl.org/dc/terms/&gt;
+PREFIX schema: &lt;https://schema.org/&gt;
+CONSTRUCT { ?iri rdfs:label ?l ; rdfs:comment ?c ; skos:prefLabel ?p ; skos:definition ?d ;
+            dcterms:title ?t ; dcterms:description ?desc ; schema:name ?n }
+WHERE {
+  { SELECT DISTINCT ?iri WHERE {
+      { ?iri ?px ?ox } UNION { ?sx ?iri ?ox } UNION { ?sx ?px ?iri FILTER(isIRI(?iri)) } } }
+  OPTIONAL { ?iri rdfs:label ?l }     OPTIONAL { ?iri rdfs:comment ?c }
+  OPTIONAL { ?iri skos:prefLabel ?p } OPTIONAL { ?iri skos:definition ?d }
+  OPTIONAL { ?iri dcterms:title ?t }  OPTIONAL { ?iri dcterms:description ?desc }
+  OPTIONAL { ?iri schema:name ?n }
+  FILTER(BOUND(?l)||BOUND(?c)||BOUND(?p)||BOUND(?d)||BOUND(?t)||BOUND(?desc)||BOUND(?n))
+}</code></pre>
+      <p class="note">Any RDF file works — no triplestore needed for small data. Want whole public vocabularies
+      instead of just what you use? Run <code>pnpm seed:ingest</code> with no <code>--input</code>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">3</div>
+    <div class="step-body">
+      <h2>Set up Cloudflare</h2>
+      <pre><code>pnpm wrangler r2 bucket create rdf-public-labels
+pnpm wrangler deploy                 # prints your Worker URL</code></pre>
+      <p class="note reg"><strong>Register your namespaces.</strong> The Worker returns 404 for any IRI whose
+      namespace it doesn't know. Add each <code>"namespace-uri": "alias"</code> to
+      <code>src/lib/namespaces.json</code> and redeploy. Public vocabularies are already registered.</p>
+      <p class="note">Then create an <strong>R2 API token</strong> (dashboard → R2 → Manage API Tokens) for the upload.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">4</div>
+    <div class="step-body">
+      <h2>Generate &amp; upload your label objects</h2>
+      <pre><code>export SEED_BASE=https://&lt;your-worker&gt;.workers.dev
+export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
+node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
+node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
+      <p class="note"><code>ingest</code> warns about any IRIs whose namespace you haven't registered in step&nbsp;3.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="num">5</div>
+    <div class="step-body">
+      <h2>Consume from your app</h2>
+      <p>Resolve any cached IRI over plain HTTP. Request all the labels a view needs <strong>in parallel</strong> —
+      they're independent, edge-cached <code>GET</code>s that multiplex over HTTP/2/3:</p>
+      <pre><code>const labels = Object.fromEntries(await Promise.all(
+  iris.map(async (iri) =&gt; {
+    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&amp;lang=en`);
+    return [iri, res.ok ? (await res.json()).prefLabel?.en : null];
+  }),
+));</code></pre>
+      <p class="note">Fire them concurrently — never one-at-a-time. See
+      <a href="https://github.com/recalcitrantsupplant/label-cdn/blob/main/docs/FAQ.md">the FAQ</a>
+      on why one-request-per-label is fine over modern HTTP.</p>
+    </div>
+  </div>
+
+  <p class="foot"><a href="/">← Try the demo</a> &nbsp;·&nbsp; <a href="/why">Why label-cache?</a>
+  &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; docs</a></p>
+</div>
+</body>
+</html>

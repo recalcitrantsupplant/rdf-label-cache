@@ -27,7 +27,8 @@
   header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
   header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; max-width: 78ch; }
   header a { color: var(--accent); text-decoration: none; }
-  .why-link { flex-shrink: 0; font-size: 13px; font-weight: 600; }
+  .head-links { flex-shrink: 0; display: flex; gap: 16px; }
+  .why-link { font-size: 13px; font-weight: 600; }
   .why-link:hover { text-decoration: underline; }
   main { display: grid; grid-template-columns: 1fr 0.95fr 1fr; gap: 0; height: calc(100% - 66px); }
   @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
@@ -97,7 +98,7 @@
 <header>
   <div class="head-main">
     <h1>RDF Label Cache</h1>
-    <a class="why-link" href="/why">Why label-cache? →</a>
+    <span class="head-links"><a class="why-link" href="/why">Why label-cache?</a> <a class="why-link" href="/start">Getting started →</a></span>
   </div>
   <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. This demo includes labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms). Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
 </header>
