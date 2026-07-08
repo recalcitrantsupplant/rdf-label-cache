@@ -1,9 +1,39 @@
 # Migration: adopt Workers Cache
 
-**Date:** 2026-07-06
-**Status:** Proposed
+**Date:** 2026-07-06 (implemented 2026-07-08)
+**Status:** Implemented
 **Type:** Architecture decision / migration plan
-**Affects:** `wrangler.toml`, `src/routes/label.ts`, `src/routes/context.ts`, `src/routes/namespaces.ts`, ingestion pipeline (§6.6 of [architecture.md](./architecture.md))
+**Affects:** `wrangler.toml`, `demo/wrangler.demo.toml`, `src/index.ts`, `src/routes/{label,context,namespaces,purge}.ts`, `src/lib/cache.ts`, `scripts/{deploy-demo,seed-remote}.sh`, ingestion pipeline (§6.6 of [architecture.md](./architecture.md))
+
+---
+
+## 0. Implementation (2026-07-08)
+
+Availability confirmed against Cloudflare docs: Workers Cache is on **every plan**
+(no separate SKU), tag purge is **not** Enterprise-gated, and it **works on
+`workers.dev`**. So we went with the "cache forever, invalidate on change" model:
+
+- **`[cache] enabled = true`** in both wrangler configs (needs Wrangler ≥ 4.69; we're on 4.107).
+- **Dropped all `caches.default`** match/put — the platform now caches in front of
+  the Worker off the response `Cache-Control`.
+- **Immutable TTL** (`public, max-age=31536000, immutable`) on every success, since
+  these responses only change on deploy or data refresh. Errors keep a short
+  `max-age=60` so a label seeded just after a 404 appears without a purge.
+- **`Cache-Tag`** on every success: `all` (full purge on deploy) + finer tags
+  (`labels`, `labels:{ns}`, `namespaces`, `context`) for targeted purges. See
+  `src/lib/cache.ts`.
+- **Invalidation is worker-internal only** — Cloudflare documents no external
+  REST/CLI purge for Workers Cache. So `POST /admin/purge?tags=…` (Bearer
+  `PURGE_TOKEN`) calls `ctx.cache.purge({ tags })` (`src/routes/purge.ts`).
+  - `scripts/deploy-demo.sh` purges `all` after each deploy.
+  - `scripts/seed-remote.sh` purges `labels,context` after a reseed.
+  - Both are **best-effort** (skipped until `PURGE_TOKEN` is set), so deploys never
+    break on a missing token.
+
+**Required secret — `PURGE_TOKEN`** (until set, cache still works but auto-purge is
+skipped and immutable entries only clear when their TTL is bumped/on reseed-with-token):
+1. On the Worker: `wrangler secret put PURGE_TOKEN --config demo/wrangler.demo.toml`.
+2. In GitHub: add repo secret `PURGE_TOKEN` (wired into `release.yml` / `deploy-demo.yml`).
 
 ---
 
