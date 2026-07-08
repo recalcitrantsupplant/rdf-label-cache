@@ -34,9 +34,12 @@ describe("/label", () => {
     expect(body.prefLabel.en).toBe("Concept");
   });
 
-  it("sets a cacheable Cache-Control on hits", async () => {
+  it("sets immutable Cache-Control + Cache-Tag on hits", async () => {
     const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
-    expect(res.headers.get("Cache-Control")).toContain("max-age=86400");
+    expect(res.headers.get("Cache-Control")).toContain("immutable");
+    const tag = res.headers.get("Cache-Tag") ?? "";
+    expect(tag).toContain("all");
+    expect(tag).toContain("labels:skos");
   });
 
   it("404s an unknown IRI", async () => {
@@ -80,6 +83,28 @@ describe("/context/labels-v1.json", () => {
 describe("method handling", () => {
   it("405s a non-GET method", async () => {
     const res = await SELF.fetch(`${BASE}/namespaces`, { method: "POST" });
+    expect(res.status).toBe(405);
+  });
+});
+
+describe("/admin/purge", () => {
+  it("401s without a valid token", async () => {
+    const res = await SELF.fetch(`${BASE}/admin/purge?tags=all`, { method: "POST" });
+    expect(res.status).toBe(401);
+  });
+
+  it("purges with a valid token", async () => {
+    const res = await SELF.fetch(`${BASE}/admin/purge?tags=labels`, {
+      method: "POST",
+      headers: { Authorization: "Bearer test-token" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.purged).toEqual(["labels"]);
+  });
+
+  it("405s a GET on the purge endpoint", async () => {
+    const res = await SELF.fetch(`${BASE}/admin/purge`);
     expect(res.status).toBe(405);
   });
 });

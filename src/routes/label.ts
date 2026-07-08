@@ -1,38 +1,25 @@
 import { parseIRI } from "../lib/namespaces";
+import { cacheHeaders, ERROR_CACHE } from "../lib/cache";
 
-export async function handleLabel(
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext
-): Promise<Response> {
+export async function handleLabel(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const iriParam = url.searchParams.get("iri");
   const lang = url.searchParams.get("lang");
 
   if (!iriParam) {
-    return jsonResponse({ error: "missing_param", message: "?iri= is required" }, 400, 60);
+    return errorResponse({ error: "missing_param", message: "?iri= is required" }, 400);
   }
 
   let iri: string;
   try {
     iri = decodeURIComponent(iriParam);
   } catch {
-    return jsonResponse({ error: "invalid_param", message: "?iri= is not valid percent-encoding" }, 400, 60);
+    return errorResponse({ error: "invalid_param", message: "?iri= is not valid percent-encoding" }, 400);
   }
-
-  // Edge cache check
-  const cache = caches.default;
-  const cached = await cache.match(request);
-  if (cached) return cached;
 
   const parsed = parseIRI(iri);
   if (!parsed) {
-    const body = {
-      error: "not_found",
-      iri,
-      message: "Namespace not in public store. Provide ?fallback= or register a resolver.",
-    };
-    return jsonResponse(body, 404, 60);
+    return errorResponse({ error: "not_found", iri, message: "Namespace not in public store." }, 404);
   }
 
   const { namespaceAlias, localName } = parsed;
@@ -41,41 +28,26 @@ export async function handleLabel(
     : `labels/${namespaceAlias}/${localName}`;
 
   const object = await env.PUBLIC_LABELS.get(r2Key);
-
   if (!object) {
-    const body = {
-      error: "not_found",
-      iri,
-      ...(lang ? { lang } : {}),
-      message: "Label not found in public store.",
-    };
-    return jsonResponse(body, 404, 60);
+    return errorResponse(
+      { error: "not_found", iri, ...(lang ? { lang } : {}), message: "Label not found in public store." },
+      404
+    );
   }
 
-  const headers = new Headers({
-    "Content-Type": "application/ld+json",
-    "Cache-Control": "public, max-age=86400",
-    "CF-Cache-Tag": "public-labels",
-  });
-
-  // Propagate Content-Encoding from R2 metadata (objects stored gzip-compressed)
-  const ce = object.httpMetadata?.contentEncoding;
-  if (ce) headers.set("Content-Encoding", ce);
-
-  const response = new Response(object.body, { status: 200, headers });
-
-  // Populate edge cache for subsequent requests from this PoP
-  ctx.waitUntil(cache.put(request, response.clone()));
-
-  return response;
+  // Cached by Workers Cache per Cache-Control; invalidated by purging the
+  // `labels` tag (or `labels:{ns}` for one namespace) on a data refresh.
+  const headers = cacheHeaders(
+    "application/ld+json",
+    ["labels", `labels:${namespaceAlias}`],
+    object.httpMetadata?.contentEncoding
+  );
+  return new Response(object.body, { status: 200, headers });
 }
 
-function jsonResponse(body: unknown, status: number, cacheTtl: number): Response {
+function errorResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${cacheTtl}`,
-    },
+    headers: { "Content-Type": "application/json", "Cache-Control": ERROR_CACHE },
   });
 }
