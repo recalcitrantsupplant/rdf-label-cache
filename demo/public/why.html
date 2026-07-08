@@ -131,11 +131,19 @@
     <strong>labels</strong>. They're decoupled.</p>
   </div>
 
-  <h2>Using it for your own data</h2>
-  <p>Common public vocabularies (RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT, all of Schema.org) come pre-loaded.
-  For your <em>own</em> IRIs, generate and upload all of their <strong>annotation properties</strong> — labels,
-  descriptions, and the like — to R2 under the same key structure. From then on they resolve through the same
-  free edge caching as everything else, and no app or query has to know how a label was produced.</p>
+  <h2>Populating it — for the demo, and for you</h2>
+  <p>Nothing is pre-loaded by magic. You populate R2 <strong>once</strong> with the labels your data needs — the
+  same way this demo was populated. Two things go in:</p>
+  <ul>
+    <li><strong>Your own IRIs</strong> — their <strong>annotation properties</strong> (labels, descriptions, …),
+    extracted from your data.</li>
+    <li><strong>The public vocabulary terms you actually use</strong> — the handful of Schema.org / SKOS /
+    Dublin&nbsp;Core predicates and classes your data references, without loading whole ontologies you don't need.</li>
+  </ul>
+  <p>At triplestore scale, a single SPARQL <code>CONSTRUCT</code> can do both: find every IRI your data mentions
+  and emit its label and description from wherever they're defined. That dump feeds the same generate → upload step
+  the demo used. (Prefer whole public vocabularies over stripping to just what's used? Storage is cheap — load the
+  lot.) Recipes and scripts for this live in the repo.</p>
 
   <p class="foot"><a href="/">← Try the demo</a> &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; design docs</a></p>
 </div>
