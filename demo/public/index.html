@@ -57,21 +57,32 @@
   table.triples th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
   table.triples td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   /* middle: requests */
-  .snippet-wrap { position: relative; margin: 16px; }
+  .reqbody { flex: 1; overflow: auto; }
+  .reqstep { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .step-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 600; margin-bottom: 10px; }
+  .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+  .note code { background: var(--code); padding: 0 4px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
+  .prefixes { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+  .prow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11.5px; }
+  .prow .pfx { color: var(--accent); min-width: 62px; font-weight: 600; }
+  .prow .ns { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .snippet-wrap { position: relative; }
   pre.snippet { margin: 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
   pre.snippet .cm { color: var(--faint); }
   pre.snippet .st { color: var(--accent); }
   .copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 3px 8px; }
-  .calls-head { padding: 4px 16px 8px; color: var(--muted); font-size: 12px; }
+  .calls-head { padding: 14px 0 8px; color: var(--muted); font-size: 12px; }
   .skipnote { font-size: 12px; color: var(--muted); padding: 2px 2px 8px; border-bottom: 1px dashed var(--line); margin-bottom: 6px; }
-  .calls { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 4px; }
-  .call { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: var(--mono); font-size: 12px; text-decoration: none; color: var(--fg); }
+  .calls { display: flex; flex-direction: column; gap: 4px; }
+  .call { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: var(--mono); font-size: 12px; text-decoration: none; color: var(--fg); }
   .call:hover { border-color: var(--accent); }
-  .call .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
-  .call .lbl { color: var(--fg); }
+  .call .curie { color: var(--accent); font-weight: 600; flex-shrink: 0; }
+  .call .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
+  .call .lbl { color: var(--fg); flex-shrink: 0; }
   .pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex-shrink: 0; }
   .pill.ok { background: #dcfce7; color: #166534; }
   .pill.miss { background: var(--code); color: var(--faint); }
+  .pill.method { background: var(--accent-soft); color: var(--accent); }
   @media (prefers-color-scheme: dark) { .pill.ok { background: #10331d; color: #4ade80; } }
   .legend { padding: 10px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; background: var(--panel); }
   .legend .term { color: var(--fg); }
@@ -101,12 +112,25 @@
         <button id="code-curl" type="button">curl</button>
       </span>
     </div>
-    <div class="snippet-wrap">
-      <button id="copy" class="copy" type="button">Copy</button>
-      <pre id="snippet" class="snippet"></pre>
+    <div class="reqbody">
+      <div class="reqstep">
+        <div class="step-h">1 · Resolve a label</div>
+        <div class="snippet-wrap">
+          <button id="copy" class="copy" type="button">Copy</button>
+          <pre id="snippet" class="snippet"></pre>
+        </div>
+        <div class="calls-head">Calls fired for this graph — one per unfetched IRI, deduped &amp; cached. Click for raw JSON-LD.</div>
+        <div id="calls" class="calls"></div>
+      </div>
+      <div class="reqstep">
+        <div class="step-h">2 · Where the IRI comes from</div>
+        <div class="note"><code>/label</code> takes the <strong>full IRI</strong>, never a CURIE — so the <code>@prefix</code> CURIEs above are expanded first. The service publishes its own prefix map:</div>
+        <a class="call" id="ns-call" href="/namespaces" target="_blank" rel="noopener" title="The prefix → namespace map the service serves">
+          <span class="pill method">GET</span><span class="path">/namespaces</span><span class="lbl" id="ns-count"></span>
+        </a>
+        <div id="prefixes" class="prefixes"></div>
+      </div>
     </div>
-    <div class="calls-head">Calls fired for this graph — one per unique IRI, deduped &amp; cached. Click to see the raw JSON-LD.</div>
-    <div id="calls" class="calls"></div>
   </section>
   <section class="pane">
     <div class="toolbar">
@@ -148,6 +172,18 @@ const WELL_KNOWN = {
 };
 
 const EXAMPLES = {
+  "Schema.org — a person": `@prefix schema: <https://schema.org/> .
+@prefix ex:     <https://example.org/> .
+
+ex:jane a schema:Person ;
+    schema:name "Jane Doe" ;
+    schema:jobTitle "Data Architect" ;
+    schema:email "jane@example.org" ;
+    schema:worksFor ex:acme .
+
+ex:acme a schema:Organization ;
+    schema:name "ACME Corporation" ;
+    schema:url "https://acme.example.org" .`,
   "RDFS / OWL classes": `@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix ex:   <https://example.org/animals#> .
@@ -367,6 +403,9 @@ function renderTriples(quads, resolved, prefixes) {
 
 // ---- requests pane ----
 const labelPath = (iri) => `/label?iri=${encodeURIComponent(iri)}&lang=en`;
+// Spell out small counts so a leading number never reads as a list index.
+const NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+const numWord = (n) => NUM_WORDS[n] ?? String(n);
 
 function drawSnippet() {
   const pre = $("snippet");
@@ -376,19 +415,25 @@ function drawSnippet() {
     ? (last.fetched.find((i) => { const r = last.resolved.get(i); return r && r.label; }) || last.fetched[0] || last.iris[0])
     : "http://www.w3.org/2004/02/skos/core#Concept";
   if (!iri) { pre.textContent = "// no IRIs in graph"; return; }
+  const cu = curie(iri, last ? last.prefixes : WELL_KNOWN);
   const cm = (t) => el("span", { class: "cm" }, t);
   const st = (t) => el("span", { class: "st" }, t);
   if (codeMode === "fetch") {
     pre.append(
+      cm(`// expand the CURIE ${cu} to its full IRI, then ask the cache\n`),
       st("const"), ` iri = ${JSON.stringify(iri)};\n`,
       st("const"), ` res = `, st("await"), ` fetch(\n`,
       `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}&lang=en\`\n`,
       `);\n`,
       st("const"), ` { prefLabel, definition } = `, st("await"), ` res.json();\n`,
-      cm(`// prefLabel → { en: "…" }  ·  404 if not in the cache`),
+      cm(`// prefLabel → { en: "…" }  ·  full IRI only, 404 if unknown`),
     );
   } else {
-    pre.append(`curl "${location.origin}${labelPath(iri)}"\n`, cm("# → application/ld+json"));
+    pre.append(
+      cm(`# ${cu} → full IRI, percent-encoded\n`),
+      `curl "${location.origin}${labelPath(iri)}"\n`,
+      cm("# → application/ld+json"),
+    );
   }
 }
 
@@ -397,16 +442,55 @@ function drawCalls() {
   box.textContent = "";
   if (!last) return;
   if (last.skipped.length) {
-    box.append(el("div", { class: "skipnote" }, `${last.skipped.length} IRI${last.skipped.length > 1 ? "s" : ""} already labeled in your data — not fetched.`));
+    const n = last.skipped.length;
+    const word = numWord(n).replace(/^./, (c) => c.toUpperCase());
+    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data — not fetched.`));
   }
   for (const iri of last.fetched) {
     const r = last.resolved.get(iri) || {};
     const ok = !!(r && r.label);
-    const a = el("a", { class: "call", href: labelPath(iri), target: "_blank", rel: "noopener", title: iri });
+    const a = el("a", { class: "call", href: labelPath(iri), target: "_blank", rel: "noopener", title: `GET ${labelPath(iri)}` });
     a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
-    a.append(el("span", { class: "path" }, `GET /label?iri=${curie(iri, last.prefixes)}`));
+    a.append(el("span", { class: "curie" }, curie(iri, last.prefixes)));
+    a.append(el("span", { class: "path" }, `?iri=${iri}`));
     if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
     box.append(a);
+  }
+}
+
+// Namespaces the service itself serves (GET /namespaces) — the canonical prefix map.
+// Seeded from the well-known set so badges are sensible before the call returns.
+let servedNS = new Set(Object.values(WELL_KNOWN));
+async function loadNamespaces() {
+  try {
+    const r = await fetch("/namespaces");
+    if (!r.ok) return;
+    const d = await r.json();
+    servedNS = new Set((d.namespaces || []).map((n) => n.namespace));
+    $("ns-count").textContent = ` → ${servedNS.size} prefixes`;
+  } catch { /* offline: fall back to well-known */ }
+}
+
+function drawPrefixes() {
+  const box = $("prefixes");
+  box.textContent = "";
+  if (!last) return;
+  // Which prefixes are actually used by IRIs in this graph (most-specific namespace wins).
+  const used = new Map();
+  for (const iri of last.iris) {
+    let match = null;
+    for (const [pfx, ns] of Object.entries(last.prefixes)) {
+      if (iri.startsWith(ns) && iri.length > ns.length && (!match || ns.length > match[1].length)) match = [pfx, ns];
+    }
+    if (match) used.set(match[0], match[1]);
+  }
+  for (const [pfx, ns] of used) {
+    const served = servedNS.has(ns);
+    const row = el("div", { class: "prow" });
+    row.append(el("span", { class: "pfx" }, pfx + ":"));
+    row.append(el("span", { class: "ns", title: ns }, ns));
+    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace — not in the cache" }, served ? "served" : "yours"));
+    box.append(row);
   }
 }
 
@@ -415,7 +499,7 @@ const $ = (id) => document.getElementById(id);
 const out = $("out"), status = $("status");
 let view = "cards";
 let codeMode = "fetch";
-let last = null; // { quads, prefixes, subs, resolved, iris }
+let last = null; // { quads, prefixes, subs, resolved, iris, fetched, skipped }
 
 async function run() {
   const input = $("ttl").value;
@@ -444,6 +528,7 @@ async function run() {
   status.textContent = `${parsed.quads.length} triples · ${toFetch.length} cache lookups · ${hits} resolved`
     + (skipped.length ? ` · ${skipped.length} already in data` : "");
   last = { ...parsed, subs: groupBySubject(parsed.quads), resolved, iris, fetched: toFetch, skipped };
+  drawPrefixes();
   drawSnippet();
   drawCalls();
   draw();
@@ -488,6 +573,7 @@ $("ttl").addEventListener("input", () => { clearTimeout(debounce); debounce = se
 
 $("ttl").value = EXAMPLES[Object.keys(EXAMPLES)[0]];
 run();
+loadNamespaces().then(() => { if (last) drawPrefixes(); });
 </script>
 </body>
 </html>
