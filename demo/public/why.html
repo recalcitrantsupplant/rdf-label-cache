@@ -53,6 +53,12 @@
   .solution .why b { color: var(--good); }
   ul { margin: 8px 0; padding-left: 20px; }
   li { margin: 4px 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 20px 0; }
+  @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
+  .stat { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: var(--panel); }
+  .stat-n { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--good); }
+  .stat-n span { display: block; font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0; text-transform: uppercase; margin-top: 2px; }
+  .stat-d { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 </style>
 </head>
@@ -130,6 +136,28 @@
     from cache without ever touching a database. Your triplestore serves <strong>data</strong>; the CDN serves
     <strong>labels</strong>. They're decoupled.</p>
   </div>
+
+  <h2>What that buys you: cost and latency</h2>
+  <div class="stats">
+    <div class="stat"><div class="stat-n">$0.30<span>/ million hits</span></div><div class="stat-d">first 100k/day free · no egress fees</div></div>
+    <div class="stat"><div class="stat-n">shared<span>per region</span></div><div class="stat-d">one user warms it, everyone rides it</div></div>
+    <div class="stat"><div class="stat-n">&lt;50&nbsp;ms<span>for 95% of users</span></div><div class="stat-d">served from the nearest of 330+ cities</div></div>
+  </div>
+  <p><strong>It's a shared edge cache, not per-user.</strong> Cloudflare caches each label response <em>per data
+  centre</em>, shared across everyone routed there. The first request for an IRI in a region warms the cache; with a
+  long TTL, every later user in that region is served the cached copy — the request never reaches R2. Tiered caching
+  aggregates this across the network, so cold locations pull from a regional tier rather than round-tripping to
+  storage. Since the same vocabulary IRIs (<code>rdfs:label</code>, <code>schema:name</code>, …) appear in
+  everyone's data, hit rates on popular terms are very high.</p>
+  <p><strong>A hit costs almost nothing.</strong> It's a single Cloudflare Workers request — $0.30 per million,
+  ~$0.0000003 each, with the first 100,000 a day free. On a hit no compute is billed and R2 is never read, and
+  Cloudflare charges <strong>no bandwidth or egress fees at all</strong> — unlike the hyperscalers. Serving hundreds
+  of millions of lookups a month is dollars, not a database bill.</p>
+  <p><strong>And it's faster than calling your backend.</strong> Workers, R2, and the cache are all on Cloudflare's
+  edge — the same network your request already lands on, not a hop out to a cloud region and then an app plus a
+  database. 95% of internet users are within 50&nbsp;ms of a Cloudflare data centre (most within 20&nbsp;ms), and a
+  cache hit is served right there. Resolving a label is typically quicker than a <em>single</em> round trip to your
+  origin — before that origin has queried anything.</p>
 
   <h2>Populating it — for the demo, and for you</h2>
   <p>Nothing is pre-loaded by magic. You populate R2 <strong>once</strong> with the labels your data needs — the
