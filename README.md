@@ -91,11 +91,9 @@ pnpm wrangler r2 bucket create rdf-public-labels
 pnpm wrangler deploy                         # prints your Worker URL
 ```
 
-Register the namespaces you'll serve: add each `"namespace-uri": "alias"` to
-[`src/lib/namespaces.json`](src/lib/namespaces.json) and redeploy — the Worker returns
-404 for any IRI whose namespace isn't listed. Public vocabularies are already
-registered. Then create an **R2 API token** (dashboard → R2 → Manage API Tokens) for
-the next step.
+No namespace registration needed — the Worker keys R2 by the full IRI, so **any**
+namespace resolves once its labels are uploaded. Then create an **R2 API token**
+(dashboard → R2 → Manage API Tokens) for the next step.
 
 **4. Generate & upload your label objects**
 
@@ -106,7 +104,8 @@ node scripts/ingest.mjs --input data.ttl     # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                  # → R2, over the S3 API
 ```
 
-`ingest` warns about any IRIs in namespaces you haven't registered (step 3).
+Objects are keyed by the full IRI (`labels/https://schema.org/name/en`) — browsable
+in R2 for debugging, and any namespace resolves without configuration.
 
 **5. Consume from your app**
 

@@ -89,9 +89,9 @@ WHERE {
       <h2>Set up Cloudflare</h2>
       <pre><code>pnpm wrangler r2 bucket create rdf-public-labels
 pnpm wrangler deploy                 # prints your Worker URL</code></pre>
-      <p class="note reg"><strong>Register your namespaces.</strong> The Worker returns 404 for any IRI whose
-      namespace it doesn't know. Add each <code>"namespace-uri": "alias"</code> to
-      <code>src/lib/namespaces.json</code> and redeploy. Public vocabularies are already registered.</p>
+      <p class="note reg"><strong>No namespace registration.</strong> The Worker keys R2 by the full IRI
+      (<code>labels/https://schema.org/name/en</code>), so <strong>any</strong> namespace resolves once its
+      labels are uploaded — and keys stay browsable in R2 for debugging.</p>
       <p class="note">Then create an <strong>R2 API token</strong> (dashboard → R2 → Manage API Tokens) for the upload.</p>
     </div>
   </div>
