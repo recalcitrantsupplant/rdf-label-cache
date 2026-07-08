@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.0](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.1.2...rdf-label-resolver-v0.2.0) (2026-07-08)
+
+
+### Features
+
+* **cache:** adopt Workers Cache with immutable TTL and tag purge ([0ccc85f](https://github.com/recalcitrantsupplant/label-cdn/commit/0ccc85f197a300aae4f80bdcafcefcdd4fbed854))
+* **demo:** add "Why label-cache?" page and clearer intro ([672c1e9](https://github.com/recalcitrantsupplant/label-cdn/commit/672c1e97f4899eb6798e87634fbadd00da568d38))
+* **demo:** requests pane with label lookup and prefix provenance ([f17a659](https://github.com/recalcitrantsupplant/label-cdn/commit/f17a659f7b0a03fcadf4e0b910381e5a3c0caaa5))
+* **demo:** static demo landing page ([a0807fb](https://github.com/recalcitrantsupplant/label-cdn/commit/a0807fb8966751989962bde57db261ebbad6a16e))
+* **dev:** binding-based /dev/load loader for local seeding ([e56d203](https://github.com/recalcitrantsupplant/label-cdn/commit/e56d2031b77379964a06bce38da783f6584ee254))
+* **ingest:** --input for your own RDF dumps; share the namespace map ([cb0b4e6](https://github.com/recalcitrantsupplant/label-cdn/commit/cb0b4e631958aee0512a73475a2ba428b13e3409))
+* namespace-agnostic keying by full IRI ([b5d6b11](https://github.com/recalcitrantsupplant/label-cdn/commit/b5d6b11d4b4af68bb7c4464afb65d5abe8456c60))
+* RDF-labeling demo page + ontology ingest pipeline ([61a3b13](https://github.com/recalcitrantsupplant/label-cdn/commit/61a3b133c4d88fc2c444d76ee0a3d3efc8115aa6))
+* **seed:** ingest common ontologies into R2 ([3eba1ca](https://github.com/recalcitrantsupplant/label-cdn/commit/3eba1ca6e65d868b001720b653b964d4a167a7ed))
+
+
+### Bug Fixes
+
+* **demo:** nothing is pre-loaded — clarify you populate R2 yourself ([0f8910b](https://github.com/recalcitrantsupplant/label-cdn/commit/0f8910b096888c6b8d4447eb575747285ff4c193))
+
 ## [0.1.2](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.1.1...rdf-label-resolver-v0.1.2) (2026-07-08)
 
 
