@@ -28,8 +28,13 @@ const {
   CONCURRENCY = "32",
 } = process.env;
 
-for (const [k, v] of Object.entries({ R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY })) {
-  if (!v) { console.error(`Missing required env: ${k}`); process.exit(1); }
+// Fail fast: report every missing credential at once, not one per run.
+const missing = Object.entries({ R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY })
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
+if (missing.length) {
+  console.error(`Missing required env: ${missing.join(", ")} (from a Cloudflare R2 API token)`);
+  process.exit(1);
 }
 
 const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
