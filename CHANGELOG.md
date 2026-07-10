@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.3.0...rdf-label-resolver-v0.4.0) (2026-07-10)
+
+
+### Features
+
+* **demo:** single-page landing + self-serve getting-started ([9645bde](https://github.com/recalcitrantsupplant/label-cdn/commit/9645bdec513ee5955e2d0854586a62b903dfd8d2))
+
 ## [0.3.0](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.2.0...rdf-label-resolver-v0.3.0) (2026-07-10)
 
 
