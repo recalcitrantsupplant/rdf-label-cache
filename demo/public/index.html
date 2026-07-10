@@ -3,584 +3,120 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RDF Label Cache — demo</title>
+<title>Label Cache — landing</title>
 <style>
   :root {
-    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
-    --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
-    --badge: #ede9fe; --badge-fg: #5b21b6; --code: #f3f4f6; --err: #b91c1c;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --bg:#ffffff; --fg:#111318; --muted:#5b616e; --faint:#9ca3af; --line:#e7e9ee;
+    --panel:#f7f8fa; --accent:#2563eb; --accent-soft:#eff4ff; --good:#166534; --bad:#b91c1c; --code:#f2f3f6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
-      --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
-      --badge: #2d2140; --badge-fg: #c9a9ff; --code: #161b22; --err: #f85149;
-    }
-  }
+  @media (prefers-color-scheme: dark){ :root{
+    --bg:#0b0e14; --fg:#e6edf3; --muted:#9aa4b2; --faint:#6e7681; --line:#1e2430;
+    --panel:#12161f; --accent:#6ba5ff; --accent-soft:#12233b; --good:#4ade80; --bad:#f85149; --code:#12161f;
+  }}
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body { font-family: var(--sans); color: var(--fg); background: var(--bg); font-size: 15px; line-height: 1.5; }
-  header { padding: 18px 24px; border-bottom: 1px solid var(--line); }
-  .head-main { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-  header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
-  header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; max-width: 78ch; }
-  header a { color: var(--accent); text-decoration: none; }
-  .head-links { flex-shrink: 0; display: flex; gap: 16px; }
-  .why-link { font-size: 13px; font-weight: 600; }
-  .why-link:hover { text-decoration: underline; }
-  main { display: grid; grid-template-columns: 1fr 0.95fr 1fr; gap: 0; height: calc(100% - 66px); }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
-  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-  .pane.left, .pane.middle { border-right: 1px solid var(--line); }
-  @media (max-width: 1000px) { .pane.left, .pane.middle { border-right: 0; border-bottom: 1px solid var(--line); } }
-  .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
-  .toolbar label { font-size: 12px; color: var(--muted); }
-  select, button { font: inherit; font-size: 13px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--fg); cursor: pointer; }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
-  .seg button { border: 0; border-radius: 0; background: var(--bg); }
-  .seg button.on { background: var(--accent-soft); color: var(--accent); }
-  textarea { flex: 1; width: 100%; border: 0; padding: 16px; resize: none; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg); color: var(--fg); outline: none; tab-size: 2; }
-  .out { flex: 1; overflow: auto; padding: 16px; }
-  .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; background: var(--panel); }
-  .card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-  .card-title { font-weight: 600; font-size: 15px; }
-  .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--badge); color: var(--badge-fg); font-weight: 600; }
-  .rows { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px 16px; }
-  .k { color: var(--muted); }
-  .v { min-width: 0; word-break: break-word; }
-  .v .item { display: block; }
-  .term { border-bottom: 1px dotted var(--faint); cursor: help; }
-  .term.unresolved { font-family: var(--mono); font-size: 12.5px; color: var(--muted); border-bottom-color: transparent; }
-  .term.local { border-bottom-style: dashed; border-bottom-color: var(--accent); }
-  .lit { }
-  .tag { font-size: 10.5px; color: var(--faint); font-family: var(--mono); margin-left: 5px; }
-  table.triples { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  table.triples th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
-  table.triples td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  /* middle: requests */
-  .reqbody { flex: 1; overflow: auto; }
-  .reqstep { padding: 14px 16px; border-bottom: 1px solid var(--line); }
-  .step-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 600; margin-bottom: 10px; }
-  .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
-  .note code { background: var(--code); padding: 0 4px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
-  .prefixes { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
-  .prow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11.5px; }
-  .prow .pfx { color: var(--accent); min-width: 62px; font-weight: 600; }
-  .prow .ns { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-  .snippet-wrap { position: relative; }
-  pre.snippet { margin: 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
-  pre.snippet .cm { color: var(--faint); }
-  pre.snippet .st { color: var(--accent); }
-  .copy { position: absolute; top: 8px; right: 8px; font-size: 11px; padding: 3px 8px; }
-  .calls-head { padding: 14px 0 8px; color: var(--muted); font-size: 12px; }
-  .skipnote { font-size: 12px; color: var(--muted); padding: 2px 2px 8px; border-bottom: 1px dashed var(--line); margin-bottom: 6px; }
-  .calls { display: flex; flex-direction: column; gap: 4px; }
-  .call { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); font-family: var(--mono); font-size: 12px; text-decoration: none; color: var(--fg); }
-  .call:hover { border-color: var(--accent); }
-  .call .curie { color: var(--accent); font-weight: 600; flex-shrink: 0; }
-  .call .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
-  .call .lbl { color: var(--fg); flex-shrink: 0; }
-  .pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex-shrink: 0; }
-  .pill.ok { background: #dcfce7; color: #166534; }
-  .pill.miss { background: var(--code); color: var(--faint); }
-  .pill.method { background: var(--accent-soft); color: var(--accent); }
-  @media (prefers-color-scheme: dark) { .pill.ok { background: #10331d; color: #4ade80; } }
-  .legend { padding: 10px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; background: var(--panel); }
-  .legend .term { color: var(--fg); }
-  .msg { color: var(--muted); padding: 8px 0; }
-  .msg.error { color: var(--err); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
+  body { margin: 0; font-family: var(--sans); color: var(--fg); background: var(--bg); font-size: 16px; line-height: 1.65; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .nav { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 18px; padding: 12px 24px; background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px; }
+  .logo { width: 24px; height: 24px; border-radius: 7px; background: linear-gradient(135deg, var(--accent), #a855f7); display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 800; }
+  .nav .links { margin-left: auto; display: flex; gap: 20px; font-size: 14px; }
+  .nav .links a { color: var(--muted); } .nav .links a:hover { color: var(--fg); text-decoration: none; }
+  section { padding: 0 24px; }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  .hero { text-align: center; padding: 76px 24px 34px; }
+  .kicker { display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 5px 12px; border-radius: 999px; }
+  .hero h1 { font-size: 48px; line-height: 1.05; letter-spacing: -.03em; margin: 20px auto 14px; max-width: 16ch; }
+  .hero h1 .g { background: linear-gradient(120deg, var(--accent), #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { font-size: 19px; color: var(--muted); max-width: 62ch; margin: 0 auto 26px; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { font: inherit; font-size: 15px; font-weight: 600; padding: 11px 20px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  h2.sh { font-size: 30px; letter-spacing: -.02em; text-align: center; margin: 0 0 6px; }
+  .sub { text-align: center; color: var(--muted); font-size: 16px; margin: 0 auto 28px; max-width: 60ch; }
+  .block { padding: 64px 24px; border-top: 1px solid var(--line); }
+  #demo-sec { padding-top: 40px; }
+  code { font-family: var(--mono); font-size: .85em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 8px; }
+  @media (max-width:760px){ .grid3 { grid-template-columns: 1fr; } .hero h1 { font-size: 34px; } }
+  .card { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--panel); }
+  .card .big { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--good); }
+  .card h3 { margin: 0 0 6px; font-size: 15px; } .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table.cmp th, table.cmp td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  table.cmp th { font-size: 12px; color: var(--muted); font-weight: 700; }
+  td.bad { color: var(--bad); } td.good { color: var(--good); font-weight: 600; }
+  tr.win { background: var(--accent-soft); } tr.win td:first-child { font-weight: 700; }
+  .deploy { max-width: 720px; }
+  .steps { counter-reset: n; margin-top: 8px; }
+  .st { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px dashed var(--line); }
+  .st .n { flex-shrink: 0; width: 30px; height: 30px; border-radius: 999px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; }
+  .st h3 { margin: 3px 0 3px; font-size: 16px; } .st p { margin: 0; color: var(--muted); font-size: 14px; }
+  .st code { display: inline-block; margin-top: 4px; }
+  footer { padding: 40px 24px 60px; text-align: center; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
 </style>
 </head>
 <body>
-<header>
-  <div class="head-main">
-    <h1>RDF Label Cache</h1>
-    <span class="head-links"><a class="why-link" href="/why">Why label-cache?</a> <a class="why-link" href="/start">Getting started →</a></span>
+<div class="nav">
+  <span class="brand"><span class="logo">L</span> Label Cache</span>
+  <span class="links"><a href="#demo-sec">Demo</a><a href="#why">Why</a><a href="#deploy">Deploy</a><a href="/demo">Playground</a><a href="https://github.com/recalcitrantsupplant/label-cdn">GitHub ↗</a></span>
+</div>
+
+<header class="hero">
+  <h1>Labels for your RDF, <span class="g">served from a CDN.</span></h1>
+  <p>Every RDF app resolves <code>IRI → label</code> endlessly — for predicates, classes and entities. Do it once from a globally edge-cached CDN: <code>rdfs:label</code>, <code>skos:prefLabel</code>, <code>schema:name</code> and your own IRIs, resolved at the edge and never from your triplestore.</p>
+  <div class="cta-row">
+    <button class="btn" onclick="document.getElementById('demo-sec').scrollIntoView({behavior:'smooth'})">See it live ↓</button>
+    <a class="btn ghost" href="#deploy">Deploy your own</a>
   </div>
-  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. This demo includes labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms). Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
 </header>
-<main>
-  <section class="pane left">
-    <div class="toolbar">
-      <label for="ex">Example</label>
-      <select id="ex"></select>
-      <button id="render" class="primary" type="button">Render →</button>
+
+<section id="demo-sec" class="wrap">
+  <h2 class="sh">Watch the IRIs resolve</h2>
+  <p class="sub">This is real RDF your query might return. Hit the button and watch each unique IRI fire one edge-cached <code>GET</code> — and become a word.</p>
+  <div id="demo"></div>
+  <p style="text-align:center;margin-top:22px"><a class="btn ghost" href="/demo">Try it with your own RDF — open the playground →</a></p>
+</section>
+
+<section id="why" class="block">
+  <div class="wrap">
+    <h2 class="sh">Why not just… ?</h2>
+    <p class="sub">Four ways RDF apps do this today — and the one that never touches your triplestore.</p>
+    <table class="cmp">
+      <tr><th>Approach</th><th>Stale?</th><th>Loads your KG?</th><th>Shared?</th></tr>
+      <tr class="win"><td>label-cache (edge CDN)</td><td class="good">no</td><td class="good">never</td><td class="good">globally</td></tr>
+      <tr><td>Hard-coded label table</td><td class="bad">yes</td><td class="good">no</td><td class="bad">no</td></tr>
+      <tr><td>Label joins in every query</td><td class="good">no</td><td class="bad">heavily</td><td class="bad">no</td></tr>
+      <tr><td>Follow-up label query</td><td class="good">no</td><td class="bad">every time</td><td class="bad">no</td></tr>
+      <tr><td>Shadow "label" named graphs</td><td class="bad">drifts</td><td class="bad">yes</td><td class="bad">no</td></tr>
+    </table>
+    <div class="grid3" style="margin-top:26px">
+      <div class="card"><div class="big">$0.30</div><h3>per million hits</h3><p>First 100k/day free. No egress fees at all — unlike the hyperscalers.</p></div>
+      <div class="card"><div class="big">&lt;50ms</div><h3>for 95% of users</h3><p>Served from the nearest of 330+ cities — often faster than one origin round-trip.</p></div>
+      <div class="card"><div class="big">shared</div><h3>per region</h3><p>One user warms the cache; everyone routed there rides it. Common terms hit ~always.</p></div>
     </div>
-    <textarea id="ttl" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
-  </section>
-  <section class="pane middle">
-    <div class="toolbar">
-      <span style="font-size:12px;color:var(--muted)">Requests</span>
-      <span class="seg">
-        <button id="code-fetch" class="on" type="button">fetch</button>
-        <button id="code-curl" type="button">curl</button>
-      </span>
+    <p style="text-align:center;margin-top:22px"><a href="/why">Read the full write-up — cost, latency &amp; the shared-cache model →</a></p>
+  </div>
+</section>
+
+<section id="deploy" class="block">
+  <div class="wrap deploy">
+    <h2 class="sh">Deploy your own</h2>
+    <p class="sub">Nothing ships pre-loaded. Populate R2 once with your IRIs plus the public terms you use.</p>
+    <div class="steps">
+      <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone …/label-cdn &amp;&amp; pnpm install</code></div></div>
+      <div class="st"><span class="n">2</span><div><h3>Dump annotation properties</h3><p>One SPARQL <code>CONSTRUCT</code> → labels + descriptions for every IRI your data mentions.</p></div></div>
+      <div class="st"><span class="n">3</span><div><h3>Set up Cloudflare</h3><code>wrangler r2 bucket create rdf-public-labels &amp;&amp; wrangler deploy</code></div></div>
+      <div class="st"><span class="n">4</span><div><h3>Generate &amp; upload</h3><code>node scripts/ingest.mjs --input data.ttl &amp;&amp; node scripts/upload-seed.mjs</code></div></div>
+      <div class="st"><span class="n">5</span><div><h3>Consume from your app</h3><p>Plain HTTP <code>GET</code>s, fired concurrently over HTTP/2/3.</p></div></div>
     </div>
-    <div class="reqbody">
-      <div class="reqstep">
-        <div class="step-h">1 · Resolve a label</div>
-        <div class="snippet-wrap">
-          <button id="copy" class="copy" type="button">Copy</button>
-          <pre id="snippet" class="snippet"></pre>
-        </div>
-        <div class="calls-head">Calls fired for this graph — one per unfetched IRI, deduped &amp; cached. Click for raw JSON-LD.</div>
-        <div id="calls" class="calls"></div>
-      </div>
-      <div class="reqstep">
-        <div class="step-h">2 · Where the IRI comes from</div>
-        <div class="note"><code>/label</code> takes the <strong>full IRI</strong>, never a CURIE — so the <code>@prefix</code> CURIEs above are expanded first. The service publishes its own prefix map:</div>
-        <a class="call" id="ns-call" href="/namespaces" target="_blank" rel="noopener" title="The prefix → namespace map the service serves">
-          <span class="pill method">GET</span><span class="path">/namespaces</span><span class="lbl" id="ns-count"></span>
-        </a>
-        <div id="prefixes" class="prefixes"></div>
-      </div>
-    </div>
-  </section>
-  <section class="pane">
-    <div class="toolbar">
-      <span class="seg">
-        <button id="view-cards" class="on" type="button">Records</button>
-        <button id="view-triples" type="button">Triples</button>
-      </span>
-      <span id="status" class="msg" style="padding:0"></span>
-    </div>
-    <div id="out" class="out"></div>
-    <div class="legend">
-      <span class="term">underlined</span> = resolved from the label cache &nbsp;·&nbsp;
-      <span class="term local">dashed</span> = label already in your data (not fetched) &nbsp;·&nbsp;
-      <span class="term unresolved">prefix:name</span> = not in cache, shown as CURIE
-    </div>
-  </section>
-</main>
+    <p style="text-align:center;margin-top:22px"><a href="/start">Full guide — the CONSTRUCT query &amp; every command →</a></p>
+  </div>
+</section>
 
-<script type="module">
-import { Parser } from "https://esm.sh/n3@2.1.0";
-
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-// Predicates whose literal object can name an entity when the cache can't (its data supplies its own label).
-const NAME_PREDS = new Set([
-  "http://www.w3.org/2000/01/rdf-schema#label",
-  "http://www.w3.org/2004/02/skos/core#prefLabel",
-  "https://schema.org/name", "http://schema.org/name",
-  "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
-]);
-// Fallback prefixes for CURIEs even if the document doesn't declare them.
-const WELL_KNOWN = {
-  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-  rdfs: "http://www.w3.org/2000/01/rdf-schema#",
-  owl: "http://www.w3.org/2002/07/owl#",
-  skos: "http://www.w3.org/2004/02/skos/core#",
-  dcterms: "http://purl.org/dc/terms/",
-  schema: "https://schema.org/", foaf: "http://xmlns.com/foaf/0.1/",
-  xsd: "http://www.w3.org/2001/XMLSchema#",
-};
-
-const EXAMPLES = {
-  "Schema.org — a person": `@prefix schema: <https://schema.org/> .
-@prefix ex:     <https://example.org/> .
-
-ex:jane a schema:Person ;
-    schema:name "Jane Doe" ;
-    schema:jobTitle "Data Architect" ;
-    schema:email "jane@example.org" ;
-    schema:worksFor ex:acme .
-
-ex:acme a schema:Organization ;
-    schema:name "ACME Corporation" ;
-    schema:url "https://acme.example.org" .`,
-  "RDFS / OWL classes": `@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix owl:  <http://www.w3.org/2002/07/owl#> .
-@prefix ex:   <https://example.org/animals#> .
-
-ex:Animal a owl:Class ;
-    rdfs:label "Animal"@en ;
-    rdfs:comment "A living organism that feeds on organic matter."@en .
-
-ex:Dog a owl:Class ;
-    rdfs:label "Dog"@en ;
-    rdfs:comment "A domesticated carnivorous mammal."@en ;
-    rdfs:subClassOf ex:Animal .`,
-  "SKOS concept scheme": `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-@prefix ex:   <https://example.org/colours/> .
-
-ex:scheme a skos:ConceptScheme ;
-    skos:prefLabel "Colours"@en .
-
-ex:red a skos:Concept ;
-    skos:prefLabel "Red"@en ;
-    skos:definition "The colour of blood and rubies."@en ;
-    skos:inScheme ex:scheme .
-
-ex:crimson a skos:Concept ;
-    skos:prefLabel "Crimson"@en ;
-    skos:definition "A deep, slightly bluish red."@en ;
-    skos:broader ex:red ;
-    skos:inScheme ex:scheme .`,
-};
-
-// ---- label resolution (dedup + session cache) ----
-const labelCache = new Map(); // iri -> Promise<{label, definition}|null>
-function pickText(v) {
-  if (v == null) return null;
-  if (typeof v === "string") return v;
-  if (typeof v === "object") return v.en ?? Object.values(v)[0] ?? null;
-  return null;
-}
-function pickLabel(doc) {
-  for (const k of ["prefLabel", "label", "title", "name"]) {
-    const t = pickText(doc[k]);
-    if (t) return t;
-  }
-  return null;
-}
-function resolve(iri) {
-  if (labelCache.has(iri)) return labelCache.get(iri);
-  const p = fetch(`/label?iri=${encodeURIComponent(iri)}&lang=en`)
-    .then(async (r) => {
-      const doc = r.ok ? await r.json() : null;
-      return {
-        status: r.status,
-        label: doc ? pickLabel(doc) : null,
-        definition: doc ? (pickText(doc.definition) ?? pickText(doc.comment)) : null,
-      };
-    })
-    .catch(() => ({ status: 0, label: null, definition: null }));
-  labelCache.set(iri, p);
-  return p;
-}
-
-// ---- helpers ----
-function curie(iri, prefixes) {
-  for (const [pfx, ns] of Object.entries(prefixes)) {
-    if (iri.startsWith(ns) && iri.length > ns.length) return `${pfx}:${iri.slice(ns.length)}`;
-  }
-  const m = iri.match(/[#/]([^#/]+)$/);
-  return m ? m[1] : iri;
-}
-function el(tag, attrs = {}, ...kids) {
-  const n = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "class") n.className = v;
-    else if (k === "title") n.title = v;
-    else n.setAttribute(k, v);
-  }
-  for (const kid of kids) n.append(kid);
-  return n;
-}
-
-// Render a named-node IRI as a resolved label (if cached) or a CURIE fallback.
-function termNode(iri, resolved, prefixes) {
-  const r = resolved.get(iri);
-  if (r && r.label) {
-    if (r.source === "graph") {
-      return el("span", { class: "term local", title: `${iri}\n\n(label already in your data)` }, r.label);
-    }
-    return el("span", { class: "term", title: r.definition ? `${iri}\n\n${r.definition}` : iri }, r.label);
-  }
-  return el("span", { class: "term unresolved", title: iri }, curie(iri, prefixes));
-}
-function literalNode(obj) {
-  const span = el("span", { class: "lit" }, obj.value);
-  if (obj.language) span.append(el("span", { class: "tag" }, `@${obj.language}`));
-  else if (obj.datatype && !obj.datatype.value.endsWith("#string")) {
-    span.append(el("span", { class: "tag" }, curie(obj.datatype.value, WELL_KNOWN)));
-  }
-  return span;
-}
-function objectNode(obj, resolved, prefixes) {
-  if (obj.termType === "Literal") return literalNode(obj);
-  if (obj.termType === "NamedNode") return termNode(obj.value, resolved, prefixes);
-  return el("span", { class: "term unresolved" }, "[ blank node ]");
-}
-
-// ---- parse ----
-function parse(input) {
-  return new Promise((res, rej) => {
-    const quads = [];
-    const prefixes = {};
-    new Parser().parse(input, (err, quad, pfx) => {
-      if (err) return rej(err);
-      if (quad) quads.push(quad);
-      else {
-        for (const [k, v] of Object.entries(pfx || {})) prefixes[k] = typeof v === "string" ? v : v.value;
-        res({ quads, prefixes: { ...WELL_KNOWN, ...prefixes } });
-      }
-    });
-  });
-}
-
-function groupBySubject(quads) {
-  const subs = new Map(); // subjectKey -> { term, byPred: Map<pred, obj[]> }
-  for (const q of quads) {
-    const key = q.subject.termType + ":" + q.subject.value;
-    if (!subs.has(key)) subs.set(key, { term: q.subject, byPred: new Map() });
-    const g = subs.get(key).byPred;
-    if (!g.has(q.predicate.value)) g.set(q.predicate.value, []);
-    g.get(q.predicate.value).push(q.object);
-  }
-  return subs;
-}
-
-function collectIRIs(quads) {
-  const s = new Set();
-  for (const q of quads) {
-    if (q.subject.termType === "NamedNode") s.add(q.subject.value);
-    s.add(q.predicate.value);
-    if (q.object.termType === "NamedNode") s.add(q.object.value);
-  }
-  return [...s];
-}
-
-// Priority order for in-graph labels (earlier wins).
-const NAME_PRED_ORDER = [
-  "http://www.w3.org/2000/01/rdf-schema#label",
-  "http://www.w3.org/2004/02/skos/core#prefLabel",
-  "https://schema.org/name", "http://schema.org/name",
-  "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
-];
-// IRIs the graph already labels itself — no need to ask the cache.
-function buildGraphLabels(quads) {
-  const best = new Map(); // iri -> { value, pred, score }
-  for (const q of quads) {
-    if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
-    const rank = NAME_PRED_ORDER.indexOf(q.predicate.value);
-    if (rank === -1) continue;
-    const score = rank + (q.object.language && q.object.language !== "en" ? 0.5 : 0);
-    const cur = best.get(q.subject.value);
-    if (!cur || score < cur.score) best.set(q.subject.value, { value: q.object.value, pred: q.predicate.value, score });
-  }
-  return best;
-}
-
-// subject display name: in-graph label literal, else CURIE
-function subjectName(group, prefixes) {
-  for (const [pred, objs] of group.byPred) {
-    if (NAME_PREDS.has(pred)) {
-      const lit = objs.find((o) => o.termType === "Literal");
-      if (lit) return lit.value;
-    }
-  }
-  return group.term.termType === "BlankNode" ? "anonymous" : curie(group.term.value, prefixes);
-}
-
-function renderCards(subs, resolved, prefixes) {
-  const frag = document.createDocumentFragment();
-  for (const { term, byPred } of subs.values()) {
-    const group = { term, byPred };
-    const card = el("div", { class: "card" });
-    const head = el("div", { class: "card-head" }, el("span", { class: "card-title" }, subjectName(group, prefixes)));
-    for (const t of byPred.get(RDF_TYPE) || []) {
-      if (t.termType === "NamedNode") {
-        const r = resolved.get(t.value);
-        head.append(el("span", { class: "badge", title: t.value }, (r && r.label) || curie(t.value, prefixes)));
-      }
-    }
-    card.append(head);
-    const rows = el("div", { class: "rows" });
-    for (const [pred, objs] of byPred) {
-      if (pred === RDF_TYPE) continue;
-      rows.append(el("div", { class: "k" }, termNode(pred, resolved, prefixes)));
-      const vcell = el("div", { class: "v" });
-      for (const o of objs) vcell.append(el("span", { class: "item" }, objectNode(o, resolved, prefixes)));
-      rows.append(vcell);
-    }
-    if (rows.childElementCount) card.append(rows);
-    frag.append(card);
-  }
-  return frag;
-}
-
-function renderTriples(quads, resolved, prefixes) {
-  const table = el("table", { class: "triples" });
-  const head = el("tr");
-  for (const h of ["Subject", "Predicate", "Object"]) head.append(el("th", {}, h));
-  table.append(head);
-  for (const q of quads) {
-    const tr = el("tr");
-    tr.append(el("td", {}, q.subject.termType === "NamedNode" ? termNode(q.subject.value, resolved, prefixes) : el("span", { class: "term unresolved" }, "[ blank node ]")));
-    tr.append(el("td", {}, termNode(q.predicate.value, resolved, prefixes)));
-    tr.append(el("td", {}, objectNode(q.object, resolved, prefixes)));
-    table.append(tr);
-  }
-  return table;
-}
-
-// ---- requests pane ----
-const labelPath = (iri) => `/label?iri=${encodeURIComponent(iri)}&lang=en`;
-// Spell out small counts so a leading number never reads as a list index.
-const NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
-const numWord = (n) => NUM_WORDS[n] ?? String(n);
-
-function drawSnippet() {
-  const pre = $("snippet");
-  pre.textContent = "";
-  // Pick a representative IRI — prefer one that resolved, else the first.
-  const iri = last
-    ? (last.fetched.find((i) => { const r = last.resolved.get(i); return r && r.label; }) || last.fetched[0] || last.iris[0])
-    : "http://www.w3.org/2004/02/skos/core#Concept";
-  if (!iri) { pre.textContent = "// no IRIs in graph"; return; }
-  const cu = curie(iri, last ? last.prefixes : WELL_KNOWN);
-  const cm = (t) => el("span", { class: "cm" }, t);
-  const st = (t) => el("span", { class: "st" }, t);
-  if (codeMode === "fetch") {
-    pre.append(
-      cm(`// expand the CURIE ${cu} to its full IRI, then ask the cache\n`),
-      st("const"), ` iri = ${JSON.stringify(iri)};\n`,
-      st("const"), ` res = `, st("await"), ` fetch(\n`,
-      `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}&lang=en\`\n`,
-      `);\n`,
-      st("const"), ` { prefLabel, definition } = `, st("await"), ` res.json();\n`,
-      cm(`// prefLabel → { en: "…" }  ·  full IRI only, 404 if unknown`),
-    );
-  } else {
-    pre.append(
-      cm(`# ${cu} → full IRI, percent-encoded\n`),
-      `curl "${location.origin}${labelPath(iri)}"\n`,
-      cm("# → application/ld+json"),
-    );
-  }
-}
-
-function drawCalls() {
-  const box = $("calls");
-  box.textContent = "";
-  if (!last) return;
-  if (last.skipped.length) {
-    const n = last.skipped.length;
-    const word = numWord(n).replace(/^./, (c) => c.toUpperCase());
-    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data — not fetched.`));
-  }
-  for (const iri of last.fetched) {
-    const r = last.resolved.get(iri) || {};
-    const ok = !!(r && r.label);
-    const a = el("a", { class: "call", href: labelPath(iri), target: "_blank", rel: "noopener", title: `GET ${labelPath(iri)}` });
-    a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
-    a.append(el("span", { class: "curie" }, curie(iri, last.prefixes)));
-    a.append(el("span", { class: "path" }, `?iri=${iri}`));
-    if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
-    box.append(a);
-  }
-}
-
-// Namespaces the service itself serves (GET /namespaces) — the canonical prefix map.
-// Seeded from the well-known set so badges are sensible before the call returns.
-let servedNS = new Set(Object.values(WELL_KNOWN));
-async function loadNamespaces() {
-  try {
-    const r = await fetch("/namespaces");
-    if (!r.ok) return;
-    const d = await r.json();
-    servedNS = new Set((d.namespaces || []).map((n) => n.namespace));
-    $("ns-count").textContent = ` → ${servedNS.size} prefixes`;
-  } catch { /* offline: fall back to well-known */ }
-}
-
-function drawPrefixes() {
-  const box = $("prefixes");
-  box.textContent = "";
-  if (!last) return;
-  // Which prefixes are actually used by IRIs in this graph (most-specific namespace wins).
-  const used = new Map();
-  for (const iri of last.iris) {
-    let match = null;
-    for (const [pfx, ns] of Object.entries(last.prefixes)) {
-      if (iri.startsWith(ns) && iri.length > ns.length && (!match || ns.length > match[1].length)) match = [pfx, ns];
-    }
-    if (match) used.set(match[0], match[1]);
-  }
-  for (const [pfx, ns] of used) {
-    const served = servedNS.has(ns);
-    const row = el("div", { class: "prow" });
-    row.append(el("span", { class: "pfx" }, pfx + ":"));
-    row.append(el("span", { class: "ns", title: ns }, ns));
-    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace — not in the cache" }, served ? "served" : "yours"));
-    box.append(row);
-  }
-}
-
-// ---- app ----
-const $ = (id) => document.getElementById(id);
-const out = $("out"), status = $("status");
-let view = "cards";
-let codeMode = "fetch";
-let last = null; // { quads, prefixes, subs, resolved, iris, fetched, skipped }
-
-async function run() {
-  const input = $("ttl").value;
-  status.textContent = "parsing…";
-  out.textContent = "";
-  let parsed;
-  try {
-    parsed = await parse(input);
-  } catch (e) {
-    status.textContent = "";
-    out.append(el("div", { class: "msg error" }, "Parse error: " + (e.message || e)));
-    last = null;
-    return;
-  }
-  const iris = collectIRIs(parsed.quads);
-  const graphLabels = buildGraphLabels(parsed.quads);
-  const toFetch = iris.filter((i) => !graphLabels.has(i));
-  const skipped = iris.filter((i) => graphLabels.has(i));
-  status.textContent = `resolving ${toFetch.length} IRIs…`;
-  const resolved = new Map();
-  // Already labeled by the data itself — no cache call.
-  for (const iri of skipped) resolved.set(iri, { source: "graph", label: graphLabels.get(iri).value });
-  // The rest: ask the cache.
-  await Promise.all(toFetch.map(async (iri) => { resolved.set(iri, { source: "cache", ...(await resolve(iri)) }); }));
-  const hits = toFetch.filter((i) => resolved.get(i).label).length;
-  status.textContent = `${parsed.quads.length} triples · ${toFetch.length} cache lookups · ${hits} resolved`
-    + (skipped.length ? ` · ${skipped.length} already in data` : "");
-  last = { ...parsed, subs: groupBySubject(parsed.quads), resolved, iris, fetched: toFetch, skipped };
-  drawPrefixes();
-  drawSnippet();
-  drawCalls();
-  draw();
-}
-
-function draw() {
-  if (!last) return;
-  out.textContent = "";
-  out.append(view === "cards"
-    ? renderCards(last.subs, last.resolved, last.prefixes)
-    : renderTriples(last.quads, last.resolved, last.prefixes));
-}
-
-function setView(v) {
-  view = v;
-  $("view-cards").classList.toggle("on", v === "cards");
-  $("view-triples").classList.toggle("on", v === "triples");
-  draw();
-}
-
-// wire up
-const sel = $("ex");
-for (const name of Object.keys(EXAMPLES)) sel.append(el("option", {}, name));
-sel.addEventListener("change", () => { $("ttl").value = EXAMPLES[sel.value]; run(); });
-$("render").addEventListener("click", run);
-$("view-cards").addEventListener("click", () => setView("cards"));
-$("view-triples").addEventListener("click", () => setView("triples"));
-function setCode(m) {
-  codeMode = m;
-  $("code-fetch").classList.toggle("on", m === "fetch");
-  $("code-curl").classList.toggle("on", m === "curl");
-  drawSnippet();
-}
-$("code-fetch").addEventListener("click", () => setCode("fetch"));
-$("code-curl").addEventListener("click", () => setCode("curl"));
-$("copy").addEventListener("click", async () => {
-  try { await navigator.clipboard.writeText($("snippet").textContent); $("copy").textContent = "Copied"; setTimeout(() => ($("copy").textContent = "Copy"), 1200); }
-  catch { /* clipboard blocked */ }
-});
-let debounce;
-$("ttl").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(run, 400); });
-
-$("ttl").value = EXAMPLES[Object.keys(EXAMPLES)[0]];
-run();
-loadNamespaces().then(() => { if (last) drawPrefixes(); });
-</script>
+<footer>Edge-cached labels for RDF · <a href="https://github.com/recalcitrantsupplant/label-cdn">github.com/recalcitrantsupplant/label-cdn</a></footer>
+<script src="demo-widget.js"></script>
+<script>LabelCacheDemo.mount(document.getElementById("demo"));</script>
 </body>
 </html>
