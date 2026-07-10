@@ -1,4 +1,35 @@
+# Recipes auto-load a `.env` file (copy .env.example → .env). Or export the
+# same vars in your shell — either way these are what the deploy + seed need:
+#   SEED_BASE             your deployed Worker URL (https://<worker>.workers.dev)
+#   R2_ACCOUNT_ID         Cloudflare account id
+#   R2_ACCESS_KEY_ID      R2 API token access key id
+#   R2_SECRET_ACCESS_KEY  R2 API token secret
+#   SPARQL_ENDPOINT       (optional) your triplestore, for `just bootstrap`
+set dotenv-load := true
+
 default: dev
+
+# Fill in .env first (SPARQL_ENDPOINT + R2 creds), then: just bootstrap
+# Pass an endpoint to override SPARQL_ENDPOINT: just bootstrap https://other/sparql
+# Prefer to go step by step? Run them individually: install, extract-labels,
+# bucket, deploy, ingest, upload.
+# One-shot: install → extract labels → create bucket → deploy → seed R2.
+bootstrap ENDPOINT="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    EP="{{ENDPOINT}}"; EP="${EP:-${SPARQL_ENDPOINT:-}}"
+    : "${EP:?pass an endpoint (just bootstrap <url>) or set SPARQL_ENDPOINT in .env}"
+    just install
+    just extract-labels "$EP"
+    just bucket || true          # ignore "bucket already exists"
+    just deploy
+    just ingest
+    just upload
+    echo "✓ done — labels are live at ${SEED_BASE:-your Worker URL}"
+
+# Install dependencies.
+install:
+    pnpm install
 
 # Local dev server. ENVIRONMENT override enables /dev/seed locally
 # (the [vars] default is "production", which disables seeding).
@@ -36,6 +67,28 @@ seed-remote BASE:
     echo "waiting for remote dev server..."
     for i in $(seq 1 60); do curl -sf -o /dev/null "http://localhost:8788/namespaces" && break; sleep 1; done
     curl -s "http://localhost:8788/dev/seed?base={{BASE}}" | jq
+
+# --- your own labels ---
+
+# Extract label + description triples for every IRI your data uses from a SPARQL
+# endpoint (runs scripts/extract-labels.rq), saving Turtle to data.ttl. e.g.
+#   just extract-labels https://my-endpoint/sparql
+extract-labels ENDPOINT OUT="data.ttl":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    curl -sf "{{ENDPOINT}}" \
+        --data-urlencode query@scripts/extract-labels.rq \
+        -H "Accept: text/turtle" \
+        -o "{{OUT}}"
+    echo "wrote {{OUT}} ($(wc -l < "{{OUT}}" | tr -d ' ') lines)"
+
+# Build the R2 manifest from your dump → dist/seed/manifest.ndjson
+ingest INPUT="data.ttl":
+    node scripts/ingest.mjs --input {{INPUT}}
+
+# Upload the manifest to R2 (needs SEED_BASE + R2_* env vars — see the guide).
+upload:
+    node scripts/upload-seed.mjs
 
 # Smoke-test a deployed instance. Pass the base URL.
 demo BASE:

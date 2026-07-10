@@ -66,7 +66,7 @@
 <div class="wrap">
   <a class="back" href="/">← Home</a>
   <h1>Why label-cache?</h1>
-  <p class="lede">RDF names everything with IRIs. Turning those IRIs into words is the same boring problem in every app — and most ways of solving it are bad.</p>
+  <p class="lede">RDF names everything with IRIs. Turning those IRIs into words is the same boring problem in every app — and the common solutions all have drawbacks.</p>
 
   <p>RDF identifies everything with an IRI: <code>skos:broader</code>, <code>https://schema.org/jobTitle</code>,
   <code>wd:Q42</code>. They're globally unique but unreadable. Any app that shows RDF to a human has to
@@ -113,9 +113,12 @@
     <h3>3. A follow-up query for the labels</h3>
     <p>Run the main query, collect the IRIs it returned, then query the graph again for their labels.</p>
     <p class="why"><b>Why it's bad:</b> the right <em>shape</em> — this is exactly what label-cache does — but
-    it always hits your triplestore: uncached, extra load, a round trip per batch. And the labels for common
-    terms like <code>rdfs:label</code> or <code>schema:name</code> are identical across every graph on earth,
-    yet you re-fetch them from <em>your</em> KG every single time.</p>
+    on its own it hits your triplestore every time: a round trip per batch, extra load on the DB. You can soften
+    that by caching the labels in-app — a less-bad version of the CDN idea. But it adds complexity to the app,
+    the cache is cold again every time the
+    app restarts, and if you run multiple workers (e.g. FastAPI) each one keeps its own separate cache. And the
+    labels for common terms like <code>rdfs:label</code> or <code>schema:name</code> are identical across every
+    graph on earth, yet you re-fetch them from <em>your</em> KG every single time.</p>
   </div>
 
   <div class="mode">
@@ -131,7 +134,7 @@
   <div class="mode solution">
     <h3>Follow-up lookups — from an edge CDN, not your KG</h3>
     <p class="why">Take approach&nbsp;3 (a per-IRI lookup) and move it off the triplestore entirely. Labels are
-    pre-materialised <b>once</b> into blob storage (R2) and fronted by a tiered edge cache. A lookup is a plain
+    pre-materialised <b>once</b> into blob storage (<a href="https://developers.cloudflare.com/r2/">R2</a>) and fronted by a tiered edge cache. A lookup is a plain
     <code>GET /label?iri=…</code>, resolved at the nearest edge location; popular vocabulary IRIs are served
     from cache without ever touching a database. Your triplestore serves <strong>data</strong>; the CDN serves
     <strong>labels</strong>. They're decoupled.</p>

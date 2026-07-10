@@ -124,10 +124,6 @@ ex:acme a schema:Organization ;
       <div class="lc-sum" id="lc-sum" style="display:none"></div>`;
     wrap.append(main, side);
 
-    const foot = document.createElement("div"); foot.className = "lc-foot";
-    foot.innerHTML = `Shown one-by-one so you can watch each IRI become a label — <b>your app doesn't wait like this.</b> In production you fire all of them together (one <code>Promise.all</code> of independent, edge-cached <code>GET</code>s), so the whole set lands in ~tens of ms. <b>Click any request</b> to open its raw JSON-LD from the cache.`;
-    root.append(foot);
-
     // ----- render the graph (terms start as opaque CURIEs) -----
     const termEls = new Map(); // curie -> [els]
     function term(curie){
@@ -205,7 +201,7 @@ ex:acme a schema:Organization ;
           if (++i === uniq.length){
             go.disabled = false; go.className = "lc-btn reset"; go.innerHTML = "↻ Reset";
             sum.style.display = "block";
-            sum.innerHTML = `<b>${uniq.length} labels resolved</b> · ${uniq.length} edge GETs, all cache <b>HIT</b> · triplestore untouched · <b>Jane Doe</b> &amp; <b>ACME Corp</b> came from your data (0 fetches).`;
+            sum.innerHTML = `<b>Your production application can fire these requests in parallel. Click any request to open its raw JSON-LD from the cache.</b>`;
           }
         }, 260 + idx * 240);
         timers.push(t);
