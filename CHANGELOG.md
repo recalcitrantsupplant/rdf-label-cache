@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.2.0...rdf-label-resolver-v0.3.0) (2026-07-10)
+
+
+### Features
+
+* **demo:** single-page landing as the front door; tool moves to /demo ([6477caf](https://github.com/recalcitrantsupplant/label-cdn/commit/6477caf466ac2ba869678161955b1b55be142212))
+* **demo:** single-page landing as the front door; tool moves to /demo ([6cc1939](https://github.com/recalcitrantsupplant/label-cdn/commit/6cc1939b019d08d9a6d75b92ab925fee97c8b8d0))
+
+
+### Bug Fixes
+
+* **seed:** fail fast on missing R2 credentials ([2c8f982](https://github.com/recalcitrantsupplant/label-cdn/commit/2c8f9822cd122d341a39e0fc36a6265487bf69bd))
+* **seed:** fail fast on missing R2 credentials ([6228155](https://github.com/recalcitrantsupplant/label-cdn/commit/622815517e4760e11798994d9f28baedae6bc742))
+
 ## [0.2.0](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.1.2...rdf-label-resolver-v0.2.0) (2026-07-08)
 
 
