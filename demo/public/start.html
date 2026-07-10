@@ -40,13 +40,74 @@
   .note { font-size: 13px; color: var(--muted); margin: 8px 0; }
   .note.reg { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--accent-soft); border-radius: 0 6px 6px 0; }
   .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+  details.optional { margin: 26px 0 26px 46px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  details.optional > summary { cursor: pointer; padding: 12px 16px; font-size: 14px; font-weight: 600; list-style: none; }
+  details.optional > summary::-webkit-details-marker { display: none; }
+  details.optional > summary::before { content: "▸ "; color: var(--faint); }
+  details.optional[open] > summary::before { content: "▾ "; }
+  details.optional > summary .tag { font-weight: 400; color: var(--faint); font-size: 12px; }
+  details.optional .opt-body { padding: 0 16px 14px; }
+  details.optional .opt-body h4 { font-size: 13px; margin: 14px 0 2px; }
+  @media (max-width: 560px) { details.optional { margin-left: 0; } }
+
+  .cmdtoggle { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; }
+  .cmdtoggle-lbl { font-size: 13px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; background: var(--bg); color: var(--fg); padding: 4px 14px; cursor: pointer; font: inherit; font-size: 13px; }
+  .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .cmd.shell { display: none; }
+  body.shell .cmd.just { display: none; }
+  body.shell .cmd.shell { display: block; }
+
+  .prewrap { position: relative; }
+  .copy { position: absolute; top: 8px; right: 8px; font: inherit; font-size: 11px; padding: 3px 8px;
+          border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--muted);
+          cursor: pointer; opacity: 0; transition: opacity .12s; }
+  .prewrap:hover .copy, .copy:focus-visible { opacity: 1; }
+  .copy:hover { color: var(--fg); border-color: var(--accent); }
+
+  .config { margin: 18px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 4px 18px 14px; }
+  .config h3 { font-size: 14px; margin: 14px 0 2px; }
+  .config > p { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
+  .config dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; align-items: baseline; }
+  .config dt { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+  .config dd { margin: 0; font-size: 13px; color: var(--muted); }
+  .config dd .opt { color: var(--faint); }
+  @media (max-width: 560px) { .config dl { grid-template-columns: 1fr; gap: 2px 0; } .config dd { margin: 0 0 8px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a class="back" href="/">← Home</a>
   <h1>Getting started</h1>
-  <p class="lede">Cache the labels your app needs — your own IRIs plus the public-vocabulary terms your data uses — in five steps. Nothing ships pre-loaded; you populate R2 once.</p>
+  <p class="lede">Cache the labels your app needs — your own IRIs plus the public-vocabulary terms your data uses — in five steps. Nothing ships pre-loaded; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once.</p>
+
+  <div class="cmdtoggle">
+    <span class="cmdtoggle-lbl">Commands:</span>
+    <span class="seg">
+      <button data-mode="just" class="on" type="button">just</button>
+      <button data-mode="shell" type="button">shell</button>
+    </span>
+  </div>
+  <div class="config">
+    <h3>Configuration</h3>
+    <p>Put these in <code>.env</code> (copy <code>.env.example</code>) or export them in your shell — the deploy and
+    seed steps read them:</p>
+    <dl>
+      <dt>SEED_BASE</dt>
+      <dd>Your deployed Worker URL, e.g. <code>https://&lt;worker&gt;.workers.dev</code> — printed by <code>wrangler deploy</code> (step&nbsp;3).</dd>
+      <dt>R2_ACCOUNT_ID</dt>
+      <dd>Your Cloudflare account id — right sidebar of the <a href="https://dash.cloudflare.com/">dashboard</a>, or run <code>wrangler whoami</code>.</dd>
+      <dt>R2_ACCESS_KEY_ID<br>R2_SECRET_ACCESS_KEY</dt>
+      <dd>An R2 API token: dashboard → <strong>R2</strong> → <strong>Manage API Tokens</strong> → <strong>Create API Token</strong> with <em>Object Read &amp; Write</em>. The secret is shown only once.</dd>
+      <dt>SPARQL_ENDPOINT <span class="opt">(optional)</span></dt>
+      <dd>Your triplestore's query endpoint — used by <code>just bootstrap</code> / <code>just extract-labels</code> to pull the labels.</dd>
+    </dl>
+  </div>
+  <p class="note cmd just">With <code>.env</code> filled in, run the whole flow at once with <code>just bootstrap</code>
+  (or pass an endpoint to override <code>SPARQL_ENDPOINT</code>: <code>just bootstrap https://other/sparql</code>) — or
+  follow the steps below individually.</p>
 
   <div class="step">
     <div class="num">1</div>
@@ -63,6 +124,10 @@ pnpm install</code></pre>
       <h2>Dump the annotation properties you want cached</h2>
       <p>From your triplestore, <code>CONSTRUCT</code> the labels and descriptions for every IRI your data uses —
       your own entities <em>and</em> the public-vocabulary terms they reference — and save it as <code>data.ttl</code>:</p>
+      <pre class="cmd just"><code>just extract-labels https://your-endpoint/sparql   # runs the query below → data.ttl</code></pre>
+      <p class="note">This runs the SPARQL query below — it's only a starting point. Write your own or adapt it to cache
+      whatever you need: despite the name, nothing in label-cache is hardcoded to labels. It stores and serves
+      whatever triples you give it, keyed by IRI — labels are just the common case.</p>
       <pre><code>PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;
 PREFIX skos: &lt;http://www.w3.org/2004/02/skos/core#&gt;
 PREFIX dcterms: &lt;http://purl.org/dc/terms/&gt;
@@ -78,6 +143,9 @@ WHERE {
   OPTIONAL { ?iri schema:name ?n }
   FILTER(BOUND(?l)||BOUND(?c)||BOUND(?p)||BOUND(?d)||BOUND(?t)||BOUND(?desc)||BOUND(?n))
 }</code></pre>
+      <pre class="cmd shell"><code>curl -sf https://your-endpoint/sparql \
+  --data-urlencode query@query.rq \
+  -H 'Accept: text/turtle' -o data.ttl</code></pre>
       <p class="note">Any RDF file works — no triplestore needed for small data. Want whole public vocabularies
       instead of just what you use? Run <code>pnpm seed:ingest</code> with no <code>--input</code>.</p>
     </div>
@@ -87,8 +155,10 @@ WHERE {
     <div class="num">3</div>
     <div class="step-body">
       <h2>Set up Cloudflare</h2>
-      <pre><code>pnpm wrangler r2 bucket create rdf-public-labels
+      <pre class="cmd shell"><code>pnpm wrangler r2 bucket create rdf-public-labels
 pnpm wrangler deploy                 # prints your Worker URL</code></pre>
+      <pre class="cmd just"><code>just bucket     # create the R2 bucket (one-time)
+just deploy     # prints your Worker URL</code></pre>
       <p class="note reg"><strong>No namespace registration.</strong> The Worker keys R2 by the full IRI
       (<code>labels/https://schema.org/name/en</code>), so <strong>any</strong> namespace resolves once its
       labels are uploaded — and keys stay browsable in R2 for debugging.</p>
@@ -100,20 +170,47 @@ pnpm wrangler deploy                 # prints your Worker URL</code></pre>
     <div class="num">4</div>
     <div class="step-body">
       <h2>Generate &amp; upload your label objects</h2>
-      <pre><code>export SEED_BASE=https://&lt;your-worker&gt;.workers.dev
+      <pre class="cmd shell"><code>export SEED_BASE=https://&lt;your-worker&gt;.workers.dev
 export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
+      <pre class="cmd just"><code># SEED_BASE + R2_* come from your .env (see .env.example)
+just ingest    # → dist/seed/manifest.ndjson
+just upload    # → R2, over the S3 API</code></pre>
       <p class="note"><code>ingest</code> warns about any IRIs whose namespace you haven't registered in step&nbsp;3.</p>
     </div>
   </div>
+
+  <details class="optional">
+    <summary>Customize the JSON-LD context <span class="tag">— optional: your own vocabularies</span></summary>
+    <div class="opt-body">
+      <p class="note">Each object's keys (<code>prefLabel</code>, <code>definition</code>, …) are JSON-LD
+      <em>terms</em>, not baked-in fields — they're defined by the shared <code>@context</code> served at
+      <code>SEED_BASE/context/labels-v1.json</code>, which is what tells a consumer that <code>prefLabel</code>
+      expands to <code>skos:prefLabel</code>. To use your own vocabularies, edit that context. It's generated from
+      the <code>CONTEXT_DOC</code> object in <code>scripts/ingest.mjs</code>, then re-uploaded by
+      <code>just&nbsp;upload</code>.</p>
+
+      <h4>Add a namespace prefix &amp; term</h4>
+      <p class="note">So consumers can expand your keys. Inside <code>CONTEXT_DOC["@context"]</code>:</p>
+      <pre><code>ex: "https://example.org/vocab#",
+displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre>
+      <p class="note">A bare prefix does nothing on its own — the stored objects use full-IRI <code>@id</code>s. A
+      prefix only matters once it defines a <em>term</em> like <code>displayName</code> above.</p>
+
+      <h4>Also cache a new annotation property</h4>
+      <p class="note">To actually populate that key from your data, add its predicate IRI to
+      <code>LABEL_PREDS</code> or <code>DESC_PREDS</code> in <code>scripts/ingest.mjs</code> so ingest picks it up.</p>
+
+      <p class="note">Then re-run <code>just&nbsp;ingest &amp;&amp; just&nbsp;upload</code>. (If you also use the
+      local smoke test, mirror the change in <code>src/routes/dev-seed.ts</code>'s <code>CONTEXT_DOC</code>.)</p>
+    </div>
+  </details>
 
   <div class="step">
     <div class="num">5</div>
     <div class="step-body">
       <h2>Consume from your app</h2>
-      <p>Resolve any cached IRI over plain HTTP. Request all the labels a view needs <strong>in parallel</strong> —
-      they're independent, edge-cached <code>GET</code>s that multiplex over HTTP/2/3:</p>
       <pre><code>const labels = Object.fromEntries(await Promise.all(
   iris.map(async (iri) =&gt; {
     const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&amp;lang=en`);
@@ -129,5 +226,36 @@ node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></p
   <p class="foot"><a href="/demo">← Try the demo</a> &nbsp;·&nbsp; <a href="/why">Why label-cache?</a>
   &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; docs</a></p>
 </div>
+<script>
+  const seg = document.querySelector(".cmdtoggle .seg");
+  seg.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    document.body.classList.toggle("shell", btn.dataset.mode === "shell");
+    seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === btn));
+  });
+
+  // Give every command block a copy button. The wrapper carries the shell/just
+  // toggle classes so it hides in step with its <pre>.
+  document.querySelectorAll(".wrap pre").forEach((pre) => {
+    const w = document.createElement("div");
+    w.className = "prewrap";
+    ["cmd", "shell", "just"].forEach((c) => {
+      if (pre.classList.contains(c)) { w.classList.add(c); pre.classList.remove(c); }
+    });
+    pre.replaceWith(w);
+    w.appendChild(pre);
+    const btn = document.createElement("button");
+    btn.className = "copy"; btn.type = "button"; btn.textContent = "Copy";
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(pre.innerText.replace(/\s+$/, ""));
+        btn.textContent = "Copied";
+        setTimeout(() => (btn.textContent = "Copy"), 1200);
+      } catch { /* clipboard blocked */ }
+    });
+    w.appendChild(btn);
+  });
+</script>
 </body>
 </html>

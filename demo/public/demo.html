@@ -100,7 +100,7 @@
     <h1>RDF Label Cache</h1>
     <span class="head-links"><a class="why-link" href="/">← Home</a> <a class="why-link" href="/why">Why label-cache?</a> <a class="why-link" href="/start">Getting started →</a></span>
   </div>
-  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. This demo includes labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms). Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
+  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
 </header>
 <main>
   <section class="pane left">
@@ -110,6 +110,7 @@
       <button id="render" class="primary" type="button">Render →</button>
     </div>
     <textarea id="ttl" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    <div class="note" style="padding: 0 16px 14px; margin-top: 0">This demo instance of label cache holds labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms).</div>
   </section>
   <section class="pane middle">
     <div class="toolbar">
@@ -147,6 +148,7 @@
       </span>
       <span id="status" class="msg" style="padding:0"></span>
     </div>
+    <div class="note" style="padding: 10px 16px 0; margin-top: 0"><strong>Sample application.</strong> Renders labels provided directly in your data, then looks up any missing labels using label cache.</div>
     <div id="out" class="out"></div>
     <div class="legend">
       <span class="term">underlined</span> = resolved from the label cache &nbsp;·&nbsp;
