@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Label Cache — landing</title>
+<title>Label Cache - landing</title>
 <style>
   :root {
     --bg:#ffffff; --fg:#111318; --muted:#5b616e; --faint:#9ca3af; --line:#e7e9ee;
@@ -35,6 +35,7 @@
   .btn.ghost { background: transparent; color: var(--accent); }
   h2.sh { font-size: 30px; letter-spacing: -.02em; text-align: center; margin: 0 0 6px; }
   .sub { text-align: center; color: var(--muted); font-size: 16px; margin: 0 auto 28px; max-width: 60ch; }
+  .scope-note { text-align: center; color: var(--faint); font-size: 13.5px; margin: 18px auto 0; max-width: 52ch; }
   .block { padding: 64px 24px; border-top: 1px solid var(--line); }
   #demo-sec { padding-top: 40px; }
   code { font-family: var(--mono); font-size: .85em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
@@ -65,7 +66,7 @@
 
 <header class="hero">
   <h1>Labels for your RDF, <span class="g">served from a CDN.</span></h1>
-  <p>Every RDF app resolves <code>IRI → label</code> endlessly — for predicates, classes and entities. Do it once from a globally edge-cached CDN: <code>rdfs:label</code>, <code>skos:prefLabel</code>, <code>schema:name</code> and your own IRIs, resolved at the edge and never from your triplestore.</p>
+  <p>Every RDF app resolves <code>IRI → label</code> endlessly - for predicates, classes and entities. Do it once from a globally edge-cached CDN: <code>rdfs:label</code>, <code>skos:prefLabel</code>, <code>schema:name</code> and your own IRIs, resolved at the edge and never from your triplestore.</p>
   <div class="cta-row">
     <button class="btn" onclick="document.getElementById('demo-sec').scrollIntoView({behavior:'smooth'})">See it live ↓</button>
     <a class="btn ghost" href="#deploy">Deploy your own</a>
@@ -74,17 +75,18 @@
 
 <section id="demo-sec" class="wrap">
   <h2 class="sh">Watch the IRIs resolve</h2>
-  <p class="sub">This is real RDF your query might return. Hit the button and watch each unique IRI fire one edge-cached <code>GET</code> — and become a word.</p>
+  <p class="sub">This is real RDF your query might return. Hit the button and watch each unique IRI fire one edge-cached <code>GET</code> - and become a word.</p>
   <div id="demo"></div>
-  <p style="text-align:center;margin-top:22px"><a class="btn ghost" href="/demo">Try it with your own RDF — open the playground →</a></p>
+  <p class="scope-note">RDF Label Cache allows you to serve labels from the Cloudflare CDN. Rendering them is up to your app; it ships no rendering library.</p>
+  <p style="text-align:center;margin-top:22px"><a class="btn ghost" href="/demo">Try it with your own RDF - open the playground →</a></p>
 </section>
 
 <section id="why" class="block">
   <div class="wrap">
     <h2 class="sh">Why not just… ?</h2>
-    <p class="sub">Four ways RDF apps do this today — and the one that never touches your triplestore.</p>
+    <p class="sub">Four ways RDF apps do this today - and the one that never touches your triplestore.</p>
     <table class="cmp">
-      <tr><th>Approach</th><th>Stale?</th><th>Loads your KG?</th><th>Shared?</th></tr>
+      <tr><th>Approach</th><th>Stale?</th><th>Hits the KG?</th><th>Shared?</th></tr>
       <tr class="win"><td>label-cache (edge CDN)</td><td class="good">no</td><td class="good">never</td><td class="good">globally</td></tr>
       <tr><td>Hard-coded label table</td><td class="bad">yes</td><td class="good">no</td><td class="bad">no</td></tr>
       <tr><td>Label joins in every query</td><td class="good">no</td><td class="bad">heavily</td><td class="bad">no</td></tr>
@@ -92,26 +94,27 @@
       <tr><td>Shadow "label" named graphs</td><td class="bad">drifts</td><td class="bad">yes</td><td class="bad">no</td></tr>
     </table>
     <div class="grid3" style="margin-top:26px">
-      <div class="card"><div class="big">$0.30</div><h3>per million hits</h3><p>First 100k/day free. No egress fees at all — unlike the hyperscalers.</p></div>
-      <div class="card"><div class="big">&lt;50ms</div><h3>for 95% of users</h3><p>Served from the nearest of 330+ cities — often faster than one origin round-trip.</p></div>
+      <div class="card"><div class="big">$0.30</div><h3>per million requests</h3><p>First 100k/day free - hits and misses alike. No egress fees at all, unlike the hyperscalers.</p></div>
+      <div class="card"><div class="big">&lt;50ms</div><h3>for 95% of users</h3><p>Served from the nearest of 330+ cities - often faster than one origin round-trip.</p></div>
       <div class="card"><div class="big">shared</div><h3>per region</h3><p>One user warms the cache; everyone routed there rides it. Common terms hit ~always.</p></div>
     </div>
-    <p style="text-align:center;margin-top:22px"><a href="/why">Read the full write-up — cost, latency &amp; the shared-cache model →</a></p>
+    <p style="text-align:center;margin-top:22px"><a href="/why">Read the full write-up - cost, latency &amp; the shared-cache model →</a></p>
   </div>
 </section>
 
 <section id="deploy" class="block">
   <div class="wrap deploy">
     <h2 class="sh">Deploy your own</h2>
-    <p class="sub">Nothing ships pre-loaded. Populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your IRIs plus the public terms you use.</p>
+    <p class="sub">Deploy your own RDF Label Cache. It ships empty; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your own IRIs and any other ontologies you reference (Schema.org, DCAT, …).</p>
     <div class="steps">
       <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone …/label-cdn &amp;&amp; pnpm install</code></div></div>
       <div class="st"><span class="n">2</span><div><h3>Dump annotation properties</h3><p>One SPARQL <code>CONSTRUCT</code> → labels + descriptions for every IRI your data mentions.</p></div></div>
-      <div class="st"><span class="n">3</span><div><h3>Set up Cloudflare</h3><code>wrangler r2 bucket create rdf-public-labels &amp;&amp; wrangler deploy</code></div></div>
-      <div class="st"><span class="n">4</span><div><h3>Generate &amp; upload</h3><code>node scripts/ingest.mjs --input data.ttl &amp;&amp; node scripts/upload-seed.mjs</code></div></div>
-      <div class="st"><span class="n">5</span><div><h3>Consume from your app</h3><p>Plain HTTP <code>GET</code>s, fired concurrently over HTTP/2/3.</p></div></div>
+      <div class="st"><span class="n">3</span><div><h3>Set up Cloudflare &amp; get credentials</h3><p>Sign up or log in, create the R2 bucket, deploy the Worker, and make an R2 API token.</p></div></div>
+      <div class="st"><span class="n">4</span><div><h3>Configuration</h3><p>Put your <code>SEED_BASE</code> (the deployed Worker URL) and R2 keys in <code>.env</code>.</p></div></div>
+      <div class="st"><span class="n">5</span><div><h3>Generate &amp; upload</h3><code>node scripts/ingest.mjs --input data.ttl &amp;&amp; node scripts/upload-seed.mjs</code></div></div>
+      <div class="st"><span class="n">6</span><div><h3>Consume from your app</h3><p>Plain HTTP <code>GET</code>s, fired concurrently over HTTP/2/3.</p></div></div>
     </div>
-    <p style="text-align:center;margin-top:22px"><a href="/start">Full guide — the CONSTRUCT query &amp; every command →</a></p>
+    <p style="text-align:center;margin-top:22px"><a href="/start">Full guide - the CONSTRUCT query &amp; every command →</a></p>
   </div>
 </section>
 

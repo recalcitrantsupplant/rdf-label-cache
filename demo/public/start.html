@@ -9,6 +9,9 @@
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
     --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
     --code: #f3f4f6; --good: #166534;
+    /* CodeMirror 5 default theme (as shipped by YASGUI) - exact source hex */
+    --sx-comment: #aa5500; --sx-key: #770088; --sx-str: #aa1111;
+    --sx-iri: #221199; --sx-var: #0055aa; --sx-num: #116644; --sx-pname: #ff5500;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
@@ -17,11 +20,14 @@
       --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
       --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
       --code: #161b22; --good: #4ade80;
+      --sx-comment: #8b949e; --sx-key: #d2a8ff; --sx-str: #ff7b72;
+      --sx-iri: #a5b4fc; --sx-var: #79c0ff; --sx-num: #7ee787; --sx-pname: #ffa657;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: var(--sans); color: var(--fg); background: var(--bg); line-height: 1.6; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 80px; }
+  .layout { max-width: 1024px; margin: 0 auto; padding: 32px 24px 80px; display: flex; gap: 44px; align-items: flex-start; }
+  .wrap { max-width: 760px; min-width: 0; flex: 1; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .back { font-size: 13px; }
@@ -31,12 +37,21 @@
   code { font-family: var(--mono); font-size: 0.88em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
   pre { margin: 12px 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; overflow-x: auto; }
   pre code { background: none; padding: 0; font-size: inherit; }
+  code.sparql .t-c { color: var(--sx-comment); font-style: italic; }
+  code.sparql .t-k { color: var(--sx-key); }
+  code.sparql .t-s { color: var(--sx-str); }
+  code.sparql .t-i { color: var(--sx-iri); }
+  code.sparql .t-v { color: var(--sx-var); }
+  code.sparql .t-n { color: var(--sx-num); }
+  code.sparql .t-p { color: var(--sx-pname); }
 
   .step { display: flex; gap: 16px; margin: 26px 0; }
   .num { flex-shrink: 0; width: 30px; height: 30px; border-radius: 999px; background: var(--accent); color: #fff;
          display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .num.alt { background: #8957e5; }
   .step-body { min-width: 0; flex: 1; }
   .step-body h2 { font-size: 17px; margin: 3px 0 6px; letter-spacing: -0.01em; }
+  .step-body h3 { font-size: 16px; font-weight: 650; margin: 24px 0 6px; letter-spacing: -0.01em; }
   .note { font-size: 13px; color: var(--muted); margin: 8px 0; }
   .note.reg { border-left: 3px solid var(--accent); padding: 8px 12px; background: var(--accent-soft); border-radius: 0 6px 6px 0; }
   .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
@@ -56,9 +71,18 @@
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
   .seg button { border: 0; background: var(--bg); color: var(--fg); padding: 4px 14px; cursor: pointer; font: inherit; font-size: 13px; }
   .seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .cmdtoggle .optseg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .cmdtoggle .optseg button { text-align: center; }
   .cmd.shell { display: none; }
   body.shell .cmd.just { display: none; }
   body.shell .cmd.shell { display: block; }
+
+  .optbox { margin: 14px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 14px 16px; }
+  .optbox .optseg { margin-left: 0; }
+  .optbox .opt-panel { display: none; }
+  .optbox .opt-panel h4 { font-size: 13px; margin: 8px 0 2px; }
+  .optbox.show-seed .opt-seed { display: block; }
+  .optbox.show-gap .opt-gap { display: block; }
 
   .prewrap { position: relative; }
   .copy { position: absolute; top: 8px; right: 8px; font: inherit; font-size: 11px; padding: 3px 8px;
@@ -75,13 +99,52 @@
   .config dd { margin: 0; font-size: 13px; color: var(--muted); }
   .config dd .opt { color: var(--faint); }
   @media (max-width: 560px) { .config dl { grid-template-columns: 1fr; gap: 2px 0; } .config dd { margin: 0 0 8px; } }
+
+  /* Sticky step rail - orientation for a linear tutorial */
+  .rail { position: sticky; top: 32px; flex: 0 0 176px; }
+  .rail-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+                color: var(--faint); margin: 0 0 14px; padding-left: 32px; }
+  .rail-steps { list-style: none; margin: 0; padding: 0; position: relative; }
+  .rail-steps::before { content: ""; position: absolute; left: 11px; top: 14px; bottom: 14px; width: 2px; background: var(--line); }
+  .rail-steps a { display: flex; align-items: center; gap: 11px; padding: 6px 0; font-size: 13px; color: var(--muted); line-height: 1.25; }
+  .rail-steps a:hover { color: var(--fg); text-decoration: none; }
+  .rail-steps b { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 999px; background: var(--bg);
+                  border: 2px solid var(--line); color: var(--faint); display: flex; align-items: center;
+                  justify-content: center; font-size: 12px; font-weight: 700; position: relative; z-index: 1; }
+  .rail-steps a.active { color: var(--fg); font-weight: 600; }
+  .rail-steps a.active b { background: var(--accent); border-color: var(--accent); color: #fff; }
+  @media (max-width: 900px) { .layout { display: block; padding-top: 24px; } .rail { display: none; } }
+
+  /* Inline disclosures for secondary rationale - keep the "why" out of the main flow */
+  details.why { margin: 10px 0; }
+  details.why > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+                          font-size: 13px; color: var(--accent); }
+  details.why > summary::-webkit-details-marker { display: none; }
+  details.why > summary::before { content: "▸"; font-size: 10px; color: var(--faint); }
+  details.why[open] > summary::before { content: "▾"; }
+  details.why > summary:hover { text-decoration: underline; }
+  details.why .why-body { margin: 6px 0 0; padding-left: 15px; border-left: 2px solid var(--line); }
+  details.why .why-body > :first-child { margin-top: 0; }
+  details.why .why-body > :last-child { margin-bottom: 0; }
 </style>
 </head>
 <body>
+<div class="layout">
+<nav class="rail" aria-label="Getting started steps">
+  <div class="rail-title">Getting started</div>
+  <ol class="rail-steps">
+    <li><a href="#step-1" data-step="step-1"><b>1</b> Clone &amp; install</a></li>
+    <li><a href="#step-2" data-step="step-2"><b>2</b> Dump annotation properties</a></li>
+    <li><a href="#step-3" data-step="step-3"><b>3</b> Cloudflare &amp; credentials</a></li>
+    <li><a href="#config" data-step="config"><b>4</b> Configuration</a></li>
+    <li><a href="#step-5" data-step="step-5"><b>5</b> Generate &amp; upload</a></li>
+    <li><a href="#step-6" data-step="step-6"><b>6</b> Consume from your app</a></li>
+  </ol>
+</nav>
 <div class="wrap">
   <a class="back" href="/">← Home</a>
   <h1>Getting started</h1>
-  <p class="lede">Cache the labels your app needs — your own IRIs plus the public-vocabulary terms your data uses — in five steps. Nothing ships pre-loaded; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once.</p>
+  <p class="lede">Cache the labels your app needs - your own IRIs plus the public-vocabulary terms your data uses - in six steps. Nothing ships pre-loaded; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once.</p>
 
   <div class="cmdtoggle">
     <span class="cmdtoggle-lbl">Commands:</span>
@@ -90,26 +153,22 @@
       <button data-mode="shell" type="button">shell</button>
     </span>
   </div>
-  <div class="config">
-    <h3>Configuration</h3>
-    <p>Put these in <code>.env</code> (copy <code>.env.example</code>) or export them in your shell — the deploy and
-    seed steps read them:</p>
-    <dl>
-      <dt>SEED_BASE</dt>
-      <dd>Your deployed Worker URL, e.g. <code>https://&lt;worker&gt;.workers.dev</code> — printed by <code>wrangler deploy</code> (step&nbsp;3).</dd>
-      <dt>R2_ACCOUNT_ID</dt>
-      <dd>Your Cloudflare account id — right sidebar of the <a href="https://dash.cloudflare.com/">dashboard</a>, or run <code>wrangler whoami</code>.</dd>
-      <dt>R2_ACCESS_KEY_ID<br>R2_SECRET_ACCESS_KEY</dt>
-      <dd>An R2 API token: dashboard → <strong>R2</strong> → <strong>Manage API Tokens</strong> → <strong>Create API Token</strong> with <em>Object Read &amp; Write</em>. The secret is shown only once.</dd>
-      <dt>SPARQL_ENDPOINT <span class="opt">(optional)</span></dt>
-      <dd>Your triplestore's query endpoint — used by <code>just bootstrap</code> / <code>just extract-labels</code> to pull the labels.</dd>
-    </dl>
-  </div>
-  <p class="note cmd just">With <code>.env</code> filled in, run the whole flow at once with <code>just bootstrap</code>
-  (or pass an endpoint to override <code>SPARQL_ENDPOINT</code>: <code>just bootstrap https://other/sparql</code>) — or
+  <details class="why">
+    <summary>Using npm or bun instead of pnpm</summary>
+    <div class="why-body">
+      <p class="note">Examples use <strong>pnpm</strong> - recommended, since the committed lockfile gives reproducible,
+      age-pinned installs - but <strong>npm</strong> and <strong>bun</strong> work too. In shell commands, swap
+      <code>pnpm install</code> → <code>npm install</code> / <code>bun install</code> and <code>pnpm wrangler …</code> →
+      <code>npx wrangler …</code> / <code>bunx wrangler …</code>; the <code>node scripts/…</code> commands are identical
+      on all three. For the <code>just</code> recipes, name your manager once and it threads through:
+      <code>just pm=npm bootstrap</code>.</p>
+    </div>
+  </details>
+  <p class="note cmd just">With <code>.env</code> filled in (see <a href="#config">Configuration</a> below), run the whole flow at once with <code>just bootstrap</code>
+  (or pass an endpoint to override <code>SPARQL_ENDPOINT</code>: <code>just bootstrap https://other/sparql</code>) - or
   follow the steps below individually.</p>
 
-  <div class="step">
+  <div class="step" id="step-1">
     <div class="num">1</div>
     <div class="step-body">
       <h2>Clone &amp; install</h2>
@@ -118,17 +177,26 @@ pnpm install</code></pre>
     </div>
   </div>
 
-  <div class="step">
+  <div class="step" id="step-2">
     <div class="num">2</div>
     <div class="step-body">
       <h2>Dump the annotation properties you want cached</h2>
-      <p>From your triplestore, <code>CONSTRUCT</code> the labels and descriptions for every IRI your data uses —
-      your own entities <em>and</em> the public-vocabulary terms they reference — and save it as <code>data.ttl</code>:</p>
+      <h3>Labels for your instance data</h3>
+      <p>From your triplestore, <code>CONSTRUCT</code> the labels and descriptions for every IRI your data uses -
+      your own entities <em>and</em> the public-vocabulary terms they reference - and save it as <code>data.ttl</code>:</p>
       <pre class="cmd just"><code>just extract-labels https://your-endpoint/sparql   # runs the query below → data.ttl</code></pre>
-      <p class="note">This runs the SPARQL query below — it's only a starting point. Write your own or adapt it to cache
-      whatever you need: despite the name, nothing in label-cache is hardcoded to labels. It stores and serves
-      whatever triples you give it, keyed by IRI — labels are just the common case.</p>
-      <pre><code>PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;
+      <details class="why">
+        <summary>This query is only a starting point</summary>
+        <div class="why-body">
+          <p class="note">This runs an example query (expand it below) - a starting point. Write your own or adapt it to
+          cache whatever you need: despite the name, nothing in label-cache is hardcoded to labels, it can deliver
+          whichever triples you like, keyed by IRI - labels are just the common case.</p>
+        </div>
+      </details>
+      <details class="optional" style="margin: 12px 0;">
+        <summary>Show the example label-extraction query</summary>
+        <div class="opt-body">
+          <pre><code class="sparql">PREFIX rdfs: &lt;http://www.w3.org/2000/01/rdf-schema#&gt;
 PREFIX skos: &lt;http://www.w3.org/2004/02/skos/core#&gt;
 PREFIX dcterms: &lt;http://purl.org/dc/terms/&gt;
 PREFIX schema: &lt;https://schema.org/&gt;
@@ -143,49 +211,146 @@ WHERE {
   OPTIONAL { ?iri schema:name ?n }
   FILTER(BOUND(?l)||BOUND(?c)||BOUND(?p)||BOUND(?d)||BOUND(?t)||BOUND(?desc)||BOUND(?n))
 }</code></pre>
+        </div>
+      </details>
       <pre class="cmd shell"><code>curl -sf https://your-endpoint/sparql \
   --data-urlencode query@query.rq \
   -H 'Accept: text/turtle' -o data.ttl</code></pre>
-      <p class="note">Any RDF file works — no triplestore needed for small data. Want whole public vocabularies
-      instead of just what you use? Run <code>pnpm seed:ingest</code> with no <code>--input</code>.</p>
+
+      <p>Labelling is usually <strong>two steps</strong> - your data, then the vocabularies it references.</p>
+      <details class="why">
+        <summary>Why two steps?</summary>
+        <div class="why-body">
+          <p class="note">The query above captures the labels in your own data - but not the vocabulary terms it
+          references (i.e. the label for <code>rdfs:label</code> <em>itself</em>) unless you've loaded those ontologies
+          too. If required, you can seed these separately below using bundled copies of common ontology labels and
+          descriptions.</p>
+        </div>
+      </details>
+
+      <h3>Labels for the ontologies you use</h3>
+
+      <div class="optbox show-seed" id="pubvocab">
+        <p class="note">Cover those public-vocabulary terms - <code>schema:name</code>, <code>skos:Concept</code>,
+        <code>rdfs:label</code> - two ways:</p>
+        <div class="cmdtoggle">
+          <span class="cmdtoggle-lbl">Public vocabularies:</span>
+          <span class="seg optseg">
+            <button data-opt="seed" class="on" type="button">Seed them</button>
+            <button data-opt="gap" type="button">Find what's missing</button>
+          </span>
+        </div>
+
+        <div class="opt-panel opt-seed">
+          <h4>Seed the public vocabulary labels</h4>
+          <p class="note">If you didn't include labels for these with your instance data, RDF Label Cache bundles copies
+          you can ingest straight into R2 - no dump needed.</p>
+          <pre class="cmd just"><code>just seed-public                  # all bundled vocabularies
+just seed-public skos,rdf,rdfs    # …or only the ones you name</code></pre>
+          <pre class="cmd shell"><code>node scripts/ingest.mjs                    # all bundled vocabularies
+node scripts/ingest.mjs --only skos,rdf    # …or only the ones you name
+node scripts/upload-seed.mjs</code></pre>
+          <details class="why">
+            <summary>How much does seeding all of them cost?</summary>
+            <div class="why-body">
+              <p class="note">The bundled vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org) come to only a
+              few thousand terms - small even with schema.org, the largest of them. There's no real cost to putting all of
+              them in R2, so unless you want a minimal footprint, just seed the lot. It's additive to your own labels.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="opt-panel opt-gap">
+          <h4>Find exactly which vocabularies you're missing</h4>
+          <p class="note">Report the namespaces your data uses but doesn't itself label - then seed just those:</p>
+          <pre class="cmd just"><code>just coverage-report https://your-endpoint/sparql</code></pre>
+          <pre class="cmd shell"><code>curl -sf https://your-endpoint/sparql \
+  --data-urlencode query@scripts/coverage-report.rq \
+  -H 'Accept: text/csv' | column -t -s,</code></pre>
+          <p class="note">Feed the namespaces it lists back to <code>seed-public</code>. It scans every IRI in the graph,
+          so run it against an offline copy or a dump - not a large production endpoint.</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="step">
+  <div class="step" id="step-3">
     <div class="num">3</div>
     <div class="step-body">
-      <h2>Set up Cloudflare</h2>
-      <pre class="cmd shell"><code>pnpm wrangler r2 bucket create rdf-public-labels
-pnpm wrangler deploy                 # prints your Worker URL</code></pre>
-      <pre class="cmd just"><code>just bucket     # create the R2 bucket (one-time)
-just deploy     # prints your Worker URL</code></pre>
-      <p class="note reg"><strong>No namespace registration.</strong> The Worker keys R2 by the full IRI
-      (<code>labels/https://schema.org/name/en</code>), so <strong>any</strong> namespace resolves once its
-      labels are uploaded — and keys stay browsable in R2 for debugging.</p>
-      <p class="note">Then create an <strong>R2 API token</strong> (dashboard → R2 → Manage API Tokens) for the upload.</p>
+      <h2>Set up Cloudflare &amp; get credentials</h2>
+      <p class="note">Pick a <strong>project name</strong> first — your Worker and R2 bucket are both named
+      <code>label-cache-&lt;project&gt;</code>, so each app gets its own isolated instance and two apps never share a
+      bucket. Set it once in <code>.env</code> (<code>PROJECT=orders</code>) or pass <code>project=orders</code> per run.</p>
+      <p class="note">Sign up for Cloudflare (the free tier is plenty) or log into an existing account, then create the
+      bucket and deploy the Worker:</p>
+      <pre class="cmd shell"><code>pnpm wrangler login                  # sign up (free) or log in - opens the browser
+# set name + bucket_name to label-cache-orders in wrangler.toml, then:
+pnpm wrangler r2 bucket create label-cache-orders
+pnpm wrangler deploy                 # prints your Cloudflare Worker URL → SEED_BASE</code></pre>
+      <pre class="cmd just"><code>just login                        # sign up (free) or log in - opens the browser
+just project=orders bucket        # create bucket label-cache-orders (one-time)
+just project=orders deploy        # prints your Cloudflare Worker URL → SEED_BASE</code></pre>
+      <p class="note">Then create an <strong>R2 API token</strong> - dashboard → <strong>R2</strong> →
+      <strong>Manage API Tokens</strong> → <strong>Create API Token</strong> with <em>Object Read &amp; Write</em>. This
+      gives you <code>R2_ACCESS_KEY_ID</code> and <code>R2_SECRET_ACCESS_KEY</code>. You now have every
+      value the next step needs.</p>
+      <details class="why">
+        <summary>Want short names instead of full IRIs in responses?</summary>
+        <div class="why-body">
+          <p class="note">That's what the JSON-LD <code>@context</code> the Worker serves is for: it maps
+          <code>schema:</code>, <code>skos:</code>, <code>dcat:</code> etc. to their namespaces, so a consumer can
+          compact a full <code>@id</code> down to <code>schema:name</code>. Add your own prefixes there to abbreviate
+          your namespaces (see <a href="#context">Customize the JSON-LD context</a> below).</p>
+        </div>
+      </details>
     </div>
   </div>
 
-  <div class="step">
+  <div class="step" id="config">
     <div class="num">4</div>
     <div class="step-body">
+      <h2>Configuration</h2>
+      <div class="config">
+        <p>You now have every value from step&nbsp;3 - put them in <code>.env</code> (copy <code>.env.example</code>)
+        or export them in your shell. The generate &amp; upload step reads them:</p>
+        <dl>
+          <dt>PROJECT</dt>
+          <dd>Names your Worker + bucket, both <code>label-cache-&lt;PROJECT&gt;</code>. Required by every Cloudflare recipe; pick one per app.</dd>
+          <dt>SEED_BASE</dt>
+          <dd>Your deployed Cloudflare Worker URL, e.g. <code>https://label-cache-&lt;PROJECT&gt;.&lt;subdomain&gt;.workers.dev</code> - printed by <code>wrangler deploy</code> in step&nbsp;3.</dd>
+          <dt>R2_ACCOUNT_ID</dt>
+          <dd>Your Cloudflare account id - right sidebar of the <a href="https://dash.cloudflare.com/">dashboard</a>, or run <code>wrangler whoami</code>.</dd>
+          <dt>R2_ACCESS_KEY_ID<br>R2_SECRET_ACCESS_KEY</dt>
+          <dd>The R2 API token you created in step&nbsp;3 (<em>Object Read &amp; Write</em>). The secret is shown only once.</dd>
+          <dt>SPARQL_ENDPOINT <span class="opt">(optional)</span></dt>
+          <dd>Your triplestore's query endpoint - used by <code>just bootstrap</code> / <code>just extract-labels</code> to pull the labels.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="step" id="step-5">
+    <div class="num">5</div>
+    <div class="step-body">
       <h2>Generate &amp; upload your label objects</h2>
-      <pre class="cmd shell"><code>export SEED_BASE=https://&lt;your-worker&gt;.workers.dev
+      <pre class="cmd shell"><code>export SEED_BASE=https://label-cache-orders.&lt;subdomain&gt;.workers.dev
+export R2_BUCKET=label-cache-orders
 export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
-      <pre class="cmd just"><code># SEED_BASE + R2_* come from your .env (see .env.example)
-just ingest    # → dist/seed/manifest.ndjson
-just upload    # → R2, over the S3 API</code></pre>
-      <p class="note"><code>ingest</code> warns about any IRIs whose namespace you haven't registered in step&nbsp;3.</p>
+      <pre class="cmd just"><code># PROJECT + SEED_BASE + R2_* come from your .env (see .env.example)
+just ingest                       # → dist/seed/manifest.ndjson
+just project=orders upload        # → R2, over the S3 API (sets R2_BUCKET)</code></pre>
+      <p class="note"><code>ingest</code> prints a per-namespace summary of the terms it wrote - no namespace needs
+      registering first.</p>
     </div>
   </div>
 
-  <details class="optional">
-    <summary>Customize the JSON-LD context <span class="tag">— optional: your own vocabularies</span></summary>
+  <details class="optional" id="context">
+    <summary>Customize the JSON-LD context <span class="tag">- optional: your own vocabularies</span></summary>
     <div class="opt-body">
       <p class="note">Each object's keys (<code>prefLabel</code>, <code>definition</code>, …) are JSON-LD
-      <em>terms</em>, not baked-in fields — they're defined by the shared <code>@context</code> served at
+      <em>terms</em>, not baked-in fields - they're defined by the shared <code>@context</code> served at
       <code>SEED_BASE/context/labels-v1.json</code>, which is what tells a consumer that <code>prefLabel</code>
       expands to <code>skos:prefLabel</code>. To use your own vocabularies, edit that context. It's generated from
       the <code>CONTEXT_DOC</code> object in <code>scripts/ingest.mjs</code>, then re-uploaded by
@@ -195,8 +360,10 @@ just upload    # → R2, over the S3 API</code></pre>
       <p class="note">So consumers can expand your keys. Inside <code>CONTEXT_DOC["@context"]</code>:</p>
       <pre><code>ex: "https://example.org/vocab#",
 displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre>
-      <p class="note">A bare prefix does nothing on its own — the stored objects use full-IRI <code>@id</code>s. A
-      prefix only matters once it defines a <em>term</em> like <code>displayName</code> above.</p>
+      <p class="note">A bare prefix already earns its keep - it lets consumers compact matching identifiers, so an
+      <code>@id</code> of <code>https://example.org/vocab#Widget</code> abbreviates to <code>ex:Widget</code>. To
+      abbreviate a <em>property key</em> as well (not just an identifier), define a <em>term</em> like
+      <code>displayName</code> above.</p>
 
       <h4>Also cache a new annotation property</h4>
       <p class="note">To actually populate that key from your data, add its predicate IRI to
@@ -207,32 +374,108 @@ displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre
     </div>
   </details>
 
-  <div class="step">
-    <div class="num">5</div>
+  <div class="step" id="step-6">
+    <div class="num alt">6</div>
     <div class="step-body">
-      <h2>Consume from your app</h2>
-      <pre><code>const labels = Object.fromEntries(await Promise.all(
-  iris.map(async (iri) =&gt; {
-    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&amp;lang=en`);
-    return [iri, res.ok ? (await res.json()).prefLabel?.en : null];
-  }),
-));</code></pre>
-      <p class="note">Fire them concurrently — never one-at-a-time. See
+      <h2>Example - consume from your app</h2>
+      <p class="note">Fetch the slice of your graph you want to render, then resolve a label for every IRI it
+      mentions. <code>/label</code> returns <code>application/ld+json</code>, so you can stream each response straight
+      back into your graph. This example parses the Turtle with <a href="https://github.com/rdfjs/N3.js">N3</a> and,
+      since N3 doesn't read JSON-LD, bridges the label docs to RDF/JS quads with
+      <a href="https://github.com/rubensworks/jsonld-streaming-parser.js">jsonld-streaming-parser</a> - but you can
+      use plain JavaScript or other RDF libraries. Here <code>ENDPOINT</code> is your SPARQL endpoint and
+      <code>BASE</code> your Cloudflare Worker URL:</p>
+      <pre><code>import { Parser, Store } from "n3";
+import { JsonLdParser } from "jsonld-streaming-parser";
+
+// 1. Pull the slice of your KG you want to show - e.g. one resource - and
+//    parse it into a Store you can enrich in place.
+const ttl = await fetch(
+  `${ENDPOINT}?query=${encodeURIComponent(`DESCRIBE &lt;${subject}&gt;`)}`,
+  { headers: { Accept: "text/turtle" } },
+).then((r) =&gt; r.text());
+const store = new Store(new Parser().parse(ttl));
+
+// 2. Collect every distinct IRI (subjects, predicates, IRI objects).
+const iris = [...new Set(
+  store.getQuads().flatMap((q) =&gt; [q.subject, q.predicate, q.object])
+    .filter((t) =&gt; t.termType === "NamedNode")
+    .map((t) =&gt; t.value),
+)];
+
+// 3. Stream each JSON-LD label doc's triples into the same Store - no
+//    intermediate serialization, language tags preserved ("Concept"@en).
+const mergeJsonLd = (doc) =&gt; new Promise((resolve, reject) =&gt; {
+  const p = new JsonLdParser();
+  p.on("data", (q) =&gt; store.addQuad(q));
+  p.on("error", reject).on("end", resolve);
+  p.write(JSON.stringify(doc));
+  p.end();
+});
+
+// Fire the lookups concurrently - one edge-cached GET apiece.
+await Promise.all(iris.map(async (iri) =&gt; {
+  const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&amp;lang=en`);
+  if (res.ok) await mergeJsonLd(await res.json());
+}));
+
+// `store` now holds your data + every label as triples.</code></pre>
+      <p class="note">Fire the label lookups concurrently - never one-at-a-time. See
       <a href="https://github.com/recalcitrantsupplant/label-cdn/blob/main/docs/FAQ.md">the FAQ</a>
       on why one-request-per-label is fine over modern HTTP.</p>
+
+      <p class="note">Each label doc carries an absolute <code>@context</code> URL, so the parser fetches it once
+      per doc by default. Serving many labels? Hand <code>JsonLdParser</code> a cached <code>context</code> /
+      <code>documentLoader</code> so you resolve <code>/context/labels-v1.json</code> from memory instead of
+      re-fetching it each time.</p>
     </div>
   </div>
 
   <p class="foot"><a href="/demo">← Try the demo</a> &nbsp;·&nbsp; <a href="/why">Why label-cache?</a>
   &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; docs</a></p>
 </div>
+</div>
 <script>
+  // Minimal, dependency-free SPARQL highlighting for <code class="sparql">.
+  // Tokenise, then rebuild with <span>s via textContent (no innerHTML → no
+  // escaping bugs); GitHub-palette colours live in the --sx-* CSS vars.
+  const SP_KW = new Set("BASE PREFIX SELECT CONSTRUCT DESCRIBE ASK WHERE FROM NAMED DISTINCT REDUCED ORDER BY ASC DESC LIMIT OFFSET OPTIONAL UNION MINUS FILTER BIND VALUES GRAPH SERVICE AS GROUP HAVING NOT EXISTS IN A".split(" "));
+  const SP_FN = new Set("STR LANG LANGMATCHES DATATYPE BOUND IRI URI BNODE ABS CEIL FLOOR ROUND CONCAT STRLEN UCASE LCASE CONTAINS STRSTARTS STRENDS STRBEFORE STRAFTER COALESCE IF STRLANG STRDT SAMETERM ISIRI ISURI ISBLANK ISLITERAL ISNUMERIC REGEX SUBSTR REPLACE COUNT SUM MIN MAX AVG SAMPLE GROUP_CONCAT NOW".split(" "));
+  const SP_RE = /(#[^\n]*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(<[^>\s]*>)|(\?[A-Za-z_]\w*)|(\b\d+\b)|([A-Za-z_][\w-]*:[\w.%-]*)|([A-Za-z_]\w*)/g;
+  document.querySelectorAll("code.sparql").forEach((code) => {
+    const src = code.textContent, frag = document.createDocumentFragment();
+    let last = 0, m;
+    SP_RE.lastIndex = 0;
+    while ((m = SP_RE.exec(src))) {
+      if (m.index > last) frag.appendChild(document.createTextNode(src.slice(last, m.index)));
+      let cls = m[1] ? "t-c" : m[2] ? "t-s" : m[3] ? "t-i" : m[4] ? "t-v" : m[5] ? "t-n" : m[6] ? "t-p" : null;
+      // SPARQL built-in functions (BOUND, isIRI, …) highlight as keywords in YASGUI.
+      if (!cls) { const up = m[0].toUpperCase(); cls = (SP_KW.has(up) || SP_FN.has(up)) ? "t-k" : null; }
+      if (cls) { const s = document.createElement("span"); s.className = cls; s.textContent = m[0]; frag.appendChild(s); }
+      else frag.appendChild(document.createTextNode(m[0]));
+      last = SP_RE.lastIndex;
+    }
+    if (last < src.length) frag.appendChild(document.createTextNode(src.slice(last)));
+    code.textContent = "";
+    code.appendChild(frag);
+  });
+
   const seg = document.querySelector(".cmdtoggle .seg");
   seg.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-mode]");
     if (!btn) return;
     document.body.classList.toggle("shell", btn.dataset.mode === "shell");
     seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b === btn));
+  });
+
+  // Public-vocabulary options: show one panel at a time.
+  const pubvocab = document.getElementById("pubvocab");
+  pubvocab.querySelector(".optseg").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-opt]");
+    if (!btn) return;
+    pubvocab.classList.toggle("show-seed", btn.dataset.opt === "seed");
+    pubvocab.classList.toggle("show-gap", btn.dataset.opt === "gap");
+    pubvocab.querySelectorAll(".optseg button").forEach((b) => b.classList.toggle("on", b === btn));
   });
 
   // Give every command block a copy button. The wrapper carries the shell/just
@@ -256,6 +499,31 @@ displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre
     });
     w.appendChild(btn);
   });
+
+  // Rail: highlight the step whose top has scrolled past the reading line.
+  const railLinks = new Map();
+  document.querySelectorAll(".rail-steps a").forEach((a) => railLinks.set(a.dataset.step, a));
+  const stepEls = [...document.querySelectorAll(".step")].filter((el) => railLinks.has(el.id));
+  if (stepEls.length) {
+    const markRail = () => {
+      // Active line sits near the top so the step pinned to the top of the
+      // viewport wins - a lower line lets a short step's successor steal it.
+      const line = 110;
+      let current = stepEls[0].id;
+      for (const el of stepEls) {
+        if (el.getBoundingClientRect().top - line <= 0) current = el.id;
+      }
+      railLinks.forEach((a, id) => a.classList.toggle("active", id === current));
+    };
+    let ticking = false;
+    addEventListener("scroll", () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { markRail(); ticking = false; });
+    }, { passive: true });
+    addEventListener("hashchange", markRail);
+    markRail();
+  }
 </script>
 </body>
 </html>

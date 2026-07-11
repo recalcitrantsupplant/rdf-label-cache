@@ -35,11 +35,11 @@ ex:acme a schema:Organization ;
     schema:name "ACME Corp" ;
     schema:url  "https://acme.example.org" .`;
 
-  // Deterministic-looking latencies (no Math.random — keeps it stable/replayable).
+  // Deterministic-looking latencies (no Math.random - keeps it stable/replayable).
   const MS = [19, 24, 31, 22, 17, 28, 21];
 
   const css = `
-  .lc { display: grid; grid-template-columns: 1fr 340px; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
+  .lc { display: grid; grid-template-columns: 11fr 9fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
   @media (max-width: 720px){ .lc { grid-template-columns: 1fr; } }
   .lc-main { min-width: 0; }
   .lc-side { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-width: 0; }
@@ -90,7 +90,7 @@ ex:acme a schema:Organization ;
   `;
 
   function esc(s){ return s.replace(/[&<>]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;" }[c])); }
-  // Tokenize Turtle, then wrap — never regex-over-HTML (that matched the quotes in class="…").
+  // Tokenize Turtle, then wrap - never regex-over-HTML (that matched the quotes in class="…").
   function highlightTtl(t){
     const re = /(@prefix)|("(?:[^"\\]|\\.)*")|(<[^>]*>)|\b(a)\b|([A-Za-z][\w.-]*:[\w.-]*)/g;
     let out = "", last = 0, m;
@@ -118,9 +118,9 @@ ex:acme a schema:Organization ;
     main.append(bar, body);
 
     const side = document.createElement("div"); side.className = "lc-side";
-    side.innerHTML = `<div class="lc-cta"><button class="lc-btn" id="lc-go">⚡ Use label cache</button></div>
+    side.innerHTML = `<div class="lc-cta"><button class="lc-btn" id="lc-go">⚡ Get labels</button></div>
       <div class="lc-side-h">Network · GET /label</div>
-      <div class="lc-net" id="lc-net"><div class="lc-empty">No calls yet. Hit the button — one edge-cached GET per unique IRI.</div></div>
+      <div class="lc-net" id="lc-net"><div class="lc-empty">No calls yet. Hit the button - one edge-cached GET per unique IRI.</div></div>
       <div class="lc-sum" id="lc-sum" style="display:none"></div>`;
     wrap.append(main, side);
 
@@ -138,7 +138,7 @@ ex:acme a schema:Organization ;
         const rec = document.createElement("div"); rec.className = "lc-rec";
         const h = document.createElement("div"); h.className = "lc-rh";
         const nm = document.createElement("span"); nm.className = "lc-name lc-local"; nm.textContent = r.name;
-        nm.title = r.id + "\n\n(name from your data — not fetched)";
+        nm.title = r.id + "\n\n(name from your data - not fetched)";
         const badge = document.createElement("span"); badge.className = "lc-badge"; badge.append(term(r.type));
         h.append(nm, badge); rec.append(h);
         const rows = document.createElement("div"); rows.className = "lc-rows";
@@ -167,9 +167,9 @@ ex:acme a schema:Organization ;
     function reset(){
       timers.forEach(clearTimeout); timers = [];
       resolved = false;
-      net.innerHTML = `<div class="lc-empty">No calls yet. Hit the button — one edge-cached GET per unique IRI.</div>`;
+      net.innerHTML = `<div class="lc-empty">No calls yet. Hit the button - one edge-cached GET per unique IRI.</div>`;
       sum.style.display = "none";
-      go.className = "lc-btn"; go.disabled = false; go.innerHTML = "⚡ Use label cache";
+      go.className = "lc-btn"; go.disabled = false; go.innerHTML = "⚡ Get labels";
       setView("rendered");
     }
     function resolve(){
@@ -180,18 +180,18 @@ ex:acme a schema:Organization ;
       net.innerHTML = "";
       const uniq = [...new Set([...termEls.keys()])]; // dedup: schema:name appears twice -> one call
       let i = 0;
-      // Reveal one at a time — clearest way to see each IRI become a label.
+      // Reveal one at a time - clearest way to see each IRI become a label.
       // (The footnote makes clear that in production you'd fire them all at once.)
       uniq.forEach((curie, idx) => {
         const t = setTimeout(() => {
           const [iri, label] = IRI[curie];
           const ms = MS[idx % MS.length];
-          // network row — a live link to the raw JSON-LD
+          // network row - a live link to the raw JSON-LD
           const row = document.createElement("a"); row.className = "lc-call";
           row.href = `/label?iri=${encodeURIComponent(iri)}&lang=en`;
           row.target = "_blank"; row.rel = "noopener";
           row.title = `GET /label?iri=${iri}\n\nOpens the raw JSON-LD from the label cache`;
-          row.innerHTML = `<span class="m">GET</span><span class="u">?iri=${curie}</span><span class="lc-pill hit">HIT</span><span class="lc-ms">${ms}ms</span><span class="lc-open" aria-hidden="true">↗</span>`;
+          row.innerHTML = `<span class="m">GET</span><span class="u">?iri=${esc(iri)}</span><span class="lc-pill hit">HIT</span><span class="lc-ms">${ms}ms</span><span class="lc-open" aria-hidden="true">↗</span>`;
           net.append(row); net.scrollTop = net.scrollHeight;
           // swap the term(s) on the left
           for (const el of termEls.get(curie)){
