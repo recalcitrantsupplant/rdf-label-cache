@@ -1,7 +1,7 @@
 # Maintainer-only demo deployment (David's public demo instance).
-# Self-hosters do NOT need this — deploy the root wrangler.toml with your own
+# Self-hosters do NOT need this - deploy the root wrangler.toml with your own
 # bucket. Paths here resolve relative to this file's directory.
-name = "rdf-label-cache"
+name = "label-cache-demo"
 main = "../src/index.ts"
 compatibility_date = "2025-04-19"
 
@@ -10,14 +10,14 @@ enabled = true
 
 [[r2_buckets]]
 binding = "PUBLIC_LABELS"
-bucket_name = "rdf-public-labels"
+bucket_name = "label-cache-demo"
 
 [vars]
 ENVIRONMENT = "production"
 
 # Static demo page. Assets are matched first; requests that don't match a file
 # (e.g. /label, /namespaces, /context/*) fall through to the Worker. Same origin
-# means the page calls /label with a bare relative path — no CORS needed.
+# means the page calls /label with a bare relative path - no CORS needed.
 [assets]
 directory = "./public"
 

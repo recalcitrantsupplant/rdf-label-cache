@@ -1,5 +1,7 @@
 .dev.vars
 .env
 .wrangler/
+.wrangler.gen.toml
 node_modules/
 dist/
+.DS_Store

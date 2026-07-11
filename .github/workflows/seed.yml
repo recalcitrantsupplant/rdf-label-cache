@@ -1,7 +1,7 @@
 name: seed
 
 # Ingest common ontologies and upload label data to R2. Manual, plus a monthly
-# refresh. Maintainer repo only — needs Cloudflare R2 secrets, which forks lack.
+# refresh. Maintainer repo only - needs Cloudflare R2 secrets, which forks lack.
 on:
   workflow_dispatch:
   schedule:
@@ -25,6 +25,7 @@ jobs:
       - run: ./scripts/seed.sh
         env:
           SEED_BASE: ${{ vars.SEED_BASE }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }} # e.g. label-cache-demo; seed.sh defaults to it if unset
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
