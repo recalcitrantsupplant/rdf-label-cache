@@ -18,7 +18,7 @@
 
 ### Bug Fixes
 
-* **demo:** nothing is pre-loaded — clarify you populate R2 yourself ([0f8910b](https://github.com/recalcitrantsupplant/label-cdn/commit/0f8910b096888c6b8d4447eb575747285ff4c193))
+* **demo:** nothing is pre-loaded - clarify you populate R2 yourself ([0f8910b](https://github.com/recalcitrantsupplant/label-cdn/commit/0f8910b096888c6b8d4447eb575747285ff4c193))
 
 ## [0.1.2](https://github.com/recalcitrantsupplant/label-cdn/compare/rdf-label-resolver-v0.1.1...rdf-label-resolver-v0.1.2) (2026-07-08)
 

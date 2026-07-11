@@ -1,8 +1,8 @@
-# rdf-label-resolver
+# rdf-label-cache
 
 A globally distributed, low-latency HTTP service for resolving human-readable
 **labels for RDF IRIs**. One Cloudflare Worker, one R2 bucket, edge-cached. No
-database, no auth, no middleware — the Worker either finds a pre-materialized
+database, no auth, no middleware - the Worker either finds a pre-materialized
 label in R2 or returns 404.
 
 Curated public namespaces (rdfs, owl, skos, dc/dcterms, schema.org, foaf, prov,
@@ -34,10 +34,17 @@ is fine over HTTP/2/3).
 
 ## Develop
 
+> Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
+> reproducible, age-pinned installs - but **npm** and **bun** work too. Swap
+> `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
+> `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
+> all three. For the `just` recipes, name your manager once and it threads through:
+> `just pm=npm bootstrap`.
+
 ```bash
 pnpm install
 pnpm dev          # wrangler dev on :8787 (local emulated R2)
-just seed         # or: curl -s localhost:8787/dev/seed   — load sample labels
+just seed         # or: curl -s localhost:8787/dev/seed   - load sample labels
 pnpm test         # vitest suite (runs handlers on the real Workers runtime)
 pnpm typecheck
 ```
@@ -47,8 +54,8 @@ pnpm typecheck
 
 ## Getting started
 
-Cache the labels your app needs — your own IRIs plus the public-vocabulary terms
-your data uses — in five steps. Nothing ships pre-loaded; you populate R2 once.
+Cache the labels your app needs - your own IRIs plus the public-vocabulary terms
+your data uses - in five steps. Nothing ships pre-loaded; you populate R2 once.
 
 **1. Clone & install**
 
@@ -81,36 +88,47 @@ WHERE {
 ```
 
 This grabs both your own entities' labels and any public-vocabulary terms your data
-references. Any RDF file works — no triplestore required for small data. Prefer whole
+references. Any RDF file works - no triplestore required for small data. Prefer whole
 public vocabularies instead? Run `pnpm seed:ingest` with no `--input`.
 
 **3. Set up Cloudflare**
 
+Pick a **project name** — your Worker and bucket are both named
+`label-cache-<project>`, so each app gets its own isolated instance. With `just`
+it threads through everything (`project=orders`, or `PROJECT=orders` in `.env`):
+
 ```bash
-pnpm wrangler r2 bucket create rdf-public-labels
-pnpm wrangler deploy                         # prints your Worker URL
+just project=orders bucket                    # create bucket label-cache-orders
+just project=orders deploy                    # prints your Worker URL
 ```
 
-No namespace registration needed — the Worker keys R2 by the full IRI, so **any**
+Raw shell instead? Set the same name as `name` and `bucket_name` in
+`wrangler.toml`, then `pnpm wrangler r2 bucket create label-cache-orders` and
+`pnpm wrangler deploy`.
+
+No namespace registration needed - the Worker keys R2 by the full IRI, so **any**
 namespace resolves once its labels are uploaded. Then create an **R2 API token**
 (dashboard → R2 → Manage API Tokens) for the next step.
 
 **4. Generate & upload your label objects**
 
 ```bash
-export SEED_BASE=https://<your-worker>.workers.dev
+export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
+export R2_BUCKET=label-cache-orders
 export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 node scripts/ingest.mjs --input data.ttl     # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                  # → R2, over the S3 API
 ```
 
-Objects are keyed by the full IRI (`labels/https://schema.org/name/en`) — browsable
+(With `just`: `just project=orders ingest upload` sets `R2_BUCKET` for you.)
+
+Objects are keyed by the full IRI (`labels/https://schema.org/name/en`) - browsable
 in R2 for debugging, and any namespace resolves without configuration.
 
 **5. Consume from your app**
 
 Resolve any cached IRI over plain HTTP. Request all the labels a view needs **in
-parallel** — they're independent, edge-cached `GET`s that multiplex over HTTP/2/3
+parallel** - they're independent, edge-cached `GET`s that multiplex over HTTP/2/3
 (see [`docs/FAQ.md`](docs/FAQ.md)):
 
 ```js
@@ -139,9 +157,9 @@ replaces: the demo's **Why label-cache?** page.
 
 ## Demo (maintainer-only)
 
-The public demo at `rdf-label-cache.<subdomain>.workers.dev` is deployed
+The public demo at `label-cache-demo.<subdomain>.workers.dev` is deployed
 automatically on release from `demo/wrangler.demo.toml`, via
 `.github/workflows/release.yml` / `deploy-demo.yml`. **You don't need any of
-this to use or self-host the project** — the demo workflows are guarded to the
+this to use or self-host the project** - the demo workflows are guarded to the
 maintainer's account (`github.repository_owner`) and require Cloudflare secrets
 forks don't have, so they're inert in clones.

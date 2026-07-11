@@ -14,7 +14,7 @@ Availability confirmed against Cloudflare docs: Workers Cache is on **every plan
 `workers.dev`**. So we went with the "cache forever, invalidate on change" model:
 
 - **`[cache] enabled = true`** in both wrangler configs (needs Wrangler ≥ 4.69; we're on 4.107).
-- **Dropped all `caches.default`** match/put — the platform now caches in front of
+- **Dropped all `caches.default`** match/put - the platform now caches in front of
   the Worker off the response `Cache-Control`.
 - **Immutable TTL** (`public, max-age=31536000, immutable`) on every success, since
   these responses only change on deploy or data refresh. Errors keep a short
@@ -22,7 +22,7 @@ Availability confirmed against Cloudflare docs: Workers Cache is on **every plan
 - **`Cache-Tag`** on every success: `all` (full purge on deploy) + finer tags
   (`labels`, `labels:{ns}`, `namespaces`, `context`) for targeted purges. See
   `src/lib/cache.ts`.
-- **Invalidation is worker-internal only** — Cloudflare documents no external
+- **Invalidation is worker-internal only** - Cloudflare documents no external
   REST/CLI purge for Workers Cache. So `POST /admin/purge?tags=…` (Bearer
   `PURGE_TOKEN`) calls `ctx.cache.purge({ tags })` (`src/routes/purge.ts`).
   - `scripts/deploy-demo.sh` purges `all` after each deploy.
@@ -30,7 +30,7 @@ Availability confirmed against Cloudflare docs: Workers Cache is on **every plan
   - Both are **best-effort** (skipped until `PURGE_TOKEN` is set), so deploys never
     break on a missing token.
 
-**Required secret — `PURGE_TOKEN`** (until set, cache still works but auto-purge is
+**Required secret - `PURGE_TOKEN`** (until set, cache still works but auto-purge is
 skipped and immutable entries only clear when their TTL is bumped/on reseed-with-token):
 1. On the Worker: `wrangler secret put PURGE_TOKEN --config demo/wrangler.demo.toml`.
 2. In GitHub: add repo secret `PURGE_TOKEN` (wired into `release.yml` / `deploy-demo.yml`).
@@ -39,7 +39,7 @@ skipped and immutable entries only clear when their TTL is bumped/on reseed-with
 
 ## 1. Context
 
-Cloudflare shipped **Workers Cache** ([blog](https://blog.cloudflare.com/workers-cache/)) — a platform-managed, regionally tiered cache that sits *in front of* the Worker rather than being called from inside it.
+Cloudflare shipped **Workers Cache** ([blog](https://blog.cloudflare.com/workers-cache/)) - a platform-managed, regionally tiered cache that sits *in front of* the Worker rather than being called from inside it.
 
 Every route handler in this repo currently implements the same manual pattern against `caches.default`:
 
@@ -53,8 +53,8 @@ ctx.waitUntil(cache.put(request, response.clone()));
 
 This works, but has two structural limits Workers Cache removes:
 
-1. **The Worker runs (and bills CPU) on every request — even cache hits.** With `caches.default`, the request still enters the Worker just to call `cache.match`. Workers Cache serves hits *before* the Worker is invoked, so hits cost no CPU.
-2. **`caches.default` is per-PoP only.** A cold PoP always misses and reads R2. Workers Cache adds a regional/upper tier, so a cold PoP is served from a nearby cache tier instead of round-tripping to R2 — fewer R2 `GET`s (which are billed) and lower tail latency.
+1. **The Worker runs (and bills CPU) on every request - even cache hits.** With `caches.default`, the request still enters the Worker just to call `cache.match`. Workers Cache serves hits *before* the Worker is invoked, so hits cost no CPU.
+2. **`caches.default` is per-PoP only.** A cold PoP always misses and reads R2. Workers Cache adds a regional/upper tier, so a cold PoP is served from a nearby cache tier instead of round-tripping to R2 - fewer R2 `GET`s (which are billed) and lower tail latency.
 
 Our responses are an ideal fit: `GET`-only, keyed entirely by URL, immutable-ish content, already carrying explicit `Cache-Control`.
 
@@ -90,7 +90,7 @@ return response;
 **After**:
 
 ```ts
-// no cache.match — a hit never reaches here
+// no cache.match - a hit never reaches here
 const response = new Response(object.body, { status: 200, headers });
 return response; // platform caches per Cache-Control
 ```
@@ -99,7 +99,7 @@ Same for `context.ts` and `namespaces.ts`. `ctx.waitUntil` is no longer needed f
 
 ### 2.3 Switch to the `Cache-Tag` header
 
-`label.ts` currently sets `CF-Cache-Tag: public-labels`. Workers Cache reads the `Cache-Tag` response header and exposes tag purging via `ctx.cache.purge({ tags: [...] })`. Emit `Cache-Tag: public-labels` on all cacheable responses (labels, context, namespaces) so the whole surface can be invalidated together — and consider finer tags (e.g. `Cache-Tag: public-labels,ns:skos`) so a single namespace refresh can purge just its objects.
+`label.ts` currently sets `CF-Cache-Tag: public-labels`. Workers Cache reads the `Cache-Tag` response header and exposes tag purging via `ctx.cache.purge({ tags: [...] })`. Emit `Cache-Tag: public-labels` on all cacheable responses (labels, context, namespaces) so the whole surface can be invalidated together - and consider finer tags (e.g. `Cache-Tag: public-labels,ns:skos`) so a single namespace refresh can purge just its objects.
 
 ### 2.4 Wire purge-by-tag into the ingestion pipeline
 
@@ -113,16 +113,16 @@ This replaces any zone-level cache-tag purge previously assumed.
 
 ## 3. What stays the same
 
-- R2 key structure, gzip-in-R2 + `Content-Encoding` passthrough, JSON-LD object format, the `@context` document — all unchanged.
-- `Cache-Control` values (labels `max-age=86400`, context `immutable`, 404 `max-age=60`) — unchanged; they now drive the platform cache instead of our `cache.put`.
+- R2 key structure, gzip-in-R2 + `Content-Encoding` passthrough, JSON-LD object format, the `@context` document - all unchanged.
+- `Cache-Control` values (labels `max-age=86400`, context `immutable`, 404 `max-age=60`) - unchanged; they now drive the platform cache instead of our `cache.put`.
 - Cache key remains the full request URL, so `?lang=` variants stay distinct objects with no extra config.
 
 ## 4. Caveats to confirm before merging
 
-1. **404 caching.** 400/404 responses carry `public, max-age=60`. They will be cached in the tiered layer just as they are today at the PoP. That's the current intent (protects R2/Worker from repeated bad IRIs), but the blast radius is slightly wider with an upper tier — confirm 60s is still right, or drop `Cache-Control` on errors to make them uncacheable.
+1. **404 caching.** 400/404 responses carry `public, max-age=60`. They will be cached in the tiered layer just as they are today at the PoP. That's the current intent (protects R2/Worker from repeated bad IRIs), but the blast radius is slightly wider with an upper tier - confirm 60s is still right, or drop `Cache-Control` on errors to make them uncacheable.
 2. **Plan / GA status.** Verify Workers Cache is enabled for our account/plan and whether `[cache]` config is stable on our `compatibility_date` (`2025-04-19`) or needs a bump.
 3. **`Vary` / lang.** We rely on the URL (including `?lang=`) as the cache key, not `Vary`. Confirm Workers Cache keys on the full URL as expected so `en` and `fr` don't collide.
-4. **`ctx.cache` availability.** `purge` lives on the execution context under Workers Cache — confirm the binding name/shape against current docs before wiring the pipeline.
+4. **`ctx.cache` availability.** `purge` lives on the execution context under Workers Cache - confirm the binding name/shape against current docs before wiring the pipeline.
 
 ## 5. Migration checklist
 
@@ -137,6 +137,6 @@ This replaces any zone-level cache-tag purge previously assumed.
 
 ## 6. Expected impact
 
-- Worker invocations (and CPU billing) drop to the cold-miss tail only — the cost table in architecture §5 becomes conservative.
+- Worker invocations (and CPU billing) drop to the cold-miss tail only - the cost table in architecture §5 becomes conservative.
 - Fewer R2 `GET`s on cold PoPs due to the regional/upper tier.
 - Less code: three handlers lose their cache boilerplate.
