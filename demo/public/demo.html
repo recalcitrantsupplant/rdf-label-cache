@@ -3,7 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RDF Label Cache — demo</title>
+<title>RDF Label Cache - demo</title>
+<!-- Self-hosted N3 bundle (scripts/vendor-n3.sh); warm the single same-origin
+     request early so the auto-render on load isn't gated on a cold fetch. -->
+<link rel="modulepreload" href="/vendor/n3.mjs" />
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
@@ -100,7 +103,7 @@
     <h1>RDF Label Cache</h1>
     <span class="head-links"><a class="why-link" href="/">← Home</a> <a class="why-link" href="/why">Why label-cache?</a> <a class="why-link" href="/start">Getting started →</a></span>
   </div>
-  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
+  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels - plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
 </header>
 <main>
   <section class="pane left">
@@ -127,12 +130,12 @@
           <button id="copy" class="copy" type="button">Copy</button>
           <pre id="snippet" class="snippet"></pre>
         </div>
-        <div class="calls-head">Calls fired for this graph — one per unfetched IRI, deduped &amp; cached. Click for raw JSON-LD.</div>
+        <div class="calls-head">Calls fired for this graph - one per unfetched IRI, deduped &amp; cached. Click for raw JSON-LD.</div>
         <div id="calls" class="calls"></div>
       </div>
       <div class="reqstep">
         <div class="step-h">2 · Where the IRI comes from</div>
-        <div class="note"><code>/label</code> takes the <strong>full IRI</strong>, never a CURIE — so the <code>@prefix</code> CURIEs above are expanded first. The service publishes its own prefix map:</div>
+        <div class="note"><code>/label</code> takes the <strong>full IRI</strong>, never a CURIE - so the <code>@prefix</code> CURIEs above are expanded first. The service publishes its own prefix map:</div>
         <a class="call" id="ns-call" href="/namespaces" target="_blank" rel="noopener" title="The prefix → namespace map the service serves">
           <span class="pill method">GET</span><span class="path">/namespaces</span><span class="lbl" id="ns-count"></span>
         </a>
@@ -159,7 +162,10 @@
 </main>
 
 <script type="module">
-import { Parser } from "https://esm.sh/n3@2.1.0";
+// N3 (the Turtle parser) is bundled and self-hosted at /vendor/n3.mjs — a single
+// same-origin request, no third-party CDN at runtime. Regenerate the bundle with
+// ./scripts/vendor-n3.sh. The <link rel="modulepreload"> in <head> warms it early.
+import { Parser } from "/vendor/n3.mjs";
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 // Predicates whose literal object can name an entity when the cache can't (its data supplies its own label).
@@ -181,7 +187,7 @@ const WELL_KNOWN = {
 };
 
 const EXAMPLES = {
-  "Schema.org — a person": `@prefix schema: <https://schema.org/> .
+  "Schema.org - a person": `@prefix schema: <https://schema.org/> .
 @prefix ex:     <https://example.org/> .
 
 ex:jane a schema:Person ;
@@ -343,7 +349,7 @@ const NAME_PRED_ORDER = [
   "https://schema.org/name", "http://schema.org/name",
   "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
 ];
-// IRIs the graph already labels itself — no need to ask the cache.
+// IRIs the graph already labels itself - no need to ask the cache.
 function buildGraphLabels(quads) {
   const best = new Map(); // iri -> { value, pred, score }
   for (const q of quads) {
@@ -419,7 +425,7 @@ const numWord = (n) => NUM_WORDS[n] ?? String(n);
 function drawSnippet() {
   const pre = $("snippet");
   pre.textContent = "";
-  // Pick a representative IRI — prefer one that resolved, else the first.
+  // Pick a representative IRI - prefer one that resolved, else the first.
   const iri = last
     ? (last.fetched.find((i) => { const r = last.resolved.get(i); return r && r.label; }) || last.fetched[0] || last.iris[0])
     : "http://www.w3.org/2004/02/skos/core#Concept";
@@ -453,7 +459,7 @@ function drawCalls() {
   if (last.skipped.length) {
     const n = last.skipped.length;
     const word = numWord(n).replace(/^./, (c) => c.toUpperCase());
-    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data — not fetched.`));
+    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data - not fetched.`));
   }
   for (const iri of last.fetched) {
     const r = last.resolved.get(iri) || {};
@@ -467,7 +473,7 @@ function drawCalls() {
   }
 }
 
-// Namespaces the service itself serves (GET /namespaces) — the canonical prefix map.
+// Namespaces the service itself serves (GET /namespaces) - the canonical prefix map.
 // Seeded from the well-known set so badges are sensible before the call returns.
 let servedNS = new Set(Object.values(WELL_KNOWN));
 async function loadNamespaces() {
@@ -498,7 +504,7 @@ function drawPrefixes() {
     const row = el("div", { class: "prow" });
     row.append(el("span", { class: "pfx" }, pfx + ":"));
     row.append(el("span", { class: "ns", title: ns }, ns));
-    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace — not in the cache" }, served ? "served" : "yours"));
+    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace - not in the cache" }, served ? "served" : "yours"));
     box.append(row);
   }
 }
@@ -529,7 +535,7 @@ async function run() {
   const skipped = iris.filter((i) => graphLabels.has(i));
   status.textContent = `resolving ${toFetch.length} IRIs…`;
   const resolved = new Map();
-  // Already labeled by the data itself — no cache call.
+  // Already labeled by the data itself - no cache call.
   for (const iri of skipped) resolved.set(iri, { source: "graph", label: graphLabels.get(iri).value });
   // The rest: ask the cache.
   await Promise.all(toFetch.map(async (iri) => { resolved.set(iri, { source: "cache", ...(await resolve(iri)) }); }));

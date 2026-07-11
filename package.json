@@ -1,5 +1,5 @@
 {
-  "name": "rdf-label-resolver",
+  "name": "rdf-label-cache",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
+    "vendor:n3": "./scripts/vendor-n3.sh",
     "seed:ingest": "node scripts/ingest.mjs",
     "seed:upload": "node scripts/upload-seed.mjs",
     "prepare": "husky"
@@ -21,6 +22,7 @@
     "@commitlint/cli": "^21.2.0",
     "@commitlint/config-conventional": "^21.2.0",
     "aws4fetch": "1.0.20",
+    "esbuild": "0.28.1",
     "husky": "^9.1.7",
     "n3": "2.1.0",
     "typescript": "^5.0.0",
