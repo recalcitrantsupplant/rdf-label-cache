@@ -1,5 +1,5 @@
 # Extract the annotation properties (labels + descriptions) for every IRI your
-# data uses — your own entities AND the public-vocabulary terms they reference.
+# data uses - your own entities AND the public-vocabulary terms they reference.
 # Run against your SPARQL endpoint (see `just extract-labels`); the Turtle it
 # returns is the input to `scripts/ingest.mjs`.
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>

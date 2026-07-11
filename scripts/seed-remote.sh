@@ -5,7 +5,7 @@
 # objects embed the correct @context, then tears the server down.
 #
 # Usage: scripts/seed-remote.sh <BASE_URL> [WRANGLER_CONFIG]
-#   scripts/seed-remote.sh https://rdf-label-cache.<sub>.workers.dev demo/wrangler.demo.toml
+#   scripts/seed-remote.sh https://label-cache-demo.<sub>.workers.dev demo/wrangler.demo.toml
 #
 # Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID when run non-interactively.
 set -euo pipefail
@@ -38,7 +38,7 @@ if [ -n "${PURGE_TOKEN:-}" ]; then
   curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
     "$BASE/admin/purge?tags=labels,context" && echo || echo "WARN: purge failed (non-fatal)"
 else
-  echo "==> PURGE_TOKEN unset — skipping purge; cached labels self-expire per TTL"
+  echo "==> PURGE_TOKEN unset - skipping purge; cached labels self-expire per TTL"
 fi
 
 echo "==> Seed complete"

@@ -1,0 +1,28 @@
+# Coverage / gap report: which namespaces does your data USE but not itself
+# LABEL? Those are the public vocabularies (schema.org, skos, …) whose term
+# labels you'll want to seed with `just seed-public` — otherwise those terms
+# resolve to bare IRIs. Run against your endpoint (see `just coverage-report`).
+#
+# It reports namespaces, not IRIs: the REPLACE() trims each IRI to everything up
+# to its last `/` or `#`, and GROUP BY collapses them — the trick is adapted from
+# RDFLib/Prez (docs/development.md, "Generating Prefixes").
+#
+# WARNING: this scans every IRI in the graph (subject, predicate, object). Do NOT
+# run it against a large production endpoint — run it against an offline copy or
+# a dump. `?namespace` may come back as "http://" / "https://" for host-only IRIs
+# (no path or fragment); identify those by hand.
+#
+# "Unlabelled" here mirrors scripts/ingest.mjs's label predicates (rdfs:label,
+# skos:prefLabel): an IRI counts as covered if it carries either one.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?namespace (COUNT(DISTINCT ?iri) AS ?unlabelledTerms)
+WHERE {
+  { ?iri ?px ?ox } UNION { ?sx ?iri ?ox } UNION { ?sx ?px ?iri }
+  FILTER(isIRI(?iri))
+  FILTER NOT EXISTS { ?iri rdfs:label ?l }
+  FILTER NOT EXISTS { ?iri skos:prefLabel ?p }
+  BIND(REPLACE(STR(?iri), "(.*[/#])[^#/]*$", "$1") AS ?namespace)
+}
+GROUP BY ?namespace
+ORDER BY DESC(?unlabelledTerms)
