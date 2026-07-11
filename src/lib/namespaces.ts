@@ -1,4 +1,4 @@
-// Maps IRI prefix → short namespace alias. NOT required for resolution — the
+// Maps IRI prefix → short namespace alias. NOT required for resolution - the
 // Worker keys R2 by the full IRI, so any namespace resolves. This map only
 // drives the /namespaces listing and the best-effort per-namespace cache tag
 // (labels:{alias}) used for targeted purging.

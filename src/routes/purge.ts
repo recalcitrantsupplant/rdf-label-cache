@@ -1,5 +1,5 @@
 // Authenticated cache-purge endpoint. Workers Cache can only be purged from
-// inside the Worker (ctx.cache.purge — there is no external REST/CLI purge), so
+// inside the Worker (ctx.cache.purge - there is no external REST/CLI purge), so
 // CI/deploy and the ingestion pipeline invalidate by calling this endpoint.
 //
 //   POST /admin/purge?tags=all      Authorization: Bearer $PURGE_TOKEN
