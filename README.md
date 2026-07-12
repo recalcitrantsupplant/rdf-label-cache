@@ -140,8 +140,10 @@ const labels = Object.fromEntries(await Promise.all(
 ));
 ```
 
-Full runbook: [`docs/DEPLOY.md`](docs/DEPLOY.md). Rationale &amp; the alternatives this
-replaces: the demo's **Why label-cache?** page.
+How to call the service well — parallel requests, client vs. edge caching, running one
+instance for many apps: [`docs/consuming.md`](docs/consuming.md). Full runbook:
+[`docs/DEPLOY.md`](docs/DEPLOY.md). Rationale &amp; the alternatives this replaces: the
+demo's **Why label-cache?** page.
 
 ## CI / releases
 
@@ -154,6 +156,26 @@ replaces: the demo's **Why label-cache?** page.
 - **Supply-chain**: Dependabot with a 7-day `cooldown` (won't adopt a release
   until it's a week old); commit messages linted by commitlint (+ a local husky
   hook).
+
+## Contributing
+
+Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: fork, branch,
+open a PR, and use [Conventional Commits](https://www.conventionalcommits.org/) (enforced
+by commitlint on every PR and by a local husky hook). CI must be green — run
+`./scripts/ci.sh` (typecheck + tests) before pushing.
+
+## Roadmap
+
+Tracked in [`docs/architecture.md` §7](docs/architecture.md#7-open-questions--future-work).
+Headline items:
+
+- **Native authentication for private deployments** — built-in access control so a private
+  label set can protect itself without a platform auth layer in front (today auth is
+  delegated to the edge; see [`docs/architecture.md` §6.4](docs/architecture.md#64-protecting-a-private-deployment-auth)).
+- **Bulk resolution** (`POST /labels`) scoped to cold server-to-server jobs — per-IRI
+  `GET` stays the cache-optimized hot path.
+- **Label search**, a canonical **`/.well-known/prefixes`** endpoint, and **context
+  versioning** for a future v2 context.
 
 ## Demo (maintainer-only)
 

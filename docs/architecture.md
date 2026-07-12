@@ -331,6 +331,7 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 ## 7. Open Questions / Future Work
 
 - **Bulk resolution** - `POST /labels` with an array of IRIs. Worker fetches each R2 key and concatenates pre-built objects into a JSON-LD array. No per-object processing needed. **Caveat:** an arbitrary batch is a near-unique cache key, so this bypasses per-IRI edge caching and moves work into Worker CPU - scope it to cold/bulk workloads; per-IRI `GET` over H2/H3 stays the hot path. See [`FAQ.md`](./FAQ.md) for the full rationale on the "one request per label" concern.
+- **Native authentication for private deployments** - built-in access control so a private label set can be served without standing up a platform auth layer in front. Today auth is delegated entirely to the edge (Cloudflare Access, APIM, Lambda@Edge — see §6.4); a first-class option (e.g. a shared-secret / bearer-token check in the Worker, or signed URLs) would let a private deployment protect itself out of the box. Per-namespace access control stays out of scope (§6.4).
 - **Label search** - full-text search across all stored labels (IRI → label and label → IRI). Requires an index; out of scope for the initial Worker but a natural companion service.
 - **`/.well-known/prefixes`** - canonical prefix map endpoint for tooling.
 - **Context versioning** - when a v2 context is needed, determine migration path (rewrite all R2 keys vs dual-serve both versions during transition).

@@ -74,7 +74,7 @@
   <a class="back" href="/">← Home</a>
   <span class="kicker">The case for label-cache</span>
   <h1>Why label-cache?</h1>
-  <p class="lede">Presenting RDF in a human readable form requires rendering it with labels.</p>
+  <p class="lede">Presenting RDF in a human readable form requires retrieving labels for all IRIs.</p>
 
   <h2>The usual ways to get labels - and why they hurt</h2>
 
@@ -88,11 +88,11 @@
 
   <div class="mode">
     <h3>2. Ask for labels in the query (complicated SPARQL)</h3>
-    <p><code>OPTIONAL</code>-join <code>rdfs:label</code> / <code>skos:prefLabel</code>, with language
-    fallbacks, for every variable you project.</p>
+    <p>For every IRI you display, add an <code>OPTIONAL</code> block pulling its <code>rdfs:label</code> /
+    <code>skos:prefLabel</code> - with language-fallback logic - and return the labels alongside the data.</p>
     <p class="why"><b>Why it's bad:</b> the query balloons - every term needs its own <code>OPTIONAL</code> +
-    <code>COALESCE</code>, language fallback in SPARQL is miserable, it's slow, and you paste the same label
-    boilerplate into <em>every</em> query you ever write.</p>
+    <code>COALESCE</code>, language fallback in SPARQL adds additional bloat, it's slow, and you paste the same label
+    boilerplate into <em>every</em> query.</p>
   </div>
 
   <div class="mode">
@@ -156,8 +156,8 @@
       <p>Each request - hit or miss - is a single Cloudflare Workers
       request: $0.30 per million (~$0.0000003 each), with the first 100,000 a day free. A hit is even cheaper in practice:
       the Worker never runs, so no compute is billed and R2 is never read - you just pay the flat per-request rate. And
-      Cloudflare charges <strong>no bandwidth or egress fees at all</strong> - unlike the hyperscalers. Serving hundreds
-      of millions of lookups a month is dollars, not a database bill.</p>
+      Cloudflare charges <strong>no bandwidth or egress fees at all</strong> - unlike the hyperscalers. Serving tens
+      of millions of lookups a month costs dollars.</p>
     </div>
     <div class="reason">
       <h3>And it's faster than calling your backend.</h3>
