@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Why label-cache?</title>
+<title>Why RDF Label Cache?</title>
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
@@ -72,8 +72,8 @@
 <body>
 <div class="wrap">
   <a class="back" href="/">← Home</a>
-  <span class="kicker">The case for label-cache</span>
-  <h1>Why label-cache?</h1>
+  <span class="kicker">The case for RDF Label Cache</span>
+  <h1>Why RDF Label Cache?</h1>
   <p class="lede">Presenting RDF in a human readable form requires retrieving labels for all IRIs.</p>
 
   <h2>The usual ways to get labels - and why they hurt</h2>
@@ -98,7 +98,7 @@
   <div class="mode">
     <h3>3. A follow-up query for the labels</h3>
     <p>Run the main query, collect the IRIs it returned, then query the graph again for their labels.</p>
-    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> - it's what label-cache does - but on its own it
+    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> - it's what RDF Label Cache does - but on its own it
     hits your triplestore every time. An in-app cache helps, yet it's cold on every restart, kept separately per
     worker, and still re-fetches universal terms like <code>rdfs:label</code> from <em>your</em> KG.</p>
   </div>
@@ -112,7 +112,7 @@
     every read still lands on the KG.</p>
   </div>
 
-  <h2>What label-cache does instead</h2>
+  <h2>What RDF Label Cache does instead</h2>
   <div class="mode solution">
     <h3>Follow-up lookups - from an edge CDN, not your KG</h3>
     <p class="why">Take approach&nbsp;3 (a per-IRI lookup) and move it off the triplestore entirely. Labels are

@@ -87,7 +87,7 @@ Client
                  ▼
 ┌─────────────────────────────────────────┐
 │           Cloudflare Worker             │  ← Routing only; no auth, no proxy.
-│          (label-cache Worker)           │    Sets Cache-Control + Cache-Tag.
+│          (RDF Label Cache Worker)       │    Sets Cache-Control + Cache-Tag.
 └──────────────────┬──────────────────────┘
                    │
                    ▼

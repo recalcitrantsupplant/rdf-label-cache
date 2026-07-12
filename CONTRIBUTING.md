@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in improving label-cache. This guide covers the workflow, the
+Thanks for your interest in improving RDF Label Cache. This guide covers the workflow, the
 commit and release conventions, and how CI is wired.
 
 ## Ways to contribute

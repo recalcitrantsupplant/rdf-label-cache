@@ -51,7 +51,7 @@ The transport advantage evaporates if the caller defeats it:
 - **Bound in-flight requests** to ~100 (Cloudflare's `SETTINGS_MAX_CONCURRENT_STREAMS`).
   Firing thousands unbounded queues them anyway and can trip flow control.
 - **Warm the connection early.** Browser callers can `<link rel="preconnect">` the
-  label-cache origin so the first label request doesn't pay the TLS/QUIC handshake; QUIC
+  RDF Label Cache origin so the first label request doesn't pay the TLS/QUIC handshake; QUIC
   0-RTT resumption helps repeat clients.
 
 ---

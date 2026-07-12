@@ -143,7 +143,7 @@ const labels = Object.fromEntries(await Promise.all(
 How to call the service well — parallel requests, client vs. edge caching, running one
 instance for many apps: [`docs/consuming.md`](docs/consuming.md). Full runbook:
 [`docs/DEPLOY.md`](docs/DEPLOY.md). Rationale &amp; the alternatives this replaces: the
-demo's **Why label-cache?** page.
+demo's **Why RDF Label Cache?** page.
 
 ## CI / releases
 

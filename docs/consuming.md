@@ -1,4 +1,4 @@
-# Consuming label-cache — Client Recommendations
+# Consuming RDF Label Cache — Client Recommendations
 
 How to call the service well from an application. This is the practical companion to
 [`FAQ.md`](./FAQ.md) (which argues *why* the per-request design is sound); here we cover
@@ -69,7 +69,7 @@ label lookup then skips the context round trip.
 ## 4. Warm the connection (browsers)
 
 So the first label request doesn't pay the TLS/QUIC handshake, preconnect to the
-label-cache origin as the page loads:
+RDF Label Cache origin as the page loads:
 
 ```html
 <link rel="preconnect" href="https://label-cache-orders.<subdomain>.workers.dev" crossorigin>
@@ -84,7 +84,7 @@ QUIC 0-RTT resumption helps repeat visitors on top of this.
 Because objects are **keyed by the full IRI** and the Worker is namespace-agnostic, an app
 only ever fetches the IRIs it actually renders. Adding a second, unrelated app to the same
 instance never bloats what the first one pulls. So you can point several apps at **one**
-label-cache instance rather than standing up one per app — load every app's labels into the
+RDF Label Cache instance rather than standing up one per app — load every app's labels into the
 one bucket and each app retrieves only its own slice.
 
 **What is and isn't shared across apps** — worth being precise about:
@@ -94,7 +94,7 @@ one bucket and each app retrieves only its own slice.
   never invokes the Worker. This is the real cross-app win.
 - **Browser HTTP caches are *not* shared across different sites.** Modern browsers
   partition the HTTP cache by top-level site, so `app-a.com` and `app-b.com` each keep
-  their own copy even when hitting the same label-cache origin. Apps under the *same* site
+  their own copy even when hitting the same RDF Label Cache origin. Apps under the *same* site
   (subpaths, or subdomains that share an eTLD+1) can share a browser-cache partition;
   genuinely unrelated sites cannot.
 
