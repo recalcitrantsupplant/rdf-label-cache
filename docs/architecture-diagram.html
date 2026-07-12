@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RDF Label Resolver — Architecture</title>
+<title>RDF Label Cache - Architecture</title>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --ink:#e7eaf0; --muted:#9aa4b2;
@@ -72,7 +72,7 @@
 
   <header>
     <div class="eyebrow">Cloudflare Workers · Workers Cache · R2</div>
-    <h1>RDF Label Resolver</h1>
+    <h1>RDF Label Cache</h1>
     <p class="sub">A globally distributed, low-latency service for resolving human-readable
       labels for RDF IRIs. One Worker, one R2 bucket, a platform-managed tiered cache in front.
       No databases, no auth, no middleware.</p>
@@ -82,7 +82,7 @@
   <section>
     <h2>1 · Architecture overview</h2>
     <p class="lead">Requests flow top-to-bottom. Workers Cache sits <em>in front of</em> the
-      Worker — cache hits are served without ever invoking it.</p>
+      Worker - cache hits are served without ever invoking it.</p>
 
     <svg viewBox="0 0 900 470" role="img" aria-label="Component architecture diagram">
       <defs>
@@ -105,7 +105,7 @@
       <!-- Workers Cache (tiered) -->
       <rect x="120" y="106" width="660" height="112" rx="14" class="node accent"/>
       <rect x="120" y="106" width="6" height="112" rx="3" class="bar-accent"/>
-      <text class="lbl" x="146" y="132">Workers Cache <tspan class="desc">— platform-managed, tiered, keyed on full URL</tspan></text>
+      <text class="lbl" x="146" y="132">Workers Cache <tspan class="desc">- platform-managed, tiered, keyed on full URL</tspan></text>
       <rect x="146" y="146" width="290" height="56" rx="10" class="inner"/>
       <text class="lbl sm" x="162" y="170">Regional tier</text>
       <text class="desc" x="162" y="188">near the requesting PoP</text>
@@ -125,7 +125,7 @@
 
       <!-- Worker -->
       <rect x="230" y="256" width="440" height="92" rx="14" class="node"/>
-      <text class="lbl" x="450" y="284" text-anchor="middle">label-resolver Worker</text>
+      <text class="lbl" x="450" y="284" text-anchor="middle">RDF Label Cache Worker</text>
       <text class="desc" x="450" y="304" text-anchor="middle">parse ?iri= &amp; ?lang=  →  build R2 key  →  stream bytes</text>
       <text class="tag" x="450" y="330" text-anchor="middle">sets Cache-Control + Cache-Tag · no auth · no proxy</text>
 
@@ -141,7 +141,7 @@
 
     <div class="legend">
       <span><i class="dot" style="background:var(--accent)"></i>Cache layer (hits skip the Worker)</span>
-      <span><i class="dot" style="background:var(--accent2)"></i>Fast return path — no CPU billed</span>
+      <span><i class="dot" style="background:var(--accent2)"></i>Fast return path - no CPU billed</span>
       <span><i class="dot" style="background:var(--r2)"></i>Blob store</span>
     </div>
   </section>
@@ -149,7 +149,7 @@
   <!-- ============ 2. REQUEST LIFECYCLE FLOW ============ -->
   <section>
     <h2>2 · Request lifecycle</h2>
-    <p class="lead">The cold path only — a warm cache short-circuits at step&nbsp;2.</p>
+    <p class="lead">The cold path only - a warm cache short-circuits at step&nbsp;2.</p>
 
     <svg viewBox="0 0 900 150" role="img" aria-label="Request lifecycle flow">
       <defs>
@@ -190,7 +190,7 @@
 
   <!-- ============ 3. SEQUENCE DIAGRAM ============ -->
   <section>
-    <h2>3 · Sequence — cache hit vs. miss</h2>
+    <h2>3 · Sequence - cache hit vs. miss</h2>
     <p class="lead">Two request paths across the same participants. The hit path (green)
       never reaches the Worker or R2.</p>
 
@@ -223,7 +223,7 @@
       <line x1="830" y1="52" x2="830" y2="410" class="ll"/>
 
       <!-- ===== HIT ===== -->
-      <text class="tag t-green b" x="60" y="82">SCENARIO A — CACHE HIT</text>
+      <text class="tag t-green b" x="60" y="82">SCENARIO A - CACHE HIT</text>
       <line x1="120" y1="104" x2="362" y2="104" class="link" marker-end="url(#sq)"/>
       <text class="tag" x="126" y="98">GET /label?iri=…</text>
       <line x1="370" y1="132" x2="128" y2="132" class="link green" marker-end="url(#sqG)"/>
@@ -233,7 +233,7 @@
       <line x1="60" y1="158" x2="890" y2="158" class="divider"/>
 
       <!-- ===== MISS ===== -->
-      <text class="tag t-amber b" x="60" y="188">SCENARIO B — CACHE MISS</text>
+      <text class="tag t-amber b" x="60" y="188">SCENARIO B - CACHE MISS</text>
       <line x1="120" y1="210" x2="362" y2="210" class="link" marker-end="url(#sq)"/>
       <text class="tag" x="126" y="204">GET /label?iri=…</text>
       <line x1="370" y1="238" x2="612" y2="238" class="link" marker-end="url(#sq)"/>
@@ -248,7 +248,7 @@
       <text class="tag t-green" x="150" y="344">200 JSON-LD · now warm</text>
 
       <line x1="60" y1="376" x2="890" y2="376" class="divider"/>
-      <text class="tag t-muted" x="60" y="400">Invalidation — ingestion pipeline calls
+      <text class="tag t-muted" x="60" y="400">Invalidation - ingestion pipeline calls
         <tspan class="t-amber mono">ctx.cache.purge({ tags: ["public-labels"] })</tspan> after refreshing R2.</text>
     </svg>
 
@@ -259,7 +259,7 @@
     </div>
   </section>
 
-  <footer>rdf-label-resolver · architecture overview · see architecture.md &amp; 2026-07-06-workers-cache-migration.md</footer>
+  <footer>rdf-label-cache · architecture overview · see architecture.md &amp; 2026-07-06-workers-cache-migration.md</footer>
 
 </div>
 </body>

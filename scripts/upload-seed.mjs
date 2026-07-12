@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Upload the ingest manifest (dist/seed/manifest.ndjson) to R2 via the S3 API.
 //
-// Bulk seeding for a real deployment — see scripts/seed-local.sh for the slow,
+// Bulk seeding for a real deployment - see scripts/seed-local.sh for the slow,
 // dev-only miniflare path. Objects are PUT concurrently; keys are the exact
 // strings from the manifest (case-sensitive, so schema/Text and schema/text
 // stay distinct).
@@ -10,7 +10,7 @@
 //   R2_ACCOUNT_ID         Cloudflare account id (→ S3 endpoint host)
 //   R2_ACCESS_KEY_ID      R2 API token access key id
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
-//   R2_BUCKET             bucket name (default: rdf-public-labels)
+//   R2_BUCKET             bucket name, e.g. label-cache-<project>
 //   CONCURRENCY           parallel PUTs (default: 32)
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -24,16 +24,18 @@ const {
   R2_ACCOUNT_ID,
   R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY,
-  R2_BUCKET = "rdf-public-labels",
+  R2_BUCKET,
   CONCURRENCY = "32",
 } = process.env;
 
-// Fail fast: report every missing credential at once, not one per run.
-const missing = Object.entries({ R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY })
+// Fail fast: report every missing value at once, not one per run. R2_BUCKET is
+// explicit (no default) so uploads always target the same bucket the Worker is
+// bound to — per project, that's label-cache-<project>.
+const missing = Object.entries({ R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET })
   .filter(([, v]) => !v)
   .map(([k]) => k);
 if (missing.length) {
-  console.error(`Missing required env: ${missing.join(", ")} (from a Cloudflare R2 API token)`);
+  console.error(`Missing required env: ${missing.join(", ")} (R2_* from a Cloudflare R2 API token; R2_BUCKET is your bucket name, e.g. label-cache-<project>)`);
   process.exit(1);
 }
 

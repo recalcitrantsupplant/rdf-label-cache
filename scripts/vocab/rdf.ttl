@@ -1,4 +1,4 @@
-# RDF vocabulary — hand-curated (w3.org namespace docs are Cloudflare-challenged,
+# RDF vocabulary - hand-curated (w3.org namespace docs are Cloudflare-challenged,
 # so cannot be fetched by the ingest script). Labels/definitions per the RDF 1.1
 # specification. https://www.w3.org/1999/02/22-rdf-syntax-ns#
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .

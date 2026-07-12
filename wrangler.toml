@@ -1,4 +1,8 @@
-name = "rdf-label-resolver"
+# The `name` + `bucket_name` below are the LOCAL-dev defaults. Real deploys are
+# per-project: `just project=<name> deploy` rewrites both to `label-cache-<name>`
+# (into a generated .wrangler.gen.toml) so each app gets its own Worker + bucket.
+# See the Justfile header and docs/DEPLOY.md.
+name = "label-cache-dev"
 main = "src/index.ts"
 compatibility_date = "2025-04-19"
 
@@ -9,7 +13,7 @@ enabled = true
 
 [[r2_buckets]]
 binding = "PUBLIC_LABELS"
-bucket_name = "rdf-public-labels"
+bucket_name = "label-cache-dev"
 
 [vars]
 ENVIRONMENT = "production"

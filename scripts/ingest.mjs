@@ -9,7 +9,7 @@
 //   context/labels-v1.json        ← shared JSON-LD context
 //
 // Output is a manifest (dist/seed/manifest.ndjson: one {key, body} per line),
-// not a file tree — keys like schema/Text and schema/text are distinct in R2
+// not a file tree - keys like schema/Text and schema/text are distinct in R2
 // but collide as paths on case-insensitive filesystems. Upload with
 // scripts/upload-seed.mjs (S3 API). Only per-language keys are emitted; the
 // all-languages bundle (§4.1) is optional and the demo sends ?lang=en.
@@ -17,6 +17,11 @@
 // Sources: w3.org namespace docs are Cloudflare-challenged (403 to scripts), so
 // rdf/rdfs/owl/skos are hand-curated Turtle under scripts/vocab/. dcterms, dcat
 // (via the W3C DXWG GitHub mirror) and schema.org fetch cleanly.
+//
+// Modes:
+//   node ingest.mjs                     all public vocabularies
+//   node ingest.mjs --only skos,rdf     just those vocabularies
+//   node ingest.mjs --input data.ttl    your own RDF dump instead
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,11 +30,24 @@ import N3 from "n3";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..");
 const OUT = join(ROOT, "dist", "seed");
-const BASE = (process.env.SEED_BASE || "https://rdf-label-cache.dhabgood.workers.dev").replace(/\/$/, "");
+// SEED_BASE is the deployed origin, baked into every object's @context URL.
+// Required and explicit: a wrong/placeholder value silently bakes the wrong host
+// into all seeded objects, so fail fast rather than default to any instance.
+if (!process.env.SEED_BASE) {
+  console.error("Missing required env: SEED_BASE (your deployed Worker origin, e.g. https://label-cache-<project>.<subdomain>.workers.dev — baked into each object's @context URL)");
+  process.exit(1);
+}
+const BASE = process.env.SEED_BASE.replace(/\/$/, "");
 const CONTEXT_URL = `${BASE}/context/labels-v1.json`;
 // `--input <file>` ingests your own RDF dump instead of the public ontologies.
 const inputIdx = process.argv.indexOf("--input");
 const INPUT = inputIdx > -1 ? process.argv[inputIdx + 1] : null;
+// `--only <ns,ns,…>` (public-ontology mode only) restricts the seed to the
+// named vocabularies, e.g. `--only skos,rdf,rdfs`. Omit for all of them.
+const onlyIdx = process.argv.indexOf("--only");
+const ONLY = onlyIdx > -1
+  ? new Set(process.argv[onlyIdx + 1].split(",").map((s) => s.trim()).filter(Boolean))
+  : null;
 
 // Kept in sync with src/routes/dev-seed.ts CONTEXT_DOC.
 const CONTEXT_DOC = {
@@ -131,7 +149,7 @@ async function ingestSource(src) {
 }
 
 // A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props):
-// every labelled subject IRI is emitted — keying is namespace-agnostic, so no
+// every labelled subject IRI is emitted - keying is namespace-agnostic, so no
 // registration is needed.
 async function ingestDump(file) {
   const { labels, defs } = collectLiterals(await parseRDF(await readFile(file, "utf8")), () => true);
@@ -171,7 +189,14 @@ async function main() {
     process.stdout.write(`  dump      ${INPUT}\n`);
     writeTerms("your-data", await ingestDump(INPUT));
   } else {
+    if (ONLY) {
+      const unknown = [...ONLY].filter((ns) => !SOURCES.some((s) => s.ns === ns));
+      if (unknown.length) {
+        throw new Error(`--only: unknown namespace(s) ${unknown.join(", ")} - valid: ${SOURCES.map((s) => s.ns).join(", ")}`);
+      }
+    }
     for (const src of SOURCES) {
+      if (ONLY && !ONLY.has(src.ns)) continue;
       process.stdout.write(`  ${src.ns.padEnd(8)} ${src.file || src.url}\n`);
       writeTerms(src.ns, await ingestSource(src));
     }

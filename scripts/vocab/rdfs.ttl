@@ -1,4 +1,4 @@
-# RDF Schema vocabulary — hand-curated (w3.org unfetchable). Labels/definitions
+# RDF Schema vocabulary - hand-curated (w3.org unfetchable). Labels/definitions
 # per the RDF Schema 1.1 specification. https://www.w3.org/2000/01/rdf-schema#
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 

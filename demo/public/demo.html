@@ -3,12 +3,16 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RDF Label Cache — demo</title>
+<title>RDF Label Cache - demo</title>
+<!-- Self-hosted N3 bundle (scripts/vendor-n3.sh); warm the single same-origin
+     request early so the auto-render on load isn't gated on a cold fetch. -->
+<link rel="modulepreload" href="/vendor/n3.mjs" />
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
     --line: #e5e7eb; --panel: #f9fafb; --accent: #2563eb; --accent-soft: #eff6ff;
     --badge: #ede9fe; --badge-fg: #5b21b6; --code: #f3f4f6; --err: #b91c1c;
+    --good: #166534; --sx-key: #770088;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
@@ -17,6 +21,7 @@
       --bg: #0d1117; --fg: #e6edf3; --muted: #8b949e; --faint: #6e7681;
       --line: #21262d; --panel: #161b22; --accent: #58a6ff; --accent-soft: #12233b;
       --badge: #2d2140; --badge-fg: #c9a9ff; --code: #161b22; --err: #f85149;
+      --good: #4ade80; --sx-key: #d2a8ff;
     }
   }
   * { box-sizing: border-box; }
@@ -27,22 +32,56 @@
   header h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
   header p { margin: 6px 0 0; color: var(--muted); font-size: 13px; max-width: 78ch; }
   header a { color: var(--accent); text-decoration: none; }
-  .head-links { flex-shrink: 0; display: flex; gap: 16px; }
+  .head-links { flex-shrink: 0; display: flex; align-items: center; gap: 16px; }
   .why-link { font-size: 13px; font-weight: 600; }
   .why-link:hover { text-decoration: underline; }
-  main { display: grid; grid-template-columns: 1fr 0.95fr 1fr; gap: 0; height: calc(100% - 66px); }
+  .head-cta { padding: 6px 12px; border-radius: 7px; background: var(--accent); color: #fff !important; }
+  .head-cta:hover { text-decoration: none; opacity: 0.92; }
+  main { display: grid; grid-template-columns: 0.9fr 1.15fr 1fr; gap: 0; height: calc(100% - 66px); }
   @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
   .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .pane.left, .pane.middle { border-right: 1px solid var(--line); }
   @media (max-width: 1000px) { .pane.left, .pane.middle { border-right: 0; border-bottom: 1px solid var(--line); } }
+  .pane-head { display: flex; align-items: center; gap: 8px; padding: 12px 16px 0; background: var(--panel); }
+  /* Stage marker: a small numbered circle cueing the left→right pipeline (input → service → output). */
+  .stage { flex-shrink: 0; width: 18px; height: 18px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  .pane-title { font-size: 15px; font-weight: 700; color: var(--fg); letter-spacing: -0.015em; }
   .toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
   .toolbar label { font-size: 12px; color: var(--muted); }
+  /* Info affordance: a small "i" that reveals a styled popover on hover/focus - keeps prose out of the way. */
+  .info { position: relative; display: inline-flex; align-items: center; vertical-align: middle; }
+  .info-btn { all: unset; box-sizing: border-box; cursor: help; width: 15px; height: 15px; border: 1px solid var(--line); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font: italic 700 10px/1 Georgia, "Times New Roman", serif; color: var(--faint); }
+  .info-btn:hover, .info:focus-within .info-btn { color: var(--accent); border-color: var(--accent); }
+  .info-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 300px; max-width: 80vw; padding: 11px 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 8px 28px rgba(0,0,0,0.16); font-size: 12px; font-weight: 400; line-height: 1.55; color: var(--muted); letter-spacing: 0; text-transform: none; opacity: 0; visibility: hidden; transform: translateY(-3px); transition: opacity 0.12s ease, transform 0.12s ease; }
+  .info-pop.right { left: auto; right: 0; }
+  .info:hover .info-pop, .info:focus-within .info-pop { opacity: 1; visibility: visible; transform: none; }
+  .info-pop code { font-family: var(--mono); font-size: 0.9em; background: var(--code); padding: 0 4px; border-radius: 3px; }
+  .info-pop strong { color: var(--fg); font-weight: 600; }
+  .info-pop .term { color: inherit; }
   select, button { font: inherit; font-size: 13px; padding: 5px 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--fg); cursor: pointer; }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .live-hint { margin-left: auto; font-size: 11.5px; color: var(--faint); }
   .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
   .seg button { border: 0; border-radius: 0; background: var(--bg); }
   .seg button.on { background: var(--accent-soft); color: var(--accent); }
-  textarea { flex: 1; width: 100%; border: 0; padding: 16px; resize: none; font-family: var(--mono); font-size: 13px; line-height: 1.6; background: var(--bg); color: var(--fg); outline: none; tab-size: 2; }
+  /* Syntax-highlighted editor: a coloured <pre> backdrop under a transparent-text
+     textarea. Both share identical metrics so glyphs and caret line up exactly. */
+  .editor { position: relative; flex: 1; min-height: 0; }
+  .editor > .hl, .editor > textarea {
+    position: absolute; inset: 0; margin: 0; border: 0; padding: 16px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.6; tab-size: 2;
+    white-space: pre-wrap; overflow-wrap: break-word; overflow: auto;
+  }
+  .editor > .hl { color: var(--fg); background: var(--bg); pointer-events: none; z-index: 0; }
+  .editor > textarea {
+    resize: none; outline: none; z-index: 1; background: transparent;
+    color: transparent; -webkit-text-fill-color: transparent; caret-color: var(--fg);
+  }
+  /* Turtle tokens — same palette as the home-page widget; @prefix/@base/a use the SPARQL keyword colour. */
+  .hl-k { color: var(--sx-key); }
+  .hl-s { color: var(--good); }
+  .hl-i { color: var(--faint); }
+  .hl-p { color: var(--accent); }
+  .hl-c { color: var(--faint); font-style: italic; }
   .out { flex: 1; overflow: auto; padding: 16px; }
   .card { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; background: var(--panel); }
   .card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
@@ -64,8 +103,6 @@
   .reqbody { flex: 1; overflow: auto; }
   .reqstep { padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .step-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 600; margin-bottom: 10px; }
-  .note { font-size: 11.5px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
-  .note code { background: var(--code); padding: 0 4px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
   .prefixes { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
   .prow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11.5px; }
   .prow .pfx { color: var(--accent); min-width: 62px; font-weight: 600; }
@@ -88,33 +125,42 @@
   .pill.miss { background: var(--code); color: var(--faint); }
   .pill.method { background: var(--accent-soft); color: var(--accent); }
   @media (prefers-color-scheme: dark) { .pill.ok { background: #10331d; color: #4ade80; } }
-  .legend { padding: 10px 16px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; background: var(--panel); }
-  .legend .term { color: var(--fg); }
   .msg { color: var(--muted); padding: 8px 0; }
+  .msg .num { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
   .msg.error { color: var(--err); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
 <header>
   <div class="head-main">
-    <h1>RDF Label Cache</h1>
-    <span class="head-links"><a class="why-link" href="/">← Home</a> <a class="why-link" href="/why">Why label-cache?</a> <a class="why-link" href="/start">Getting started →</a></span>
+    <h1>RDF Label Cache <span class="info"><button type="button" class="info-btn" aria-label="What this does">i</button><span class="info-pop">Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</span></span></h1>
+    <span class="head-links"><a class="why-link" href="/">← Home</a> <a class="why-link" href="/why">Why RDF Label Cache?</a> <a class="why-link head-cta" href="/start">Getting started →</a></span>
   </div>
-  <p>Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</p>
 </header>
 <main>
   <section class="pane left">
+    <div class="pane-head">
+      <span class="stage" aria-hidden="true">1</span>
+      <span class="pane-title">Your RDF</span>
+      <span class="info"><button type="button" class="info-btn" aria-label="About your RDF">i</button><span class="info-pop">Paste any Turtle, or pick an example. This demo instance holds labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms).</span></span>
+    </div>
     <div class="toolbar">
       <label for="ex">Example</label>
       <select id="ex"></select>
-      <button id="render" class="primary" type="button">Render →</button>
+      <span class="live-hint">renders live as you type</span>
     </div>
-    <textarea id="ttl" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
-    <div class="note" style="padding: 0 16px 14px; margin-top: 0">This demo instance of label cache holds labels for <strong>RDF, RDFS, OWL, SKOS, DC&nbsp;Terms, DCAT and all of Schema.org</strong> (~3,200 terms).</div>
+    <div class="editor">
+      <pre id="hl" class="hl" aria-hidden="true"></pre>
+      <textarea id="ttl" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+    </div>
   </section>
   <section class="pane middle">
+    <div class="pane-head">
+      <span class="stage" aria-hidden="true">2</span>
+      <span class="pane-title">Labels from RDF Label Cache</span>
+      <span class="info"><button type="button" class="info-btn" aria-label="How labels are fetched">i</button><span class="info-pop">The example application in this playground makes a single request for each IRI in the RDF provided if it doesn't already have a label in that RDF.</span></span>
+    </div>
     <div class="toolbar">
-      <span style="font-size:12px;color:var(--muted)">Requests</span>
       <span class="seg">
         <button id="code-fetch" class="on" type="button">fetch</button>
         <button id="code-curl" type="button">curl</button>
@@ -127,12 +173,11 @@
           <button id="copy" class="copy" type="button">Copy</button>
           <pre id="snippet" class="snippet"></pre>
         </div>
-        <div class="calls-head">Calls fired for this graph — one per unfetched IRI, deduped &amp; cached. Click for raw JSON-LD.</div>
+        <div class="calls-head">Calls fired — one per unfetched IRI, deduped. Click for JSON-LD.</div>
         <div id="calls" class="calls"></div>
       </div>
       <div class="reqstep">
         <div class="step-h">2 · Where the IRI comes from</div>
-        <div class="note"><code>/label</code> takes the <strong>full IRI</strong>, never a CURIE — so the <code>@prefix</code> CURIEs above are expanded first. The service publishes its own prefix map:</div>
         <a class="call" id="ns-call" href="/namespaces" target="_blank" rel="noopener" title="The prefix → namespace map the service serves">
           <span class="pill method">GET</span><span class="path">/namespaces</span><span class="lbl" id="ns-count"></span>
         </a>
@@ -141,25 +186,27 @@
     </div>
   </section>
   <section class="pane">
+    <div class="pane-head">
+      <span class="stage" aria-hidden="true">3</span>
+      <span class="pane-title">Example rendering</span>
+      <span class="info"><button type="button" class="info-btn" aria-label="About the rendering">i</button><span class="info-pop right"><strong>Sample application.</strong> Renders labels provided directly in your data, then looks up any missing labels via label cache.<br><br><span class="term">underlined</span> = resolved from the cache<br><span class="term local">dashed</span> = label already in your data (not fetched)<br><span class="term unresolved">prefix:name</span> = not in cache, shown as CURIE</span></span>
+    </div>
     <div class="toolbar">
       <span class="seg">
         <button id="view-cards" class="on" type="button">Records</button>
         <button id="view-triples" type="button">Triples</button>
       </span>
-      <span id="status" class="msg" style="padding:0"></span>
+      <span id="status" class="msg" style="padding:0; margin-left:auto"></span>
     </div>
-    <div class="note" style="padding: 10px 16px 0; margin-top: 0"><strong>Sample application.</strong> Renders labels provided directly in your data, then looks up any missing labels using label cache.</div>
     <div id="out" class="out"></div>
-    <div class="legend">
-      <span class="term">underlined</span> = resolved from the label cache &nbsp;·&nbsp;
-      <span class="term local">dashed</span> = label already in your data (not fetched) &nbsp;·&nbsp;
-      <span class="term unresolved">prefix:name</span> = not in cache, shown as CURIE
-    </div>
   </section>
 </main>
 
 <script type="module">
-import { Parser } from "https://esm.sh/n3@2.1.0";
+// N3 (the Turtle parser) is bundled and self-hosted at /vendor/n3.mjs — a single
+// same-origin request, no third-party CDN at runtime. Regenerate the bundle with
+// ./scripts/vendor-n3.sh. The <link rel="modulepreload"> in <head> warms it early.
+import { Parser } from "/vendor/n3.mjs";
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 // Predicates whose literal object can name an entity when the cache can't (its data supplies its own label).
@@ -181,7 +228,7 @@ const WELL_KNOWN = {
 };
 
 const EXAMPLES = {
-  "Schema.org — a person": `@prefix schema: <https://schema.org/> .
+  "Schema.org - a person": `@prefix schema: <https://schema.org/> .
 @prefix ex:     <https://example.org/> .
 
 ex:jane a schema:Person ;
@@ -343,7 +390,7 @@ const NAME_PRED_ORDER = [
   "https://schema.org/name", "http://schema.org/name",
   "http://purl.org/dc/terms/title", "http://xmlns.com/foaf/0.1/name",
 ];
-// IRIs the graph already labels itself — no need to ask the cache.
+// IRIs the graph already labels itself - no need to ask the cache.
 function buildGraphLabels(quads) {
   const best = new Map(); // iri -> { value, pred, score }
   for (const q of quads) {
@@ -419,7 +466,7 @@ const numWord = (n) => NUM_WORDS[n] ?? String(n);
 function drawSnippet() {
   const pre = $("snippet");
   pre.textContent = "";
-  // Pick a representative IRI — prefer one that resolved, else the first.
+  // Pick a representative IRI - prefer one that resolved, else the first.
   const iri = last
     ? (last.fetched.find((i) => { const r = last.resolved.get(i); return r && r.label; }) || last.fetched[0] || last.iris[0])
     : "http://www.w3.org/2004/02/skos/core#Concept";
@@ -453,7 +500,7 @@ function drawCalls() {
   if (last.skipped.length) {
     const n = last.skipped.length;
     const word = numWord(n).replace(/^./, (c) => c.toUpperCase());
-    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data — not fetched.`));
+    box.append(el("div", { class: "skipnote" }, `${word} IRI${n > 1 ? "s" : ""} already labeled in your data - not fetched.`));
   }
   for (const iri of last.fetched) {
     const r = last.resolved.get(iri) || {};
@@ -467,7 +514,7 @@ function drawCalls() {
   }
 }
 
-// Namespaces the service itself serves (GET /namespaces) — the canonical prefix map.
+// Namespaces the service itself serves (GET /namespaces) - the canonical prefix map.
 // Seeded from the well-known set so badges are sensible before the call returns.
 let servedNS = new Set(Object.values(WELL_KNOWN));
 async function loadNamespaces() {
@@ -498,7 +545,7 @@ function drawPrefixes() {
     const row = el("div", { class: "prow" });
     row.append(el("span", { class: "pfx" }, pfx + ":"));
     row.append(el("span", { class: "ns", title: ns }, ns));
-    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace — not in the cache" }, served ? "served" : "yours"));
+    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace - not in the cache" }, served ? "served" : "yours"));
     box.append(row);
   }
 }
@@ -529,13 +576,14 @@ async function run() {
   const skipped = iris.filter((i) => graphLabels.has(i));
   status.textContent = `resolving ${toFetch.length} IRIs…`;
   const resolved = new Map();
-  // Already labeled by the data itself — no cache call.
+  // Already labeled by the data itself - no cache call.
   for (const iri of skipped) resolved.set(iri, { source: "graph", label: graphLabels.get(iri).value });
   // The rest: ask the cache.
   await Promise.all(toFetch.map(async (iri) => { resolved.set(iri, { source: "cache", ...(await resolve(iri)) }); }));
   const hits = toFetch.filter((i) => resolved.get(i).label).length;
-  status.textContent = `${parsed.quads.length} triples · ${toFetch.length} cache lookups · ${hits} resolved`
-    + (skipped.length ? ` · ${skipped.length} already in data` : "");
+  const n = (x) => `<span class="num">${x}</span>`;
+  status.innerHTML = `${n(parsed.quads.length)} triples · ${n(toFetch.length)} cache lookups · ${n(hits)} resolved`
+    + (skipped.length ? ` · ${n(skipped.length)} already in data` : "");
   last = { ...parsed, subs: groupBySubject(parsed.quads), resolved, iris, fetched: toFetch, skipped };
   drawPrefixes();
   drawSnippet();
@@ -558,11 +606,33 @@ function setView(v) {
   draw();
 }
 
+// ---- Turtle syntax highlighting (a coloured <pre> backdrop mirrors the textarea) ----
+const ttlEl = $("ttl"), hlEl = $("hl");
+const escHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+function highlightTtl(t) {
+  // @prefix/@base/a → keyword · "…"(@lang|^^type) → string · <…> → IRI · pfx:name → prefixed name · #… → comment
+  const re = /(#[^\n]*)|(@(?:prefix|base))\b|("(?:[^"\\]|\\.)*"(?:@[\w-]+|\^\^[^\s;,.)]+)?)|(<[^>]*>)|\b(a)\b|([A-Za-z][\w.-]*:[\w.%-]*)/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(t))) {
+    out += escHtml(t.slice(last, m.index));
+    if (m[1]) out += `<span class="hl-c">${escHtml(m[1])}</span>`;
+    else if (m[2]) out += `<span class="hl-k">${escHtml(m[2])}</span>`;
+    else if (m[3]) out += `<span class="hl-s">${escHtml(m[3])}</span>`;
+    else if (m[4]) out += `<span class="hl-i">${escHtml(m[4])}</span>`;
+    else if (m[5]) out += `<span class="hl-k">a</span>`;
+    else if (m[6]) out += `<span class="hl-p">${escHtml(m[6])}</span>`;
+    last = re.lastIndex;
+  }
+  return out + escHtml(t.slice(last));
+}
+const syncScroll = () => { hlEl.scrollTop = ttlEl.scrollTop; hlEl.scrollLeft = ttlEl.scrollLeft; };
+function syncHL() { hlEl.innerHTML = highlightTtl(ttlEl.value) + "\n"; syncScroll(); }
+ttlEl.addEventListener("scroll", syncScroll);
+
 // wire up
 const sel = $("ex");
 for (const name of Object.keys(EXAMPLES)) sel.append(el("option", {}, name));
-sel.addEventListener("change", () => { $("ttl").value = EXAMPLES[sel.value]; run(); });
-$("render").addEventListener("click", run);
+sel.addEventListener("change", () => { $("ttl").value = EXAMPLES[sel.value]; syncHL(); run(); });
 $("view-cards").addEventListener("click", () => setView("cards"));
 $("view-triples").addEventListener("click", () => setView("triples"));
 function setCode(m) {
@@ -578,9 +648,10 @@ $("copy").addEventListener("click", async () => {
   catch { /* clipboard blocked */ }
 });
 let debounce;
-$("ttl").addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(run, 400); });
+$("ttl").addEventListener("input", () => { syncHL(); clearTimeout(debounce); debounce = setTimeout(run, 400); });
 
 $("ttl").value = EXAMPLES[Object.keys(EXAMPLES)[0]];
+syncHL();
 run();
 loadNamespaces().then(() => { if (last) drawPrefixes(); });
 </script>

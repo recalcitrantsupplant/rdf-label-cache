@@ -2,18 +2,22 @@
 
 Phase-1 deploy: static labels served from R2. Assumes a Cloudflare account.
 
+Pick a **project name** first: your Worker and bucket are both named
+`label-cache-<project>`, so each app gets its own isolated instance. Set it once
+in `.env` (`PROJECT=orders`) or pass `project=orders` on each command below.
+
 ## One-time
 
 ```bash
 just login                       # browser OAuth into your Cloudflare account
-just bucket                      # create R2 bucket `rdf-public-labels`
+just project=orders bucket       # create R2 bucket `label-cache-orders`
 ```
 
 ## Deploy
 
 ```bash
-just deploy                      # publishes the Worker; prints its URL, e.g.
-                                 #   https://rdf-label-resolver.<subdomain>.workers.dev
+just project=orders deploy       # publishes the Worker; prints its URL, e.g.
+                                 #   https://label-cache-orders.<subdomain>.workers.dev
 ```
 
 ## Seed production R2
@@ -22,14 +26,19 @@ The full label set (~3,200 terms: rdf, rdfs, owl, skos, dcterms, dcat, and all o
 schema.org) is produced by the ingestion pipeline and uploaded to R2 over the S3 API:
 
 ```bash
-export SEED_BASE=https://rdf-label-resolver.<subdomain>.workers.dev
+export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
+export R2_BUCKET=label-cache-orders
 export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 ./scripts/seed.sh            # = pnpm seed:ingest (fetch + parse) then pnpm seed:upload
 ```
 
+(`./scripts/seed.sh` targets the maintainer demo bucket `label-cache-demo` by
+default; set `R2_BUCKET` as above for your own project. From `just`, the
+`project=` recipes set it for you.)
+
 `SEED_BASE` is the deployed origin, baked into each object's `@context` URL. R2 keys are
 case-sensitive, so `schema:Text` and `schema:text` stay distinct. In CI this runs from
-`.github/workflows/seed.yml` (manual + monthly), decoupled from code deploys — data and
+`.github/workflows/seed.yml` (manual + monthly), decoupled from code deploys - data and
 Worker have independent lifecycles. See [architecture.md](./architecture.md) §6.6.
 
 Sources: `dcterms`, `dcat` (W3C DXWG GitHub mirror) and schema.org are fetched live;
@@ -40,13 +49,13 @@ namespace docs sit behind a Cloudflare bot challenge (403 to scripts).
 throwaway `--remote` dev server calling `/dev/seed`:
 
 ```bash
-just seed-remote https://rdf-label-resolver.<subdomain>.workers.dev
+just project=orders seed-remote https://label-cache-orders.<subdomain>.workers.dev
 ```
 
 ## Verify / demo
 
 ```bash
-just demo https://rdf-label-resolver.<subdomain>.workers.dev
+just demo https://label-cache-orders.<subdomain>.workers.dev
 ```
 
 Or by hand:
@@ -64,5 +73,5 @@ curl "https://<your-url>/namespaces" | jq
   `scripts/upload-seed.mjs`; see "Seed production R2" above). The 12-term sample in
   `src/routes/dev-seed.ts` is now only a local/dev smoke test.
 - **Workers Cache** (`[cache] enabled = true`) is documented but not yet enabled in
-  `wrangler.toml` — see `2026-07-06-workers-cache-migration.md`. Deploy works without it;
+  `wrangler.toml` - see `2026-07-06-workers-cache-migration.md`. Deploy works without it;
   the Worker's own edge-cache code carries phase 1.

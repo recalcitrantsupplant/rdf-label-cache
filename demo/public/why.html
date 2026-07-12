@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Why label-cache?</title>
+<title>Why RDF Label Cache?</title>
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
@@ -25,9 +25,10 @@
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
   .back { font-size: 13px; }
-  h1 { font-size: 26px; letter-spacing: -0.02em; margin: 20px 0 6px; }
-  h2 { font-size: 18px; margin: 40px 0 10px; letter-spacing: -0.01em; }
-  .lede { font-size: 16px; color: var(--muted); margin: 0 0 8px; }
+  .kicker { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 5px 12px; border-radius: 999px; margin: 22px 0 0; }
+  h1 { font-size: 34px; letter-spacing: -0.025em; line-height: 1.15; margin: 14px 0 10px; }
+  h2 { font-size: 20px; margin: 52px 0 12px; letter-spacing: -0.01em; }
+  .lede { font-size: 19px; color: var(--muted); line-height: 1.5; margin: 0 0 8px; max-width: 60ch; }
   p { margin: 10px 0; }
   code { font-family: var(--mono); font-size: 0.88em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
   strong { font-weight: 600; }
@@ -59,122 +60,114 @@
   .stat-n { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--good); }
   .stat-n span { display: block; font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: 0; text-transform: uppercase; margin-top: 2px; }
   .stat-d { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+  /* benefit blocks - scannable, one per closing paragraph */
+  .reasons { margin: 24px 0 8px; }
+  .reason { border-left: 3px solid var(--accent); padding: 2px 0 2px 18px; margin: 24px 0; }
+  .reason h3 { margin: 0 0 7px; font-size: 16.5px; letter-spacing: -0.01em; color: var(--fg); }
+  .reason p { margin: 0; font-size: 14.5px; color: var(--muted); }
   .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <a class="back" href="/">← Home</a>
-  <h1>Why label-cache?</h1>
-  <p class="lede">RDF names everything with IRIs. Turning those IRIs into words is the same boring problem in every app — and the common solutions all have drawbacks.</p>
+  <span class="kicker">The case for RDF Label Cache</span>
+  <h1>Why RDF Label Cache?</h1>
+  <p class="lede">Presenting RDF in a human readable form requires retrieving labels for all IRIs.</p>
 
-  <p>RDF identifies everything with an IRI: <code>skos:broader</code>, <code>https://schema.org/jobTitle</code>,
-  <code>wd:Q42</code>. They're globally unique but unreadable. Any app that shows RDF to a human has to
-  resolve <em>IRI → label</em> — over and over, for predicates, classes, and entities. That lookup is
-  identical everywhere, yet it's usually solved in ways that don't scale.</p>
-
-  <div class="diagram">
-    <div class="lane"><span class="tag">Data</span>
-      <span class="box app">Your app</span>
-      <span class="arrow">— query <b>→</b></span>
-      <span class="box kg">Knowledge graph</span>
-      <span class="arrow"><b>←</b> results (opaque IRIs)</span>
-    </div>
-    <div class="lane"><span class="tag">Labels</span>
-      <span class="box app">Your app</span>
-      <span class="arrow">— <b>GET /label?iri=…</b> →</span>
-      <span class="box cache">Label cache</span>
-      <span class="arrow">→ edge cache → R2</span>
-    </div>
-    <div class="caption">Labels come from a globally distributed <strong>edge CDN</strong>, not your triplestore.
-      Popular vocabulary IRIs are a cache hit almost every time, so the knowledge graph only ever serves your <em>data</em>.</div>
-  </div>
-
-  <h2>The usual ways to get labels — and why they hurt</h2>
+  <h2>The usual ways to get labels - and why they hurt</h2>
 
   <div class="mode">
     <h3>1. Hard-code labels into the app</h3>
     <p>Ship a big <code>{ iri: "label" }</code> table in the frontend.</p>
     <p class="why"><b>Why it's bad:</b> stale the moment a vocabulary changes, duplicated in every app you
-    build, no shared source of truth, needs a redeploy to fix a typo — and it only covers the IRIs you
+    build, no shared source of truth, needs a redeploy to fix a typo - and it only covers the IRIs you
     thought of in advance.</p>
   </div>
 
   <div class="mode">
     <h3>2. Ask for labels in the query (complicated SPARQL)</h3>
-    <p><code>OPTIONAL</code>-join <code>rdfs:label</code> / <code>skos:prefLabel</code>, with language
-    fallbacks, for every variable you project.</p>
-    <p class="why"><b>Why it's bad:</b> the query balloons — every term needs its own <code>OPTIONAL</code> +
-    <code>COALESCE</code>, language fallback in SPARQL is miserable, it's slow, and you paste the same label
-    boilerplate into <em>every</em> query you ever write.</p>
+    <p>For every IRI you display, add an <code>OPTIONAL</code> block pulling its <code>rdfs:label</code> /
+    <code>skos:prefLabel</code> - with language-fallback logic - and return the labels alongside the data.</p>
+    <p class="why"><b>Why it's bad:</b> the query balloons - every term needs its own <code>OPTIONAL</code> +
+    <code>COALESCE</code>, language fallback in SPARQL adds additional bloat, it's slow, and you paste the same label
+    boilerplate into <em>every</em> query.</p>
   </div>
 
   <div class="mode">
     <h3>3. A follow-up query for the labels</h3>
     <p>Run the main query, collect the IRIs it returned, then query the graph again for their labels.</p>
-    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> — this is exactly what label-cache does — but
-    on its own it hits your triplestore every time: a round trip per batch, extra load on the DB. You can soften
-    that by caching the labels in-app — a less-bad version of the CDN idea. But it adds complexity to the app,
-    the cache is cold again every time the
-    app restarts, and if you run multiple workers (e.g. FastAPI) each one keeps its own separate cache. And the
-    labels for common terms like <code>rdfs:label</code> or <code>schema:name</code> are identical across every
-    graph on earth, yet you re-fetch them from <em>your</em> KG every single time.</p>
+    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> - it's what RDF Label Cache does - but on its own it
+    hits your triplestore every time. An in-app cache helps, yet it's cold on every restart, kept separately per
+    worker, and still re-fetches universal terms like <code>rdfs:label</code> from <em>your</em> KG.</p>
   </div>
 
   <div class="mode">
     <h3>4. Shadow &ldquo;label&rdquo; named graphs</h3>
-    <p>Materialise a named graph — e.g. one per focus node — that holds all the labels for its IRIs, so you
+    <p>Materialise a named graph - e.g. one per focus node - that holds all the labels for its IRIs, so you
     can pull them alongside the data.</p>
     <p class="why"><b>Why it's bad:</b> now you maintain a <em>copy</em>. It drifts from the source, bloats
-    storage, needs a sync/materialisation pipeline to stay current — and it's still inside the triplestore, so
+    storage, needs a sync/materialisation pipeline to stay current - and it's still inside the triplestore, so
     every read still lands on the KG.</p>
   </div>
 
-  <h2>What label-cache does instead</h2>
+  <h2>What RDF Label Cache does instead</h2>
   <div class="mode solution">
-    <h3>Follow-up lookups — from an edge CDN, not your KG</h3>
+    <h3>Follow-up lookups - from an edge CDN, not your KG</h3>
     <p class="why">Take approach&nbsp;3 (a per-IRI lookup) and move it off the triplestore entirely. Labels are
     pre-materialised <b>once</b> into blob storage (<a href="https://developers.cloudflare.com/r2/">R2</a>) and fronted by a tiered edge cache. A lookup is a plain
-    <code>GET /label?iri=…</code>, resolved at the nearest edge location; popular vocabulary IRIs are served
-    from cache without ever touching a database. Your triplestore serves <strong>data</strong>; the CDN serves
-    <strong>labels</strong>. They're decoupled.</p>
+    <code>GET /label?iri=…</code>, resolved at the nearest edge location.</p>
+    <div class="diagram">
+      <div class="lane"><span class="tag">Data</span>
+        <span class="box app">Your app</span>
+        <span class="arrow">- query <b>→</b></span>
+        <span class="box kg">Knowledge graph</span>
+        <span class="arrow"><b>←</b> results (opaque IRIs)</span>
+      </div>
+      <div class="lane"><span class="tag">Labels</span>
+        <span class="box app">Your app</span>
+        <span class="arrow">- <b>GET /label?iri=…</b> →</span>
+        <span class="box cache">Label cache</span>
+        <span class="arrow">→ edge cache → R2</span>
+      </div>
+      <div class="caption">Labels come from a globally distributed <strong>edge CDN</strong>, not your triplestore.</div>
+    </div>
   </div>
 
   <h2>What that buys you: cost and latency</h2>
   <div class="stats">
-    <div class="stat"><div class="stat-n">$0.30<span>/ million hits</span></div><div class="stat-d">first 100k/day free · no egress fees</div></div>
-    <div class="stat"><div class="stat-n">shared<span>per region</span></div><div class="stat-d">one user warms it, everyone rides it</div></div>
+    <div class="stat"><div class="stat-n">$0.30<span>/ million requests</span></div><div class="stat-d">first 100k/day free · no egress fees</div></div>
     <div class="stat"><div class="stat-n">&lt;50&nbsp;ms<span>for 95% of users</span></div><div class="stat-d">served from the nearest of 330+ cities</div></div>
+    <div class="stat"><div class="stat-n">shared<span>per region</span></div><div class="stat-d">one user warms it, everyone reuses it</div></div>
   </div>
-  <p><strong>It's a shared edge cache, not per-user.</strong> Cloudflare caches each label response <em>per data
-  centre</em>, shared across everyone routed there. The first request for an IRI in a region warms the cache; with a
-  long TTL, every later user in that region is served the cached copy — the request never reaches R2. Tiered caching
-  aggregates this across the network, so cold locations pull from a regional tier rather than round-tripping to
-  storage. Since the same vocabulary IRIs (<code>rdfs:label</code>, <code>schema:name</code>, …) appear in
-  everyone's data, hit rates on popular terms are very high.</p>
-  <p><strong>A hit costs almost nothing.</strong> It's a single Cloudflare Workers request — $0.30 per million,
-  ~$0.0000003 each, with the first 100,000 a day free. On a hit no compute is billed and R2 is never read, and
-  Cloudflare charges <strong>no bandwidth or egress fees at all</strong> — unlike the hyperscalers. Serving hundreds
-  of millions of lookups a month is dollars, not a database bill.</p>
-  <p><strong>And it's faster than calling your backend.</strong> Workers, R2, and the cache are all on Cloudflare's
-  edge — the same network your request already lands on, not a hop out to a cloud region and then an app plus a
-  database. 95% of internet users are within 50&nbsp;ms of a Cloudflare data centre (most within 20&nbsp;ms), and a
-  cache hit is served right there. Resolving a label is typically quicker than a <em>single</em> round trip to your
-  origin — before that origin has queried anything.</p>
-
-  <h2>Populating it — for the demo, and for you</h2>
-  <p>Nothing is pre-loaded by magic. You populate R2 <strong>once</strong> with the labels your data needs — the
-  same way this demo was populated. Two things go in:</p>
-  <ul>
-    <li><strong>Your own IRIs</strong> — their <strong>annotation properties</strong> (labels, descriptions, …),
-    extracted from your data.</li>
-    <li><strong>The public vocabulary terms you actually use</strong> — the handful of Schema.org / SKOS /
-    Dublin&nbsp;Core predicates and classes your data references, without loading whole ontologies you don't need.</li>
-  </ul>
-  <p>At triplestore scale, a single SPARQL <code>CONSTRUCT</code> can do both: find every IRI your data mentions
-  and emit its label and description from wherever they're defined. That dump feeds the same generate → upload step
-  the demo used. (Prefer whole public vocabularies over stripping to just what's used? Storage is cheap — load the
-  lot.) Recipes and scripts for this live in the repo.</p>
+  <div class="reasons">
+    <div class="reason">
+      <h3>It's a shared edge cache, not per-user.</h3>
+      <p>Cloudflare caches each label response <em>per data
+      centre</em>, shared across everyone routed there. The first request for an IRI in a region warms the cache; with a
+      long TTL, every later user in that region is served the cached copy - the request never reaches R2. Tiered caching
+      aggregates this across the network, so cold locations pull from a regional tier rather than round-tripping to
+      storage. Since the same vocabulary IRIs (<code>rdfs:label</code>, <code>schema:name</code>, …) appear in
+      everyone's data, hit rates on popular terms are very high.</p>
+    </div>
+    <div class="reason">
+      <h3>Every lookup costs almost nothing.</h3>
+      <p>Each request - hit or miss - is a single Cloudflare Workers
+      request: $0.30 per million (~$0.0000003 each), with the first 100,000 a day free. A hit is even cheaper in practice:
+      the Worker never runs, so no compute is billed and R2 is never read - you just pay the flat per-request rate. And
+      Cloudflare charges <strong>no bandwidth or egress fees at all</strong> - unlike the hyperscalers. Serving tens
+      of millions of lookups a month costs dollars.</p>
+    </div>
+    <div class="reason">
+      <h3>And it's faster than calling your backend.</h3>
+      <p>Workers, R2, and the cache are all on Cloudflare's
+      edge - the same network your request already lands on, not a hop out to a cloud region and then an app plus a
+      database. 95% of internet users are within 50&nbsp;ms of a Cloudflare data centre (most within 20&nbsp;ms), and a
+      cache hit is served right there. Resolving a label is typically quicker than a <em>single</em> round trip to your
+      origin - before that origin has queried anything.</p>
+    </div>
+  </div>
 
   <p class="foot"><a href="/demo">← Try the demo</a> &nbsp;·&nbsp; <a href="/start">Getting started</a> &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; design docs</a></p>
 </div>

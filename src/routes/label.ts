@@ -18,7 +18,7 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
   }
 
   // Namespace-agnostic keying: the R2 key is the full IRI itself, so any
-  // namespace resolves without registration — and the IRI's own path becomes
+  // namespace resolves without registration - and the IRI's own path becomes
   // the R2 hierarchy, readable/browsable for debugging:
   //   labels/https://schema.org/name/en
   const r2Key = lang ? `labels/${iri}/${lang}` : `labels/${iri}`;
@@ -33,7 +33,7 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
 
   // Cached by Workers Cache per Cache-Control; invalidated by purging the
   // `labels` tag (or `labels:{ns}` for one namespace) on a data refresh. The
-  // per-namespace tag is best-effort — known namespaces only; others just get
+  // per-namespace tag is best-effort - known namespaces only; others just get
   // `labels`. Keying no longer depends on it.
   const ns = parseIRI(iri)?.namespaceAlias;
   const headers = cacheHeaders(

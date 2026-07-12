@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 
 # Ensure the R2 bucket bound in demo/wrangler.demo.toml exists (idempotent),
 # so a first-time deploy doesn't 500 at runtime on a missing bucket.
-BUCKET="rdf-public-labels"
+BUCKET="label-cache-demo"
 echo "==> Ensuring R2 bucket '$BUCKET' exists"
 if ! pnpm wrangler r2 bucket list 2>/dev/null | grep -qw "$BUCKET"; then
   pnpm wrangler r2 bucket create "$BUCKET"
@@ -23,13 +23,13 @@ pnpm wrangler deploy --config demo/wrangler.demo.toml
 # Invalidate the whole cache after a code deploy (response shapes may change).
 # Best-effort: skipped until PURGE_TOKEN is set as a secret on both the Worker
 # (wrangler secret) and here (CI env). See docs migration doc.
-DEMO_URL="${DEMO_URL:-https://rdf-label-cache.dhabgood.workers.dev}"
+DEMO_URL="${DEMO_URL:-https://label-cache-demo.dhabgood.workers.dev}"
 if [ -n "${PURGE_TOKEN:-}" ]; then
   echo "==> Purging cache (tag: all)"
   curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
     "$DEMO_URL/admin/purge?tags=all" && echo || echo "WARN: purge failed (non-fatal)"
 else
-  echo "==> PURGE_TOKEN unset — skipping cache purge (cache self-expires per TTL)"
+  echo "==> PURGE_TOKEN unset - skipping cache purge (cache self-expires per TTL)"
 fi
 
 echo "==> Deployed. Seed data is managed separately via scripts/seed-remote.sh"
