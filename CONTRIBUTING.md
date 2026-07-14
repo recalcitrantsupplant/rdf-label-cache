@@ -14,7 +14,7 @@ Requirements: **Node 22** and **pnpm** (the repo pins `pnpm@11.3.0` via `package
 Corepack will use it automatically).
 
 ```bash
-git clone https://github.com/recalcitrantsupplant/label-cdn && cd label-cdn
+git clone https://github.com/recalcitrantsupplant/rdf-label-cache && cd rdf-label-cache
 pnpm install                 # frozen lockfile in CI; commit lockfile changes
 ```
 

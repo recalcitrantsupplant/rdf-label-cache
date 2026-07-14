@@ -173,7 +173,7 @@
     <div class="num">1</div>
     <div class="step-body">
       <h2>Clone &amp; install</h2>
-      <pre><code>git clone https://github.com/recalcitrantsupplant/label-cdn &amp;&amp; cd label-cdn
+      <pre><code>git clone https://github.com/recalcitrantsupplant/rdf-label-cache &amp;&amp; cd rdf-label-cache
 pnpm install</code></pre>
     </div>
   </div>
@@ -422,7 +422,7 @@ await Promise.all(iris.map(async (iri) =&gt; {
 
 // `store` now holds your data + every label as triples.</code></pre>
       <p class="note">Fire the label lookups concurrently - never one-at-a-time. See
-      <a href="https://github.com/recalcitrantsupplant/label-cdn/blob/main/docs/FAQ.md">the FAQ</a>
+      <a href="https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md">the FAQ</a>
       on why one-request-per-label is fine over modern HTTP.</p>
 
       <p class="note reg">Each label doc carries an absolute <code>@context</code> URL, and by default the parser
@@ -434,7 +434,7 @@ await Promise.all(iris.map(async (iri) =&gt; {
   </div>
 
   <p class="foot"><a href="/demo">← Try the demo</a> &nbsp;·&nbsp; <a href="/why">Why RDF Label Cache?</a>
-  &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/label-cdn">Source &amp; docs</a></p>
+  &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/rdf-label-cache">Source &amp; docs</a></p>
 </div>
 </div>
 <script>

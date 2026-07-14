@@ -60,7 +60,7 @@ your data uses - in five steps. Nothing ships pre-loaded; you populate R2 once.
 **1. Clone & install**
 
 ```bash
-git clone https://github.com/recalcitrantsupplant/label-cdn && cd label-cdn
+git clone https://github.com/recalcitrantsupplant/rdf-label-cache && cd rdf-label-cache
 pnpm install
 ```
 
@@ -169,6 +169,9 @@ by commitlint on every PR and by a local husky hook). CI must be green — run
 Tracked in [`docs/architecture.md` §7](docs/architecture.md#7-open-questions--future-work).
 Headline items:
 
+- **One-click onboarding** — a *Deploy to Cloudflare* button (+ template repo / C3) to stand
+  up the Worker and bucket from a CF account alone, then a guided two-path seed (drop RDF in a
+  folder, or point at a SPARQL endpoint), each with an optional public-ontology top-up.
 - **Native authentication for private deployments** — built-in access control so a private
   label set can protect itself without a platform auth layer in front (today auth is
   delegated to the edge; see [`docs/architecture.md` §6.4](docs/architecture.md#64-protecting-a-private-deployment-auth)).
