@@ -18,14 +18,14 @@
   "packageManager": "pnpm@11.3.0",
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.18.0",
-    "@cloudflare/workers-types": "^4.20260630.1",
+    "@cloudflare/workers-types": "^5.20260707.1",
     "@commitlint/cli": "^21.2.0",
     "@commitlint/config-conventional": "^21.2.0",
     "aws4fetch": "1.0.20",
     "esbuild": "0.28.1",
     "husky": "^9.1.7",
-    "n3": "2.1.0",
-    "typescript": "^5.0.0",
+    "n3": "2.1.1",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10",
     "wrangler": "^4.107.0"
   }
