@@ -462,7 +462,9 @@ function renderTriples(quads, resolved, prefixes) {
 }
 
 // ---- requests pane ----
-const labelPath = (iri) => `/label?iri=${encodeURIComponent(iri)}&lang=en`;
+// No ?lang= fetches the untagged label (labels/und/{iri}); the Worker does no
+// cross-language fallback, so English fallback is client-side (see resolve()).
+const labelPath = (iri) => `/label?iri=${encodeURIComponent(iri)}`;
 // Spell out small counts so a leading number never reads as a list index.
 const NUM_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const numWord = (n) => NUM_WORDS[n] ?? String(n);
@@ -482,11 +484,12 @@ function drawSnippet() {
     pre.append(
       cm(`// expand the CURIE ${cu} to its full IRI, then ask the cache\n`),
       st("const"), ` iri = ${JSON.stringify(iri)};\n`,
+      cm(`// no ?lang= → the untagged label; add &lang=en to fall back client-side\n`),
       st("const"), ` res = `, st("await"), ` fetch(\n`,
-      `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}&lang=en\`\n`,
+      `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}\`\n`,
       `);\n`,
       st("const"), ` { prefLabel, definition } = `, st("await"), ` res.json();\n`,
-      cm(`// prefLabel → { en: "…" }  ·  full IRI only, 404 if unknown`),
+      cm(`// prefLabel → { "@none": "…" }  ·  full IRI only, 404 if unknown`),
     );
   } else {
     pre.append(
