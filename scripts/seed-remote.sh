@@ -25,7 +25,9 @@ trap cleanup EXIT
 
 echo "==> Waiting for remote dev server on :$PORT"
 for _ in $(seq 1 60); do
-  if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then break; fi
+  # OPTIONS on a public route returns 204 as soon as the Worker is up, without
+  # depending on any seeded data.
+  if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then break; fi
   sleep 1
 done
 

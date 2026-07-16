@@ -26,7 +26,7 @@ export async function handlePurge(
     return json({ error: "unauthorized" }, 401);
   }
 
-  const tags = (new URL(request.url).searchParams.get("tags") ?? "labels,context,namespaces")
+  const tags = (new URL(request.url).searchParams.get("tags") ?? "labels,context")
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);

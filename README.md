@@ -14,7 +14,6 @@ pointing it at your own R2 bucket.
 ```
 GET /label?iri={encoded_iri}          # untagged label (labels/und/{iri})
 GET /label?iri={encoded_iri}&lang=en  # a specific language (labels/en/{iri})
-GET /namespaces                       # static known-prefix registry
 GET /context/labels-v1.json           # shared JSON-LD context
 ```
 

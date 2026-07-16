@@ -60,11 +60,9 @@ The `@context` URL is a stable, heavily-cached document (see §4.2) that defines
 
 **Language fallback:** if `?lang=fr` resolves to a 404, the client receives 404. No automatic language fallback - the caller decides.
 
-### 2.2 Namespace Listing
-
-```
-GET /namespaces             - static known-prefix registry (not store inventory)
-```
+**Prefixes / CURIEs:** the service speaks only absolute `http(s)` IRIs. Prefix
+expansion (`skos:Concept` → the full IRI) is a client-side concern; callers
+resolve CURIEs before calling `/label`. The service exposes no prefix registry.
 
 ---
 
@@ -216,8 +214,8 @@ Caching is enabled via config (`[cache] enabled = true`) and driven by the respo
 | 404 | `public, max-age=60` |
 | Context document | `public, max-age=31536000, immutable` (versioned URL, content never changes) |
 
-Every cacheable response also carries a scoped `Cache-Tag` header (`labels`,
-`context`, or `namespaces`; labels also receive `labels:<namespace>` where known).
+Every cacheable response also carries a scoped `Cache-Tag` header (`labels` for
+label responses, `context` for the JSON-LD context).
 Purge data tags on ontology refresh via `ctx.cache.purge({ tags: [...] })`. This
 invalidates the Cloudflare edge only: the one-year browser cache is an accepted
 static-RDF policy, so exceptional typo corrections require a new resource URL.

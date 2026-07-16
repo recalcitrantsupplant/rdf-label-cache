@@ -1,4 +1,3 @@
-import { parseIRI } from "../lib/namespaces";
 import { cacheHeaders, ERROR_CACHE } from "../lib/cache";
 
 const MAX_IRI_BYTES = 900;
@@ -31,13 +30,10 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
   }
 
   // Cached by Workers Cache per Cache-Control; invalidated by purging the
-  // `labels` tag (or `labels:{ns}` for one namespace) on a data refresh. The
-  // per-namespace tag is best-effort - known namespaces only; others just get
-  // `labels`. Keying no longer depends on it.
-  const ns = parseIRI(iri)?.namespaceAlias;
+  // `labels` tag on a data refresh.
   const headers = cacheHeaders(
     "application/ld+json",
-    ns ? ["labels", `labels:${ns}`] : ["labels"],
+    ["labels"],
     object.httpMetadata?.contentEncoding
   );
   // `head` results carry no body; the cast is safe because `body` only exists

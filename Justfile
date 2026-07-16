@@ -57,7 +57,7 @@ demo-local:
     #!/usr/bin/env bash
     set -euo pipefail
     PORT="${PORT:-8787}"
-    if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+    if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
         echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just demo-local)." >&2
         exit 1
     fi
@@ -71,10 +71,10 @@ demo-local:
             wait "$PID"
             exit $?
         fi
-        if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then break; fi
+        if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then break; fi
         sleep 1
     done
-    if ! curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+    if ! curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
         echo "ERROR: local demo Worker did not become ready within 60 seconds." >&2
         exit 1
     fi
@@ -100,7 +100,7 @@ dev-local:
     #!/usr/bin/env bash
     set -euo pipefail
     PORT="${PORT:-8787}"
-    if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+    if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
         echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just dev-local)." >&2
         exit 1
     fi
@@ -124,10 +124,10 @@ dev-local:
     echo "waiting for local Worker on :$PORT..."
     for _ in $(seq 1 60); do
         if ! kill -0 "$PID" 2>/dev/null; then wait "$PID"; exit $?; fi
-        if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then break; fi
+        if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then break; fi
         sleep 1
     done
-    if ! curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+    if ! curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
         echo "ERROR: local Worker did not become ready within 60 seconds." >&2
         exit 1
     fi
@@ -213,7 +213,7 @@ seed-remote BASE: _gen
     PID=$!
     trap "kill $PID 2>/dev/null || true" EXIT
     echo "waiting for remote dev server..."
-    for i in $(seq 1 60); do curl -sf -o /dev/null "http://localhost:8788/namespaces" && break; sleep 1; done
+    for i in $(seq 1 60); do curl -sf -o /dev/null -X OPTIONS "http://localhost:8788/label" && break; sleep 1; done
     curl -s "http://localhost:8788/dev/seed?base={{BASE}}" | jq
 
 # --- your own labels ---
@@ -277,7 +277,6 @@ demo BASE:
     #!/usr/bin/env bash
     set -euo pipefail
     enc() { python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"; }
-    echo "# /namespaces";  curl -s "{{BASE}}/namespaces" | jq -c '.namespaces | length as $n | "\($n) namespaces"'
     # bundled public vocab is untagged, so no ?lang= -> resolves the `und` key
     echo "# skos:Concept"; curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2004/02/skos/core#Concept')" | jq
     echo "# owl:Class";    curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2002/07/owl#Class')" | jq
