@@ -9,6 +9,8 @@ Curated public namespaces (rdfs, owl, skos, dc/dcterms, schema.org, foaf, prov,
 void, xsd, rdf, …) are served as JSON-LD. Self-host it with your own labels by
 pointing it at your own R2 bucket.
 
+**▶ Live demo: https://label-cache-demo.dhabgood.workers.dev/**
+
 ## API
 
 ```
