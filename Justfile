@@ -19,7 +19,8 @@ project := env_var_or_default("PROJECT", "")
 # a whole run: `just pm=npm bootstrap`, `just pm=bun deploy`. `run` is the matching
 # binary-runner for local tools like wrangler (pnpm exec / npx / bunx).
 pm := "pnpm"
-run := if pm == "npm" { "npx" } else if pm == "bun" { "bunx" } else { "pnpm exec" }
+package := if pm == "pnpm" { "corepack pnpm" } else { pm }
+run := if pm == "npm" { "npx" } else if pm == "bun" { "bunx" } else { "corepack pnpm exec" }
 
 default: dev
 
@@ -44,12 +45,46 @@ bootstrap ENDPOINT="":
 
 # Install dependencies.
 install:
-    {{pm}} install
+    {{package}} install
 
 # Local dev server. ENVIRONMENT override enables /dev/seed locally
 # (the [vars] default is "production", which disables seeding).
 dev:
     {{run}} wrangler dev --var ENVIRONMENT:development
+
+# Run the demo UI locally, seed local R2, and keep the server attached. Stop with Ctrl-C.
+demo-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PORT="${PORT:-8787}"
+    if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+        echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just demo-local)." >&2
+        exit 1
+    fi
+    {{run}} wrangler dev --config demo/wrangler.demo.toml --var ENVIRONMENT:development --port "$PORT" &
+    PID=$!
+    cleanup() { kill "$PID" 2>/dev/null || true; }
+    trap cleanup EXIT INT TERM
+    echo "waiting for local demo Worker on :$PORT..."
+    for _ in $(seq 1 60); do
+        if ! kill -0 "$PID" 2>/dev/null; then
+            wait "$PID"
+            exit $?
+        fi
+        if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then break; fi
+        sleep 1
+    done
+    if ! curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+        echo "ERROR: local demo Worker did not become ready within 60 seconds." >&2
+        exit 1
+    fi
+    curl -fsS "http://localhost:$PORT/dev/seed"
+    echo
+    sed "s|__LABEL_CACHE_ORIGIN__|http://localhost:$PORT|g" demo/seed/widget.ndjson \
+        | curl -fsS -X POST --data-binary @- "http://localhost:$PORT/dev/load"
+    echo
+    echo "Demo ready: http://localhost:$PORT/ (playground: /demo)"
+    wait "$PID"
 
 typecheck:
     {{run}} tsc --noEmit

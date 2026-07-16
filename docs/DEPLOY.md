@@ -10,6 +10,20 @@ Pick a **project name** first: your Worker and bucket are both named
 `label-cache-<project>`, so each app gets its own isolated instance. Set it once
 in `.env` (`PROJECT=orders`) or pass `project=orders` on each command below.
 
+## Local demo
+
+Run the asset-backed landing page and playground with a local R2 bucket:
+
+```bash
+just demo-local
+```
+
+The recipe starts the demo Worker, loads the normal development seed, then loads
+the committed `demo/seed/widget.ndjson` fixture used by the landing widget. Its
+`__LABEL_CACHE_ORIGIN__` placeholder is rewritten to the selected local origin,
+so the returned JSON-LD context resolves locally. Open `/` for the landing page
+or `/demo` for the playground. Set `PORT=8790` if port 8787 is already occupied.
+
 ## One-time
 
 ```bash

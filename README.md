@@ -55,6 +55,17 @@ pnpm typecheck
 `/dev/seed` is disabled when `ENVIRONMENT=production`; `pnpm dev` overrides it to
 `development` so seeding works locally.
 
+To run the landing page and playground with seeded local R2 in one command:
+
+```bash
+just demo-local
+```
+
+It starts the demo asset configuration, waits for the Worker, seeds it plus the
+committed widget-label fixture, and serves the landing page at
+`http://localhost:8787/` (`/demo` is the playground).
+If that port is occupied, use `PORT=8790 just demo-local`.
+
 ## Getting started
 
 Cache the labels your app needs - your own IRIs plus the public-vocabulary terms

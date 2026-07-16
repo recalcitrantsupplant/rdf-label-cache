@@ -98,9 +98,7 @@
   <div class="mode">
     <h3>3. A follow-up query for the labels</h3>
     <p>Run the main query, collect the IRIs it returned, then query the graph again for their labels.</p>
-    <p class="why"><b>Why it's bad:</b> the right <em>shape</em> - it's what RDF Label Cache does - but on its own it
-    hits your triplestore every time. An in-app cache helps, yet it's cold on every restart, kept separately per
-    worker, and still re-fetches universal terms like <code>rdfs:label</code> from <em>your</em> KG.</p>
+    <p class="why"><b>Trade-off:</b> this adds a second round trip to the graph and makes rendering depend on it again.</p>
   </div>
 
   <div class="mode">
