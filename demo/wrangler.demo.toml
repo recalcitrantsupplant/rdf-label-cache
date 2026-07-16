@@ -16,7 +16,7 @@ bucket_name = "label-cache-demo"
 ENVIRONMENT = "production"
 
 # Static demo page. Assets are matched first; requests that don't match a file
-# (e.g. /label, /namespaces, /context/*) fall through to the Worker. Same origin
+# (e.g. /label, /context/*) fall through to the Worker. Same origin
 # means the page calls /label with a bare relative path - no CORS needed.
 [assets]
 directory = "./public"

@@ -13,6 +13,7 @@ document because a separate fix is already in progress.
 
 | ID | Decision / status |
 |---|---|
+| API-02 | Resolved by removal (2026-07-17): the `/namespaces` prefix registry, the `namespaces` cache tag, and the unused per-namespace `labels:{ns}` label tag were deleted rather than reframed. The service now speaks only absolute IRIs; prefix/CURIE expansion is a client-side concern with no server surface. The demo no longer shows a "served" prefix panel. This supersedes the reframe recommendation in the findings table below. |
 | CACHE-01 | Revised (2026-07-16): labels now use a split TTL - `max-age=3600` for browsers, `s-maxage=31536000` for the edge. A purge clears the Cloudflare edge; browsers cannot be purged but refresh within the hour. Only the versioned context document keeps one-year `immutable` browser caching. |
 | CACHE-02 | Implement strict query validation now. Do not introduce a canonical redirect or path form yet; parameter ordering remains a documented cache-key limitation. |
 | DATA-01 | Deferred. The intentionally simple future refresh model is wipe-and-rewrite. Until that is designed, live-keyspace partial-write and stale-key risks remain accepted and documented. |

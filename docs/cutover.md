@@ -119,10 +119,10 @@ Confirms a self-hoster's deploy is API-only and never ships demo content:
 just project=orders bucket
 just project=orders deploy                    # root config (no [assets])
 curl -s -o /dev/null -w '%{http_code}\n' https://label-cache-orders.dhabgood.workers.dev/    # → 404 (no landing page)
-curl -s https://label-cache-orders.dhabgood.workers.dev/namespaces      # → API works
+curl -s "https://label-cache-orders.dhabgood.workers.dev/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23Concept"   # → API works
 ```
 
-A `404` on `/` next to a working `/namespaces` is the proof: `demo/public/*`
+A `404` on `/` next to a working `/label` lookup is the proof: `demo/public/*`
 lives only in the demo config, never in a per-project deploy. Tear the test
 project down afterward (delete Worker `label-cache-orders`, empty+delete its
 bucket).

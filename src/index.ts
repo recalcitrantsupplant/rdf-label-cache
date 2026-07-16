@@ -1,11 +1,10 @@
 import { handleLabel } from "./routes/label";
 import { handleContext } from "./routes/context";
-import { handleNamespaces } from "./routes/namespaces";
 import { handleDevSeed } from "./routes/dev-seed";
 import { handleDevLoad } from "./routes/dev-load";
 import { handlePurge } from "./routes/purge";
 
-const PUBLIC_PATHS = new Set(["/label", "/context/labels-v1.json", "/namespaces"]);
+const PUBLIC_PATHS = new Set(["/label", "/context/labels-v1.json"]);
 const PUBLIC_METHODS = "GET, HEAD, OPTIONS";
 
 export default {
@@ -45,8 +44,6 @@ export default {
       response = await handleLabel(request, env);
     } else if (pathname === "/context/labels-v1.json") {
       response = await handleContext(env);
-    } else if (pathname === "/namespaces") {
-      response = handleNamespaces();
     } else {
       return new Response(JSON.stringify({ error: "not_found" }), {
         status: 404,

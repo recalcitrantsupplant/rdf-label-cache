@@ -103,10 +103,6 @@
   .reqbody { flex: 1; overflow: auto; }
   .reqstep { padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .step-h { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--faint); font-weight: 600; margin-bottom: 10px; }
-  .prefixes { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
-  .prow { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11.5px; }
-  .prow .pfx { color: var(--accent); min-width: 62px; font-weight: 600; }
-  .prow .ns { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
   .snippet-wrap { position: relative; }
   pre.snippet { margin: 0; padding: 14px 16px; background: var(--code); border: 1px solid var(--line); border-radius: 10px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; }
   pre.snippet .cm { color: var(--faint); }
@@ -121,10 +117,7 @@
   .call .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--faint); }
   .call .lbl { color: var(--fg); flex-shrink: 0; }
   .pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex-shrink: 0; }
-  .pill.ok { background: #dcfce7; color: #166534; }
-  .pill.miss { background: var(--code); color: var(--faint); }
   .pill.method { background: var(--accent-soft); color: var(--accent); }
-  @media (prefers-color-scheme: dark) { .pill.ok { background: #10331d; color: #4ade80; } }
   .msg { color: var(--muted); padding: 8px 0; }
   .msg .num { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
   .msg.error { color: var(--err); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
@@ -168,20 +161,13 @@
     </div>
     <div class="reqbody">
       <div class="reqstep">
-        <div class="step-h">1 · Resolve a label</div>
+        <div class="step-h">Resolve a label</div>
         <div class="snippet-wrap">
           <button id="copy" class="copy" type="button">Copy</button>
           <pre id="snippet" class="snippet"></pre>
         </div>
         <div class="calls-head">Calls fired — one per unfetched IRI, deduped. Click for JSON-LD.</div>
         <div id="calls" class="calls"></div>
-      </div>
-      <div class="reqstep">
-        <div class="step-h">2 · Where the IRI comes from</div>
-        <a class="call" id="ns-call" href="/namespaces" target="_blank" rel="noopener" title="The prefix → namespace map the service serves">
-          <span class="pill method">GET</span><span class="path">/namespaces</span><span class="lbl" id="ns-count"></span>
-        </a>
-        <div id="prefixes" class="prefixes"></div>
       </div>
     </div>
   </section>
@@ -525,42 +511,6 @@ function drawCalls() {
   }
 }
 
-// Namespaces the service itself serves (GET /namespaces) - the canonical prefix map.
-// Seeded from the well-known set so badges are sensible before the call returns.
-let servedNS = new Set(Object.values(WELL_KNOWN));
-async function loadNamespaces() {
-  try {
-    const r = await fetch("/namespaces");
-    if (!r.ok) return;
-    const d = await r.json();
-    servedNS = new Set((d.namespaces || []).map((n) => n.namespace));
-    $("ns-count").textContent = ` → ${servedNS.size} prefixes`;
-  } catch { /* offline: fall back to well-known */ }
-}
-
-function drawPrefixes() {
-  const box = $("prefixes");
-  box.textContent = "";
-  if (!last) return;
-  // Which prefixes are actually used by IRIs in this graph (most-specific namespace wins).
-  const used = new Map();
-  for (const iri of last.iris) {
-    let match = null;
-    for (const [pfx, ns] of Object.entries(last.prefixes)) {
-      if (iri.startsWith(ns) && iri.length > ns.length && (!match || ns.length > match[1].length)) match = [pfx, ns];
-    }
-    if (match) used.set(match[0], match[1]);
-  }
-  for (const [pfx, ns] of used) {
-    const served = servedNS.has(ns);
-    const row = el("div", { class: "prow" });
-    row.append(el("span", { class: "pfx" }, pfx + ":"));
-    row.append(el("span", { class: "ns", title: ns }, ns));
-    row.append(el("span", { class: `pill ${served ? "ok" : "miss"}`, title: served ? "served by the label cache" : "your own namespace - not in the cache" }, served ? "served" : "yours"));
-    box.append(row);
-  }
-}
-
 // ---- app ----
 const $ = (id) => document.getElementById(id);
 const out = $("out"), status = $("status");
@@ -596,7 +546,6 @@ async function run() {
   status.innerHTML = `${n(parsed.quads.length)} triples · ${n(toFetch.length)} cache lookups · ${n(hits)} resolved`
     + (skipped.length ? ` · ${n(skipped.length)} already in data` : "");
   last = { ...parsed, subs: groupBySubject(parsed.quads), resolved, iris, fetched: toFetch, skipped };
-  drawPrefixes();
   drawSnippet();
   drawCalls();
   draw();
@@ -664,7 +613,6 @@ $("ttl").addEventListener("input", () => { syncHL(); clearTimeout(debounce); deb
 $("ttl").value = EXAMPLES[Object.keys(EXAMPLES)[0]];
 syncHL();
 run();
-loadNamespaces().then(() => { if (last) drawPrefixes(); });
 </script>
 </body>
 </html>

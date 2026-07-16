@@ -51,9 +51,7 @@ describe("/label", () => {
     expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=31536000");
     const tag = res.headers.get("Cache-Tag") ?? "";
-    expect(tag).toContain("labels");
-    expect(tag).toContain("labels:skos");
-    expect(tag).not.toContain("all");
+    expect(tag).toBe("labels");
   });
 
   it("404s an unknown IRI", async () => {
@@ -101,25 +99,6 @@ describe("/label", () => {
   });
 });
 
-describe("/namespaces", () => {
-  it("lists known namespaces", async () => {
-    const res = await SELF.fetch(`${BASE}/namespaces`);
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    const prefixes = body.namespaces.map((n: any) => n.prefix);
-    expect(prefixes).toContain("skos");
-    expect(prefixes).toContain("owl");
-    // each entry exposes prefix + namespace (base URI)
-    const skos = body.namespaces.find((n: any) => n.prefix === "skos");
-    expect(skos.namespace).toBe("http://www.w3.org/2004/02/skos/core#");
-  });
-
-  it("does not advertise or serve per-namespace dumps", async () => {
-    const res = await SELF.fetch(`${BASE}/namespaces/skos`);
-    expect(res.status).toBe(404);
-  });
-});
-
 describe("/context/labels-v1.json", () => {
   it("serves the JSON-LD context document", async () => {
     const res = await SELF.fetch(`${BASE}/context/labels-v1.json`);
@@ -136,7 +115,9 @@ describe("/context/labels-v1.json", () => {
 
 describe("method handling", () => {
   it("405s a non-GET method", async () => {
-    const res = await SELF.fetch(`${BASE}/namespaces`, { method: "POST" });
+    const res = await SELF.fetch(`${BASE}/label?iri=${encodeURIComponent("https://schema.org/name")}`, {
+      method: "POST",
+    });
     expect(res.status).toBe(405);
   });
 
@@ -185,6 +166,6 @@ describe("/admin/purge", () => {
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.purged).toEqual(["labels", "context", "namespaces"]);
+    expect(body.purged).toEqual(["labels", "context"]);
   });
 });

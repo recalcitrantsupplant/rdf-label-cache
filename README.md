@@ -9,12 +9,13 @@ Curated public namespaces (rdfs, owl, skos, dc/dcterms, schema.org, foaf, prov,
 void, xsd, rdf, …) are served as JSON-LD. Self-host it with your own labels by
 pointing it at your own R2 bucket.
 
+**▶ Live demo: https://label-cache-demo.dhabgood.workers.dev/**
+
 ## API
 
 ```
 GET /label?iri={encoded_iri}          # untagged label (labels/und/{iri})
 GET /label?iri={encoded_iri}&lang=en  # a specific language (labels/en/{iri})
-GET /namespaces                       # static known-prefix registry
 GET /context/labels-v1.json           # shared JSON-LD context
 ```
 

@@ -87,7 +87,6 @@ Or by hand:
 
 ```bash
 curl "https://<your-url>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23Concept" | jq
-curl "https://<your-url>/namespaces" | jq
 ```
 
 ## Notes
