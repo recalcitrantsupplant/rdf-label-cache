@@ -31,8 +31,8 @@ Serves a curated set of well-known public namespaces from R2, fronted by Workers
 ### 2.1 Label Resolution
 
 ```
-GET /label?iri={encoded_iri}           - all languages bundle (if ingested; see §4.1)
-GET /label?iri={encoded_iri}&lang=en   - single language
+GET /label?iri={encoded_iri}           - untagged label (the labels/und/{iri} key)
+GET /label?iri={encoded_iri}&lang=en   - the en-tagged label (labels/en/{iri})
 ```
 
 Language is a single value - one request, one language. Consumers requiring multiple languages make multiple parallel requests. The Worker does not merge responses.
@@ -106,7 +106,7 @@ Client
    └── MISS → Worker invoked
 
 3. Worker: parse ?iri=, extract ?lang=
-4. Construct R2 key: labels/{ns}/{local}/{lang}  (or labels/{ns}/{local} if no lang)
+4. Construct R2 key: labels/{lang}/{iri}  (lang defaults to `und` when no ?lang=)
 5. r2.get(key)
    └── HIT  → stream response with Cache-Control + Cache-Tag; platform caches it
    └── MISS → 404
@@ -120,28 +120,33 @@ No fallback chain, no proxy, no external calls. The Worker either finds the obje
 
 ### 4.1 R2 - Label Store
 
-**Bucket:** `rdf-labels`
+**Bucket:** per project, `label-cache-<project>` (the demo uses `label-cache-demo`).
 
 #### Key structure
 
-Keyed by the **full IRI** - namespace-agnostic, so any namespace resolves without
-registration, and the IRI's own path becomes the R2 hierarchy (browsable for debugging).
+Keyed **lang-first** by the full IRI: `labels/{lang}/{iri}`. Namespace-agnostic, so any
+namespace resolves without registration.
 
 ```
-labels/{iri}/en          ← English only     e.g. labels/https://schema.org/name/en
-labels/{iri}/fr          ← French only
-labels/{iri}/x-none      ← untagged literals (no lang tag)
-labels/{iri}             ← all-languages bundle (optional)
+labels/en/{iri}          ← English            e.g. labels/en/http://purl.org/dc/terms/title
+labels/fr/{iri}          ← French
+labels/und/{iri}         ← untagged literal   e.g. labels/und/https://schema.org/name
 
 context/labels-v1.json   ← shared JSON-LD context document
 ```
 
-The Worker builds the key from `?iri=` with no namespace lookup: `labels/${iri}/${lang}`.
-Language is encoded in the key - no filtering or transformation. Untagged literals use
-`x-none` (BCP47 convention) to avoid a null key edge case.
+The Worker builds the key directly from `?iri=` + `?lang=` with no namespace lookup:
+`labels/${lang || "und"}/${iri}`. **Lang-first is deliberate:** the lang segment is a
+fixed, slash-free token, so it can never collide with the slashed IRI - an IRI ending
+`/en` (untagged) and a base IRI requested with `?lang=en` stay distinct keys. It also makes
+each language a **listable prefix**: `labels/fr/` is every French label, downloadable in bulk.
 
-**All-languages bundle** (`labels/{iri}`) is optional. Omit it if per-language objects
-already cover the use case. A no-`?lang=` request that hits a missing bundle returns 404.
+Language tags are stored **faithfully** - untagged literals stay untagged (`und`), tags are
+preserved, nothing is coerced to a default. `?lang=en` reads `labels/en/{iri}`; **no** `?lang=`
+reads `labels/und/{iri}`. There is **no cross-language fallback in the Worker** - one key, one
+lookup, 404 if absent. Any fallback (try `und`, then `en`, …) is the client's choice, made
+with extra calls - see the demo playground, which prefers the untagged label then falls back
+to English.
 
 > **Note:** the `wrangler r2 object put` CLI can't write these keys (it truncates `#` as a
 > URL fragment and percent-decodes `%`). Seed via the R2 binding (`/dev/load` locally) or
@@ -155,7 +160,7 @@ All objects stored gzip-compressed with `Content-Encoding: gzip` in R2 object me
 
 ```javascript
 // Ingestion script (not the Worker)
-await r2.put("labels/rdfs/label/en", gzippedBytes, {
+await r2.put("labels/und/http://www.w3.org/2000/01/rdf-schema#label", gzippedBytes, {
   httpMetadata: {
     contentType: "application/ld+json",
     contentEncoding: "gzip",
@@ -316,10 +321,10 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 2. Parse RDF (N-Triples or Turtle)
 3. Extract label triples (rdfs:label, skos:prefLabel, skos:altLabel, dcterms:title,
    rdfs:comment, skos:definition, schema:name)
-4. Group by IRI, then by language tag (x-none for untagged literals)
+4. Group by IRI and language tag, preserving tags faithfully (untagged literals under `und`)
 5. Serialise each group as JSON-LD referencing the context URL
 6. Gzip each document
-7. Write to R2: labels/{ns}/{local}/{lang}
+7. Write to R2: labels/{lang}/{iri}  (untagged -> labels/und/{iri})
 8. Write context/labels-v1.json (only if not exists - never overwrite)
 9. Publish tarball to GitHub releases
 10. Purge Workers Cache by tag: ctx.cache.purge({ tags: ["public-labels"] })

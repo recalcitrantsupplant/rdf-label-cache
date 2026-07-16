@@ -12,8 +12,8 @@ pointing it at your own R2 bucket.
 ## API
 
 ```
-GET /label?iri={encoded_iri}          # all-languages bundle
-GET /label?iri={encoded_iri}&lang=en  # single language
+GET /label?iri={encoded_iri}          # untagged label (labels/und/{iri})
+GET /label?iri={encoded_iri}&lang=en  # a specific language (labels/en/{iri})
 GET /namespaces                       # list known namespaces
 GET /namespaces/{prefix}              # describe one namespace
 GET /context/labels-v1.json           # shared JSON-LD context
@@ -122,8 +122,9 @@ node scripts/upload-seed.mjs                  # → R2, over the S3 API
 
 (With `just`: `just project=orders ingest upload` sets `R2_BUCKET` for you.)
 
-Objects are keyed by the full IRI (`labels/https://schema.org/name/en`) - browsable
-in R2 for debugging, and any namespace resolves without configuration.
+Objects are keyed lang-first by the full IRI (`labels/und/https://schema.org/name`,
+`labels/en/http://purl.org/dc/terms/title`) - browsable in R2, each language a listable
+prefix, and any namespace resolves without configuration.
 
 **5. Consume from your app**
 
@@ -134,11 +135,17 @@ parallel** - they're independent, edge-cached `GET`s that multiplex over HTTP/2/
 ```js
 const labels = Object.fromEntries(await Promise.all(
   iris.map(async (iri) => {
-    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&lang=en`);
-    return [iri, res.ok ? (await res.json()).prefLabel?.en : null];
+    // no ?lang= -> the untagged label; add &lang=xx for a specific language
+    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
+    const m = res.ok ? (await res.json()).prefLabel : null;
+    return [iri, m ? (m["@none"] ?? Object.values(m)[0]) : null];
   }),
 ));
 ```
+
+`?lang=` maps straight to a key (`labels/en/{iri}`); no `?lang=` returns the untagged label
+(`labels/und/{iri}`). There's no server-side language fallback — if your data mixes tagged and
+untagged labels, try one then the other client-side (a second cheap, cached call).
 
 How to call the service well — parallel requests, client vs. edge caching, running one
 instance for many apps: [`docs/consuming.md`](docs/consuming.md). Full runbook:

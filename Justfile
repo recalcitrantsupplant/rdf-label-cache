@@ -164,6 +164,7 @@ demo BASE:
     set -euo pipefail
     enc() { python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"; }
     echo "# /namespaces";  curl -s "{{BASE}}/namespaces" | jq -c '.namespaces | length as $n | "\($n) namespaces"'
+    # bundled public vocab is untagged, so no ?lang= -> resolves the `und` key
     echo "# skos:Concept"; curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2004/02/skos/core#Concept')" | jq
     echo "# owl:Class";    curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2002/07/owl#Class')" | jq
     echo "# context";      curl -s "{{BASE}}/context/labels-v1.json" | jq -c '.["@context"] | keys | "\(length) prefixes/terms"'

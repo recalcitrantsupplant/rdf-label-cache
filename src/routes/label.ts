@@ -17,11 +17,13 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
     return errorResponse({ error: "invalid_param", message: "?iri= is not valid percent-encoding" }, 400);
   }
 
-  // Namespace-agnostic keying: the R2 key is the full IRI itself, so any
-  // namespace resolves without registration - and the IRI's own path becomes
-  // the R2 hierarchy, readable/browsable for debugging:
-  //   labels/https://schema.org/name/en
-  const r2Key = lang ? `labels/${iri}/${lang}` : `labels/${iri}`;
+  // Key layout is lang-FIRST: labels/{lang}/{iri}. The lang segment is a fixed,
+  // slash-free token, so it can never collide with the raw IRI (which contains
+  // slashes) - e.g. IRI ".../doc" @en vs IRI ".../doc/en" untagged stay distinct.
+  // It also makes each language a listable prefix (labels/en/..., labels/und/...).
+  // No `lang` maps to the untagged literal, stored under the `und` segment:
+  //   labels/en/https://schema.org/name   |   labels/und/https://schema.org/name
+  const r2Key = `labels/${lang || "und"}/${iri}`;
 
   const object = await env.PUBLIC_LABELS.get(r2Key);
   if (!object) {

@@ -287,7 +287,11 @@ function pickLabel(doc) {
 }
 function resolve(iri) {
   if (labelCache.has(iri)) return labelCache.get(iri);
-  const p = fetch(`/label?iri=${encodeURIComponent(iri)}&lang=en`)
+  const get = (suffix) => fetch(`/label?iri=${encodeURIComponent(iri)}${suffix}`);
+  // Prefer the untagged label (no ?lang); fall back to English. The fallback is
+  // client-side by design - the Worker stays a dumb single-key lookup.
+  const p = get("")
+    .then((r) => (r.ok ? r : get("&lang=en")))
     .then(async (r) => {
       const doc = r.ok ? await r.json() : null;
       return {

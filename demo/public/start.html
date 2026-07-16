@@ -414,9 +414,10 @@ const mergeJsonLd = (doc) =&gt; new Promise((resolve, reject) =&gt; {
   p.end();
 });
 
-// Fire the lookups concurrently - one edge-cached GET apiece.
+// Fire the lookups concurrently - one edge-cached GET apiece. No ?lang= fetches
+// the untagged label (labels/und/{iri}); add &amp;lang=xx for a specific language.
 await Promise.all(iris.map(async (iri) =&gt; {
-  const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&amp;lang=en`);
+  const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
   if (res.ok) await mergeJsonLd(await res.json());
 }));
 

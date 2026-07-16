@@ -2,7 +2,8 @@ import { SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const BASE = "https://labelcache.test";
-const SKOS_CONCEPT = "http://www.w3.org/2004/02/skos/core#Concept";
+const SKOS_CONCEPT = "http://www.w3.org/2004/02/skos/core#Concept"; // untagged in the sample
+const DCTERMS_TITLE = "http://purl.org/dc/terms/title"; // en-tagged in the sample
 
 function labelUrl(iri: string, lang?: string): string {
   const q = new URLSearchParams({ iri });
@@ -17,21 +18,32 @@ beforeAll(async () => {
 });
 
 describe("/label", () => {
-  it("resolves a known IRI to JSON-LD", async () => {
+  it("resolves an untagged IRI on a no-lang request", async () => {
     const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("application/ld+json");
     const body = (await res.json()) as any;
     expect(body["@id"]).toBe(SKOS_CONCEPT);
-    expect(body.prefLabel).toEqual({ en: "Concept" });
+    // untagged literal -> JSON-LD @none key
+    expect(body.prefLabel).toEqual({ "@none": "Concept" });
     expect(body["@context"]).toContain("/context/labels-v1.json");
   });
 
-  it("resolves with an explicit lang", async () => {
-    const res = await SELF.fetch(labelUrl(SKOS_CONCEPT, "en"));
+  it("404s a no-lang request when only a tagged label exists", async () => {
+    const res = await SELF.fetch(labelUrl(DCTERMS_TITLE)); // only en exists
+    expect(res.status).toBe(404);
+  });
+
+  it("resolves a tagged IRI with ?lang=en", async () => {
+    const res = await SELF.fetch(labelUrl(DCTERMS_TITLE, "en"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
-    expect(body.prefLabel.en).toBe("Concept");
+    expect(body.prefLabel.en).toBe("Title");
+  });
+
+  it("404s ?lang=en when only an untagged label exists", async () => {
+    const res = await SELF.fetch(labelUrl(SKOS_CONCEPT, "en"));
+    expect(res.status).toBe(404);
   });
 
   it("sets immutable Cache-Control + Cache-Tag on hits", async () => {

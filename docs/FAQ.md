@@ -79,19 +79,22 @@ cache-optimized hot path.
 
 ---
 
-## "Why not merge languages / return multiple languages per request?"
+## "Why one language per request instead of merging them?"
 
-Each `(IRI, lang)` pair is a distinct cache key, and single-language responses are the
-common case. Merging would either inflate every response with unused languages or force
-the Worker to assemble bundles at request time (Worker CPU + a lower cache hit rate).
+Each `(IRI, lang)` pair is a distinct key and a distinct cache entry, and single-language
+responses are the common case. The key is **lang-first** - `labels/{lang}/{iri}` - so
+`?lang=en` reads `labels/en/{iri}`, and a request with **no** `?lang=` reads
+`labels/und/{iri}` (the untagged literal). One request, one key, one lookup; the Worker
+never assembles or filters anything.
 
-The read path *does* leave room for an all-languages bundle: a request with **no
-`?lang=`** reads a single `labels/{iri}` object (`architecture.md` §4.1). But it's opt-in
-and **unpopulated by default** - the bundled ingest emits per-language objects (English
-today, key `labels/{iri}/en`), so a no-`lang` request `404`s until a deployer writes those
-bundle keys themselves. Treat it as a hook for callers who genuinely want every language
-in one object, not a feature that ships ready to use. See §2.1 of the architecture doc for
-the "one request, one language" rationale.
+There is deliberately **no all-languages bundle and no cross-language fallback in the
+Worker**. If you want "try the untagged label, then English," that's a client decision made
+with a second call - cheap over HTTP/2/3, and it keeps the Worker a dumb key-value read.
+Because keys are lang-first, "give me every French label" is just a bulk **prefix list** of
+`labels/fr/` - no per-request merging needed. Language tags are stored faithfully: if your
+source data tags a label `@en`, it lives under `en`; if it's untagged, it lives under `und`.
+Normalizing (e.g. forcing everything to one language) is a data-prep choice you make before
+ingest, not something the service does for you.
 
 ---
 

@@ -14,13 +14,19 @@ Cloudflare's HTTP/2 and HTTP/3 they multiplex over a single connection and land 
 roughly one round trip.
 
 ```js
+const pickLabel = (m) => (m ? m["@none"] ?? m.en ?? Object.values(m)[0] : null);
 const labels = Object.fromEntries(await Promise.all(
   iris.map(async (iri) => {
-    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}&lang=en`);
-    return [iri, res.ok ? (await res.json()).prefLabel?.en : null];
+    // no ?lang= -> untagged label; add &lang=xx for a specific language.
+    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
+    return [iri, res.ok ? pickLabel((await res.json()).prefLabel) : null];
   }),
 ));
 ```
+
+There is no server-side language fallback: `?lang=en` is exactly `labels/en/{iri}`, and no
+`?lang=` is `labels/und/{iri}` (the untagged label). If your data mixes tagged and untagged
+labels, decide the order client-side and make a second call on a miss — cheap and cached.
 
 Bound in-flight requests to **~100** (Cloudflare's per-connection stream limit). Firing
 thousands unbounded just queues them and can trip flow control. See

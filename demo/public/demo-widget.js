@@ -188,7 +188,7 @@ ex:acme a schema:Organization ;
           const ms = MS[idx % MS.length];
           // network row - a live link to the raw JSON-LD
           const row = document.createElement("a"); row.className = "lc-call";
-          row.href = `/label?iri=${encodeURIComponent(iri)}&lang=en`;
+          row.href = `/label?iri=${encodeURIComponent(iri)}`;
           row.target = "_blank"; row.rel = "noopener";
           row.title = `GET /label?iri=${iri}\n\nOpens the raw JSON-LD from the label cache`;
           row.innerHTML = `<span class="m">GET</span><span class="u">?iri=${esc(iri)}</span><span class="lc-pill hit">HIT</span><span class="lc-ms">${ms}ms</span><span class="lc-open" aria-hidden="true">↗</span>`;

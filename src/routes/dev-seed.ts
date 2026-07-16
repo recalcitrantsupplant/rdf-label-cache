@@ -30,6 +30,8 @@ interface LabelEntry {
   prefLabel: string;
   definition?: string;
   comment?: string;
+  // BCP-47 tag; omit for an untagged literal (served on a no-`lang` request).
+  lang?: string;
 }
 
 const SEED_LABELS: LabelEntry[] = [
@@ -47,16 +49,21 @@ const SEED_LABELS: LabelEntry[] = [
   { ns: "skos", local: "prefLabel", iri: "http://www.w3.org/2004/02/skos/core#prefLabel", prefLabel: "preferred label", definition: "The preferred lexical label for a resource, in a given language." },
   { ns: "skos", local: "definition", iri: "http://www.w3.org/2004/02/skos/core#definition", prefLabel: "definition", definition: "A statement or formal explanation of the meaning of a concept." },
   { ns: "skos", local: "ConceptScheme", iri: "http://www.w3.org/2004/02/skos/core#ConceptScheme", prefLabel: "Concept Scheme", definition: "A set of concepts, optionally including statements about semantic relationships between those concepts." },
+  // A language-TAGGED entry (the rest are untagged, like the real vocabularies),
+  // so the sample exercises both the `labels/en/...` and `labels/und/...` paths.
+  { ns: "dcterms", local: "title", iri: "http://purl.org/dc/terms/title", prefLabel: "Title", definition: "A name given to the resource.", lang: "en" },
 ];
 
 function labelDoc(entry: LabelEntry, contextUrl: string): string {
+  // JSON-LD @language map key: the real tag, or `@none` for untagged literals.
+  const lk = entry.lang || "@none";
   const doc: Record<string, unknown> = {
     "@context": contextUrl,
     "@id": entry.iri,
-    prefLabel: { en: entry.prefLabel },
+    prefLabel: { [lk]: entry.prefLabel },
   };
-  if (entry.definition) doc.definition = { en: entry.definition };
-  if (entry.comment) doc.comment = { en: entry.comment };
+  if (entry.definition) doc.definition = { [lk]: entry.definition };
+  if (entry.comment) doc.comment = { [lk]: entry.comment };
   return JSON.stringify(doc);
 }
 
@@ -77,16 +84,13 @@ export async function handleDevSeed(request: Request, env: Env): Promise<Respons
   });
   written.push("context/labels-v1.json");
 
-  // Label objects - English and all-languages bundle (same content for now).
-  // Keyed by the full IRI itself (see src/routes/label.ts).
+  // Label objects, keyed lang-FIRST: labels/{lang}/{iri} (untagged -> `und`).
+  // See src/routes/label.ts for the matching read path.
   for (const entry of SEED_LABELS) {
     const body = labelDoc(entry, contextUrl);
-    const enKey = `labels/${entry.iri}/en`;
-    const bundleKey = `labels/${entry.iri}`;
-
-    await env.PUBLIC_LABELS.put(enKey, body, { httpMetadata: TEXT });
-    await env.PUBLIC_LABELS.put(bundleKey, body, { httpMetadata: TEXT });
-    written.push(enKey);
+    const key = `labels/${entry.lang || "und"}/${entry.iri}`;
+    await env.PUBLIC_LABELS.put(key, body, { httpMetadata: TEXT });
+    written.push(key);
   }
 
   return new Response(JSON.stringify({ seeded: written.length, keys: written }), {

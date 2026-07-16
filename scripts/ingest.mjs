@@ -5,14 +5,16 @@
 // every term defined in the namespace, and writes a flat manifest of the exact
 // R2 keys the Worker resolves, each with its JSON-LD body:
 //
-//   labels/{ns}/{local}/en        ← per-language object (English)
+//   labels/{lang}/{iri}           ← one object per (IRI, language); untagged -> `und`
 //   context/labels-v1.json        ← shared JSON-LD context
 //
 // Output is a manifest (dist/seed/manifest.ndjson: one {key, body} per line),
 // not a file tree - keys like schema/Text and schema/text are distinct in R2
 // but collide as paths on case-insensitive filesystems. Upload with
-// scripts/upload-seed.mjs (S3 API). Only per-language keys are emitted; the
-// all-languages bundle (§4.1) is optional and the demo sends ?lang=en.
+// scripts/upload-seed.mjs (S3 API). Keys are lang-FIRST (labels/{lang}/{iri}) so
+// the fixed lang segment can't collide with the slashed IRI, and each language
+// is a listable prefix. Language tags are preserved faithfully - untagged
+// literals stay untagged (served on a no-`lang` request); nothing is coerced.
 //
 // Sources: w3.org namespace docs are Cloudflare-challenged (403 to scripts), so
 // rdf/rdfs/owl/skos are hand-curated Turtle under scripts/vocab/. dcterms, dcat
@@ -97,10 +99,6 @@ const DESC_PREDS = new Set([
   "http://schema.org/description",
 ]);
 
-// Prefer English, then untagged, then anything; keep the first on a tie.
-const langRank = (l) => (l === "en" ? 0 : !l ? 1 : 2);
-const better = (cur, lit) => (!cur || langRank(lit.lang) < langRank(cur.lang) ? lit : cur);
-
 async function loadText(src) {
   if (src.file) return readFile(join(ROOT, "scripts", src.file), "utf8");
   const res = await fetch(src.url, { headers: { "User-Agent": "labelcache-ingest/1.0" } });
@@ -120,18 +118,37 @@ function parseRDF(text) {
   });
 }
 
-// Collect the best label + description literal for each accepted subject IRI.
+// Collect labels + descriptions FAITHFULLY: keep every (subject, language) pair
+// as-is - untagged literals stay untagged (lang ""), tags are preserved, nothing
+// is coerced to a default language. Shape: iri -> Map(lang -> value).
 function collectLiterals(quads, accept) {
-  const labels = new Map(); // iri -> {lang, value}
+  const labels = new Map();
   const defs = new Map();
+  const add = (map, iri, lang, value) => {
+    let m = map.get(iri);
+    if (!m) map.set(iri, (m = new Map()));
+    if (!m.has(lang)) m.set(lang, value); // first literal wins per (iri, lang)
+  };
   for (const q of quads) {
     if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
     if (!accept(q.subject.value)) continue;
-    const lit = { lang: q.object.language || "", value: q.object.value };
-    if (LABEL_PREDS.has(q.predicate.value)) labels.set(q.subject.value, better(labels.get(q.subject.value), lit));
-    else if (DESC_PREDS.has(q.predicate.value)) defs.set(q.subject.value, better(defs.get(q.subject.value), lit));
+    const lang = q.object.language || "";
+    if (LABEL_PREDS.has(q.predicate.value)) add(labels, q.subject.value, lang, q.object.value);
+    else if (DESC_PREDS.has(q.predicate.value)) add(defs, q.subject.value, lang, q.object.value);
   }
   return { labels, defs };
+}
+
+// Flatten to one record per (iri, language): { iri, lang, label, definition }.
+// The description is matched by the same language as the label.
+function toRecords(labels, defs) {
+  const recs = [];
+  for (const [iri, byLang] of labels) {
+    for (const [lang, label] of byLang) {
+      recs.push({ iri, lang, label, definition: defs.get(iri)?.get(lang) });
+    }
+  }
+  return recs;
 }
 
 // A public ontology: terms are those defined in the namespace, keyed by its alias.
@@ -141,11 +158,7 @@ async function ingestSource(src) {
     quads,
     (iri) => iri.startsWith(src.base) && iri.length > src.base.length && !/[/#?]/.test(iri.slice(src.base.length))
   );
-  const terms = [];
-  for (const [iri, label] of labels) {
-    terms.push({ iri, label: label.value, definition: defs.get(iri)?.value });
-  }
-  return terms;
+  return toRecords(labels, defs);
 }
 
 // A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props):
@@ -153,11 +166,7 @@ async function ingestSource(src) {
 // registration is needed.
 async function ingestDump(file) {
   const { labels, defs } = collectLiterals(await parseRDF(await readFile(file, "utf8")), () => true);
-  const terms = [];
-  for (const [iri, label] of labels) {
-    terms.push({ iri, label: label.value, definition: defs.get(iri)?.value });
-  }
-  return terms;
+  return toRecords(labels, defs);
 }
 
 async function main() {
@@ -172,17 +181,20 @@ async function main() {
   let total = 0;
   const seen = new Set(); // exact-key duplicate guard (across namespaces)
 
-  const writeTerms = (label, terms) => {
-    for (const t of terms) {
-      const key = `labels/${t.iri}/en`;
+  const writeTerms = (nsLabel, records) => {
+    for (const t of records) {
+      // lang-first key; untagged -> `und` segment. Mirrors src/routes/label.ts.
+      const key = `labels/${t.lang || "und"}/${t.iri}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const doc = { "@context": CONTEXT_URL, "@id": t.iri, prefLabel: { en: t.label } };
-      if (t.definition) doc.definition = { en: t.definition };
+      // JSON-LD @language map: the real tag as the key, `@none` for untagged.
+      const lk = t.lang || "@none";
+      const doc = { "@context": CONTEXT_URL, "@id": t.iri, prefLabel: { [lk]: t.label } };
+      if (t.definition) doc.definition = { [lk]: t.definition };
       emit(key, JSON.stringify(doc));
     }
-    summary.push({ ns: label, terms: terms.length, withDefinition: terms.filter((t) => t.definition).length });
-    total += terms.length;
+    summary.push({ ns: nsLabel, terms: records.length, withDefinition: records.filter((t) => t.definition).length });
+    total += records.length;
   };
 
   if (INPUT) {
