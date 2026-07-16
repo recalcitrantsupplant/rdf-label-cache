@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.5.0...rdf-label-cache-v0.6.0) (2026-07-16)
+
+
+### Features
+
+* **demo:** show request source as browser/CDN/origin tier ([8bcf544](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/8bcf5445b787b6f9edb237735feffb819304052b))
+* **demo:** show request source as browser/CDN/origin tier ([8f09390](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/8f09390643f11481addab65f69a8b147fd35aac3))
+
 ## [0.5.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.4.0...rdf-label-cache-v0.5.0) (2026-07-16)
 
 
