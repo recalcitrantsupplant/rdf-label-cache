@@ -118,6 +118,15 @@
   .call .lbl { color: var(--fg); flex-shrink: 0; }
   .pill { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; flex-shrink: 0; }
   .pill.method { background: var(--accent-soft); color: var(--accent); }
+  .pill[title] { cursor: help; }
+  .pill.cdn { background: #dcfce7; color: #166534; }
+  .pill.origin { background: #fef3c7; color: #92400e; }
+  .pill.browser { background: var(--code, #f3f4f6); color: var(--faint); }
+  @media (prefers-color-scheme: dark) {
+    .pill.cdn { background: #10331d; color: #4ade80; }
+    .pill.origin { background: #3a2e12; color: #fbbf24; }
+  }
+  .call .ms { color: var(--faint); flex-shrink: 0; font-variant-numeric: tabular-nums; }
   .msg { color: var(--muted); padding: 8px 0; }
   .msg .num { color: var(--fg); font-weight: 700; font-variant-numeric: tabular-nums; }
   .msg.error { color: var(--err); font-family: var(--mono); font-size: 13px; white-space: pre-wrap; }
@@ -277,21 +286,59 @@ function resolve(iri) {
   const get = (suffix) => fetch(path(suffix));
   // Prefer the untagged label (no ?lang); fall back to English. The fallback is
   // client-side by design - the Worker stays a dumb single-key lookup.
+  const startedAt = performance.now();
   const p = get("")
     .then(async (untagged) => {
       const url = untagged.ok || untagged.status !== 404 ? path() : path("&lang=en");
       const response = url === path() ? untagged : await get("&lang=en");
       const doc = response.ok ? await response.json() : null;
+      const elapsed = Math.round(performance.now() - startedAt);
       return {
         status: response.status,
         url,
+        elapsed,
+        source: await classifySource(url, response),
         label: doc ? pickLabel(doc) : null,
         definition: doc ? (pickText(doc.definition) ?? pickText(doc.comment)) : null,
       };
     })
-    .catch(() => ({ status: 0, label: null, definition: null }));
+    .catch(() => ({ status: 0, label: null, definition: null, source: null, elapsed: 0 }));
   labelCache.set(iri, p);
   return p;
+}
+
+// The resource-timing entry finalizes at responseEnd (after the body), which can
+// lag a beat behind fetch() resolving on headers. Poll a couple of ticks.
+async function resourceTiming(url) {
+  const name = new URL(url, location.href).href;
+  for (let i = 0; i < 3; i++) {
+    const entries = performance.getEntriesByName(name);
+    if (entries.length) return entries[entries.length - 1];
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return performance.getEntriesByName(name).slice(-1)[0];
+}
+
+// Where did this response REALLY come from? Cf-Cache-Status alone lies: a browser
+// disk-cache read replays the header captured at first fetch (often a stale MISS),
+// so a 2ms read can report "MISS". transferSize === 0 is the ground truth for
+// browser-vs-network (0 bytes on the wire); only when the network was truly used
+// do we trust Cf-Cache-Status to split edge-HIT from origin.
+async function classifySource(url, response) {
+  const cf = response.headers.get("Cf-Cache-Status") || "";
+  const age = response.headers.get("Age");
+  const entry = await resourceTiming(url);
+  const fromBrowser = entry && (entry.transferSize === 0 || entry.deliveryType === "cache");
+  if (fromBrowser) {
+    return { tier: "browser", label: "BROWSER",
+      title: "Served from your browser's own cache - 0 bytes crossed the network.\nThe CDN status is replayed from the first fetch, so it means nothing here." };
+  }
+  if (cf === "HIT") {
+    return { tier: "cdn", label: "CDN HIT",
+      title: `Cloudflare edge cache HIT${age ? ` - cached ${age}s ago` : ""}.\nServed from the data center nearest you; the Worker never ran.` };
+  }
+  return { tier: "origin", label: cf || "MISS",
+    title: "Edge cache MISS - the Worker ran and read R2, then populated this region's edge.\nThe next request in your region will be a CDN HIT." };
 }
 
 // ---- helpers ----
@@ -504,9 +551,11 @@ function drawCalls() {
     const requestPath = r.url || labelPath(iri);
     const a = el("a", { class: "call", href: requestPath, target: "_blank", rel: "noopener", title: `GET ${requestPath}` });
     a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
+    if (r.source) a.append(el("span", { class: `pill ${r.source.tier}`, title: r.source.title }, r.source.label));
     a.append(el("span", { class: "curie" }, curie(iri, last.prefixes)));
     a.append(el("span", { class: "path" }, requestPath.slice("/label".length)));
     if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
+    if (r.elapsed != null) a.append(el("span", { class: "ms" }, `${r.elapsed}ms`));
     box.append(a);
   }
 }
