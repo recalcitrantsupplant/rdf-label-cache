@@ -86,6 +86,68 @@ demo-local:
     echo "Demo ready: http://localhost:$PORT/ (playground: /demo)"
     wait "$PID"
 
+# Build + serve YOUR labels locally - no Cloudflare account, no deploy. Point at a
+# Turtle file (full instance data OR labels-only; non-label triples are ignored) or
+# a SPARQL endpoint, and this wires up extraction, ingest, and an in-memory local R2
+# so your app can hit http://localhost:$PORT/label?iri=... and get your labels back -
+# the exact same Worker path production runs (edge -> R2 -> 404).
+#   just dev-local                             # ingest ./data.ttl
+#   INPUT=my.ttl just dev-local
+#   ENDPOINT=https://my-endpoint/sparql just dev-local   # extract -> data.ttl first
+#   PUBLIC=1 just dev-local                    # also load the bundled public vocab labels
+# Stop with Ctrl-C. Override the port with PORT=8790.
+dev-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PORT="${PORT:-8787}"
+    if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+        echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just dev-local)." >&2
+        exit 1
+    fi
+    BASE="http://localhost:$PORT"
+    TTL="${INPUT:-data.ttl}"
+    EP="${ENDPOINT:-}"
+    # A SPARQL endpoint is extracted to the Turtle file first (scripts/extract-labels.rq).
+    if [ -n "$EP" ]; then
+        just pm={{pm}} extract-labels "$EP" "$TTL"
+    fi
+    if [ ! -f "$TTL" ]; then
+        echo "ERROR: no '$TTL' - pass input=<file.ttl> or endpoint=<sparql-url>." >&2
+        exit 1
+    fi
+    # Local dev Worker: in-memory Miniflare R2, /dev/load enabled by the development
+    # ENVIRONMENT override. Same invocation as `just dev`.
+    {{run}} wrangler dev --var ENVIRONMENT:development --port "$PORT" &
+    PID=$!
+    cleanup() { kill "$PID" 2>/dev/null || true; }
+    trap cleanup EXIT INT TERM
+    echo "waiting for local Worker on :$PORT..."
+    for _ in $(seq 1 60); do
+        if ! kill -0 "$PID" 2>/dev/null; then wait "$PID"; exit $?; fi
+        if curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then break; fi
+        sleep 1
+    done
+    if ! curl -sf -o /dev/null "http://localhost:$PORT/namespaces"; then
+        echo "ERROR: local Worker did not become ready within 60 seconds." >&2
+        exit 1
+    fi
+    # Optional: the bundled public vocabularies (rdfs/skos/owl/... your data may
+    # reference but not label itself). Loaded FIRST so your own labels below win any
+    # (IRI, language) overlap - /dev/load overwrites by key.
+    if [ -n "${PUBLIC:-}" ]; then
+        SEED_BASE="$BASE" node scripts/ingest.mjs
+        curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "$BASE/dev/load" >/dev/null
+        echo "loaded bundled public vocab"
+    fi
+    # Your labels: extract annotation triples from the dump into a manifest (each
+    # object's @context baked to the local origin), then load into R2. The manifest
+    # also carries context/labels-v1.json, so /context resolves locally too.
+    SEED_BASE="$BASE" node scripts/ingest.mjs --input "$TTL"
+    curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "$BASE/dev/load"
+    echo
+    echo "Ready: your labels are live at $BASE/label?iri=<encoded-iri>"
+    wait "$PID"
+
 typecheck:
     {{run}} tsc --noEmit
 

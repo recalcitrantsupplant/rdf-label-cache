@@ -24,6 +24,11 @@
 //   node ingest.mjs                     all public vocabularies
 //   node ingest.mjs --only skos,rdf     just those vocabularies
 //   node ingest.mjs --input data.ttl    your own RDF dump instead
+//
+// Label/description predicates default to the JSON-LD context's families (see
+// DEFAULT_LABEL_PREDS / DEFAULT_DESC_PREDS, kept in sync with extract-labels.rq).
+// Override per run: `--label-preds <iri,…>` / `--desc-preds <iri,…>` (list order =
+// priority when one subject has several).
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,6 +55,40 @@ const onlyIdx = process.argv.indexOf("--only");
 const ONLY = onlyIdx > -1
   ? new Set(process.argv[onlyIdx + 1].split(",").map((s) => s.trim()).filter(Boolean))
   : null;
+
+// Which predicates carry the label (→ prefLabel) and the description (→ definition).
+// Defaults mirror the JSON-LD context's label/description families and are kept in
+// sync with scripts/extract-labels.rq so the file and SPARQL paths agree. Override
+// with `--label-preds <iri,iri,…>` / `--desc-preds <iri,iri,…>` (full IRIs, comma-
+// separated); the flag REPLACES the default list. List ORDER is priority: for a
+// given (IRI, language) the value from the earliest-listed predicate present wins,
+// so `--label-preds` order is how you resolve prefLabel-vs-label-vs-title conflicts.
+const DEFAULT_LABEL_PREDS = [
+  "http://www.w3.org/2004/02/skos/core#prefLabel",
+  "http://www.w3.org/2000/01/rdf-schema#label",
+  "http://purl.org/dc/terms/title",
+  "https://schema.org/name",
+  "http://schema.org/name",
+];
+const DEFAULT_DESC_PREDS = [
+  "http://www.w3.org/2004/02/skos/core#definition",
+  "http://www.w3.org/2000/01/rdf-schema#comment",
+  "http://purl.org/dc/terms/description",
+  "https://schema.org/description",
+  "http://schema.org/description",
+];
+const predArg = (flag, fallback) => {
+  const i = process.argv.indexOf(flag);
+  if (i === -1) return fallback;
+  const list = (process.argv[i + 1] || "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (!list.length) {
+    console.error(`Missing value for ${flag} (comma-separated predicate IRIs)`);
+    process.exit(1);
+  }
+  return list;
+};
+const LABEL_PREDS = predArg("--label-preds", DEFAULT_LABEL_PREDS);
+const DESC_PREDS = predArg("--desc-preds", DEFAULT_DESC_PREDS);
 
 // Kept in sync with src/routes/dev-seed.ts CONTEXT_DOC.
 const CONTEXT_DOC = {
@@ -87,18 +126,6 @@ const SOURCES = [
   { ns: "schema", base: "https://schema.org/", url: "https://schema.org/version/latest/schemaorg-current-https.nt" },
 ];
 
-const LABEL_PREDS = new Set([
-  "http://www.w3.org/2000/01/rdf-schema#label",
-  "http://www.w3.org/2004/02/skos/core#prefLabel",
-]);
-const DESC_PREDS = new Set([
-  "http://www.w3.org/2000/01/rdf-schema#comment",
-  "http://www.w3.org/2004/02/skos/core#definition",
-  "http://purl.org/dc/terms/description",
-  "https://schema.org/description",
-  "http://schema.org/description",
-]);
-
 async function loadText(src) {
   if (src.file) return readFile(join(ROOT, "scripts", src.file), "utf8");
   const res = await fetch(src.url, { headers: { "User-Agent": "labelcache-ingest/1.0" } });
@@ -121,22 +148,34 @@ function parseRDF(text) {
 // Collect labels + descriptions FAITHFULLY: keep every (subject, language) pair
 // as-is - untagged literals stay untagged (lang ""), tags are preserved, nothing
 // is coerced to a default language. Shape: iri -> Map(lang -> value).
+//
+// Predicate list order defines priority: for each (iri, lang) the value from the
+// earliest-listed predicate present wins, deterministically, regardless of quad
+// order in the source. Ties within the same predicate keep the first literal seen.
 function collectLiterals(quads, accept) {
-  const labels = new Map();
+  const labelRank = new Map(LABEL_PREDS.map((p, i) => [p, i]));
+  const descRank = new Map(DESC_PREDS.map((p, i) => [p, i]));
+  const labels = new Map(); // iri -> Map(lang -> { value, rank })
   const defs = new Map();
-  const add = (map, iri, lang, value) => {
+  const consider = (map, rank, iri, lang, value) => {
+    if (rank === undefined) return;
     let m = map.get(iri);
     if (!m) map.set(iri, (m = new Map()));
-    if (!m.has(lang)) m.set(lang, value); // first literal wins per (iri, lang)
+    const cur = m.get(lang);
+    if (!cur || rank < cur.rank) m.set(lang, { value, rank });
   };
   for (const q of quads) {
     if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
     if (!accept(q.subject.value)) continue;
     const lang = q.object.language || "";
-    if (LABEL_PREDS.has(q.predicate.value)) add(labels, q.subject.value, lang, q.object.value);
-    else if (DESC_PREDS.has(q.predicate.value)) add(defs, q.subject.value, lang, q.object.value);
+    consider(labels, labelRank.get(q.predicate.value), q.subject.value, lang, q.object.value);
+    consider(defs, descRank.get(q.predicate.value), q.subject.value, lang, q.object.value);
   }
-  return { labels, defs };
+  const strip = (map) => {
+    for (const [, byLang] of map) for (const [lang, v] of byLang) byLang.set(lang, v.value);
+    return map;
+  };
+  return { labels: strip(labels), defs: strip(defs) };
 }
 
 // Flatten to one record per (iri, language): { iri, lang, label, definition }.

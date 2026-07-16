@@ -2,18 +2,24 @@
 # data uses - your own entities AND the public-vocabulary terms they reference.
 # Run against your SPARQL endpoint (see `just extract-labels`); the Turtle it
 # returns is the input to `scripts/ingest.mjs`.
+#
+# The predicate set below mirrors ingest.mjs' DEFAULT_LABEL_PREDS / DEFAULT_DESC_PREDS
+# so the SPARQL and file paths extract the same labels. Keep the two in sync; ingest
+# applies list-order precedence when a subject carries several. (schema: is https
+# here - dumps that use http://schema.org/ resolve on the file path, which accepts
+# both schemes.)
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX schema: <https://schema.org/>
 CONSTRUCT { ?iri rdfs:label ?l ; rdfs:comment ?c ; skos:prefLabel ?p ; skos:definition ?d ;
-            dcterms:title ?t ; dcterms:description ?desc ; schema:name ?n }
+            dcterms:title ?t ; dcterms:description ?desc ; schema:name ?n ; schema:description ?sd }
 WHERE {
   { SELECT DISTINCT ?iri WHERE {
       { ?iri ?px ?ox } UNION { ?sx ?iri ?ox } UNION { ?sx ?px ?iri FILTER(isIRI(?iri)) } } }
   OPTIONAL { ?iri rdfs:label ?l }     OPTIONAL { ?iri rdfs:comment ?c }
   OPTIONAL { ?iri skos:prefLabel ?p } OPTIONAL { ?iri skos:definition ?d }
   OPTIONAL { ?iri dcterms:title ?t }  OPTIONAL { ?iri dcterms:description ?desc }
-  OPTIONAL { ?iri schema:name ?n }
-  FILTER(BOUND(?l)||BOUND(?c)||BOUND(?p)||BOUND(?d)||BOUND(?t)||BOUND(?desc)||BOUND(?n))
+  OPTIONAL { ?iri schema:name ?n }    OPTIONAL { ?iri schema:description ?sd }
+  FILTER(BOUND(?l)||BOUND(?c)||BOUND(?p)||BOUND(?d)||BOUND(?t)||BOUND(?desc)||BOUND(?n)||BOUND(?sd))
 }

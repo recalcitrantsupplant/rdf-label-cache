@@ -66,6 +66,28 @@ committed widget-label fixture, and serves the landing page at
 `http://localhost:8787/` (`/demo` is the playground).
 If that port is occupied, use `PORT=8790 just demo-local`.
 
+### Try it with your own data — no deploy
+
+Point the service at your own RDF and hit it locally, running the *same* Worker
+path production does (edge → R2 → 404) — no Cloudflare account, no deploy:
+
+```bash
+just dev-local                                     # ingests ./data.ttl
+INPUT=my.ttl just dev-local                         # a different Turtle file
+ENDPOINT=https://my-endpoint/sparql just dev-local  # extract from SPARQL first
+PUBLIC=1 just dev-local                             # also load bundled public vocab
+```
+
+The input can be a **full instance-data dump or a labels-only file** — non-label
+triples are ignored. Extraction keeps only the label/description predicates
+(`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`; `skos:definition`,
+`rdfs:comment`, `dcterms:description`, `schema:description` by default). Override per
+run with `ingest.mjs --label-preds`/`--desc-preds` (comma-separated IRIs; list order
+sets precedence when a subject carries several). Your app then resolves labels at
+`http://localhost:8787/label?iri=…`, and a genuine miss is a 404 — exactly as in
+production. Local R2 persists between runs (`.wrangler/state`); re-running overwrites
+by key, so changed labels update in place. Override the port with `PORT=8790`.
+
 ## Getting started
 
 Cache the labels your app needs - your own IRIs plus the public-vocabulary terms
