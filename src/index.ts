@@ -55,9 +55,13 @@ export default {
     }
 
     response = publicCors(response);
-    return request.method === "HEAD"
-      ? new Response(null, { status: response.status, statusText: response.statusText, headers: response.headers })
-      : response;
+    if (request.method === "HEAD") {
+      // /label already served HEAD via R2 `head`; other routes may still carry
+      // a stream - cancel it rather than dropping it unconsumed.
+      await response.body?.cancel();
+      return new Response(null, responseInit(response, new Headers(response.headers)));
+    }
+    return response;
   },
 } satisfies ExportedHandler<Env>;
 

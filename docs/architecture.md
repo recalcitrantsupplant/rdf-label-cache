@@ -212,9 +212,9 @@ Caching is enabled via config (`[cache] enabled = true`) and driven by the respo
 
 | Response type | Cache-Control |
 |---|---|
-| Label (found) | `public, max-age=31536000, immutable` |
+| Label (found) | `public, max-age=3600, s-maxage=31536000` |
 | 404 | `public, max-age=60` |
-| Context document | `public, max-age=31536000, immutable` |
+| Context document | `public, max-age=31536000, immutable` (versioned URL, content never changes) |
 
 Every cacheable response also carries a scoped `Cache-Tag` header (`labels`,
 `context`, or `namespaces`; labels also receive `labels:<namespace>` where known).

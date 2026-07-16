@@ -19,7 +19,10 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
   //   labels/en/https://schema.org/name   |   labels/und/https://schema.org/name
   const r2Key = `labels/${lang || "und"}/${iri}`;
 
-  const object = await env.PUBLIC_LABELS.get(r2Key);
+  // HEAD needs only the metadata; R2 `head` avoids streaming a body that the
+  // top-level handler would immediately discard.
+  const object =
+    request.method === "HEAD" ? await env.PUBLIC_LABELS.head(r2Key) : await env.PUBLIC_LABELS.get(r2Key);
   if (!object) {
     return errorResponse(
       { error: "not_found", iri, ...(lang ? { lang } : {}), message: "Label not found in store." },
@@ -37,7 +40,9 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
     ns ? ["labels", `labels:${ns}`] : ["labels"],
     object.httpMetadata?.contentEncoding
   );
-  return new Response(object.body, { status: 200, headers });
+  // `head` results carry no body; the cast is safe because `body` only exists
+  // on R2ObjectBody (from `get`).
+  return new Response("body" in object ? (object.body as BodyInit) : null, { status: 200, headers });
 }
 
 function validateQuery(params: URLSearchParams): { iri: string; lang: string | null } | Response {
@@ -72,6 +77,11 @@ function validateQuery(params: URLSearchParams): { iri: string; lang: string | n
   const lang = langs[0] ?? null;
   if (lang !== null && (!lang || lang.length > MAX_LANG_LENGTH || !LANGUAGE_TAG.test(lang))) {
     return errorResponse({ error: "invalid_param", message: "?lang= must be an alphanumeric language tag" }, 400);
+  }
+  // `und` is the internal storage segment for untagged literals; accepting it as
+  // a query value would alias the no-`lang` URL under a second cache key.
+  if (lang?.toLowerCase() === "und") {
+    return errorResponse({ error: "invalid_param", message: "Omit ?lang= to request the untagged label" }, 400);
   }
 
   return { iri, lang };

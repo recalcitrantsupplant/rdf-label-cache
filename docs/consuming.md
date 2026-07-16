@@ -37,12 +37,15 @@ full transport rationale.
 
 ## 2. Let the HTTP cache do the caching
 
-Label responses are served `Cache-Control: public, max-age=31536000, immutable`
-(one year, no revalidation). What you do with that depends on where your code runs:
+Label responses are served `Cache-Control: public, max-age=3600, s-maxage=31536000`
+(browsers revalidate hourly; the Cloudflare edge holds entries for a year and is
+invalidated by tag purges). What you do with that depends on where your code runs:
 
-This is deliberate for static RDF. An administrative edge purge after a rare
-correction does **not** evict an already-cached browser response. Consumers
-that need immediate correction semantics must use a new resource URL/version;
+This is deliberate for static RDF. An administrative edge purge after a data
+refresh does **not** evict an already-cached browser response, but the short
+browser `max-age` means refreshed data reaches returning browsers within the
+hour. Consumers that need immediate correction semantics must use a new
+resource URL/version;
 write-heavy label workloads are not a fit for this cache policy.
 
 - **Browser apps — you generally do *not* need an app-level label cache.** The browser's
@@ -62,8 +65,8 @@ write-heavy label workloads are not a fit for this cache policy.
 
 - **Server-side / non-browser callers** (Node `fetch`, another Worker, a CLI) have **no
   shared HTTP cache** — every `fetch` hits the network. Here you *should* keep your own
-  cache: a small in-memory LRU keyed by `iri|lang`. The responses are immutable, so
-  entries never go stale between data refreshes; size it to your working set.
+  cache: a small in-memory LRU keyed by `iri|lang`. The responses only change on a
+  data refresh, so a generous TTL (hours) is safe; size it to your working set.
 
 ---
 

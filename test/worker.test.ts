@@ -46,9 +46,10 @@ describe("/label", () => {
     expect(res.status).toBe(404);
   });
 
-  it("sets immutable Cache-Control + Cache-Tag on hits", async () => {
+  it("sets short browser / long edge Cache-Control + Cache-Tag on hits", async () => {
     const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
-    expect(res.headers.get("Cache-Control")).toContain("immutable");
+    expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
+    expect(res.headers.get("Cache-Control")).toContain("s-maxage=31536000");
     const tag = res.headers.get("Cache-Tag") ?? "";
     expect(tag).toContain("labels");
     expect(tag).toContain("labels:skos");
@@ -91,6 +92,13 @@ describe("/label", () => {
     const badLang = await SELF.fetch(`${labelUrl(SKOS_CONCEPT)}&lang=en/au`);
     expect(badLang.status).toBe(400);
   });
+
+  it("rejects ?lang=und (the internal untagged-storage segment)", async () => {
+    const res = await SELF.fetch(`${labelUrl(SKOS_CONCEPT)}&lang=und`);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as any;
+    expect(body.error).toBe("invalid_param");
+  });
 });
 
 describe("/namespaces", () => {
@@ -118,6 +126,11 @@ describe("/context/labels-v1.json", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as any;
     expect(body["@context"].skos).toBe("http://www.w3.org/2004/02/skos/core#");
+  });
+
+  it("stays browser-immutable (versioned URL never changes content)", async () => {
+    const res = await SELF.fetch(`${BASE}/context/labels-v1.json`);
+    expect(res.headers.get("Cache-Control")).toContain("immutable");
   });
 });
 

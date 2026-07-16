@@ -34,8 +34,12 @@ curl -fsS "http://localhost:$PORT/dev/seed?base=$BASE"
 echo
 
 echo "==> Purging cache (tags: labels,context)"
-curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
-  "${BASE%/}/admin/purge?tags=labels,context"
-echo
+PURGE_RESPONSE="$(curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+  "${BASE%/}/admin/purge?tags=labels,context")"
+echo "$PURGE_RESPONSE"
+# The endpoint returns 200 even when no cache binding is present (`applied` is
+# the signal the purge actually ran), so -f alone is not enough.
+grep -q '"applied":true' <<<"$PURGE_RESPONSE" \
+  || { echo "ERROR: purge was not applied - is the Worker's [cache] binding enabled?" >&2; exit 1; }
 
 echo "==> Seed complete"

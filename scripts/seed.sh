@@ -29,11 +29,15 @@ SEED_BASE="$SEED_BASE" node scripts/ingest.mjs
 echo "==> Uploading to R2 ($R2_BUCKET)"
 node scripts/upload-seed.mjs
 
-# Data changed → invalidate edge cache. This does not invalidate browser
-# responses that were deliberately served with `immutable` cache-control.
+# Data changed → invalidate edge cache. Browsers refresh on their own within
+# the hour (labels are served with a short browser max-age).
 echo "==> Purging cache (tags: labels,context)"
-curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
-  "${SEED_BASE%/}/admin/purge?tags=labels,context"
-echo
+PURGE_RESPONSE="$(curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+  "${SEED_BASE%/}/admin/purge?tags=labels,context")"
+echo "$PURGE_RESPONSE"
+# The endpoint returns 200 even when no cache binding is present (`applied` is
+# the signal the purge actually ran), so -f alone is not enough.
+grep -q '"applied":true' <<<"$PURGE_RESPONSE" \
+  || { echo "ERROR: purge was not applied - is the Worker's [cache] binding enabled?" >&2; exit 1; }
 
 echo "==> Seed complete"

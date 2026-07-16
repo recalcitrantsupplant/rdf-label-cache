@@ -73,8 +73,11 @@ bucket:
     #!/usr/bin/env bash
     set -euo pipefail
     P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders bucket) or PROJECT in .env}"
-    BUCKETS="$({{run}} wrangler r2 bucket list)"
-    if grep -Fq "label-cache-$P" <<<"$BUCKETS"; then
+    # `wrangler r2 bucket list` has no --json output, so parse the `name:` lines
+    # and exact-match: a substring test would let e.g. label-cache-foo-staging
+    # shadow label-cache-foo and silently skip creation.
+    BUCKETS="$({{run}} wrangler r2 bucket list | awk '$1 == "name:" { print $2 }')"
+    if grep -Fxq "label-cache-$P" <<<"$BUCKETS"; then
         echo "R2 bucket label-cache-$P already exists"
     else
         {{run}} wrangler r2 bucket create "label-cache-$P"

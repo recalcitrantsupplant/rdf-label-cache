@@ -86,8 +86,8 @@ curl "https://<your-url>/namespaces" | jq
 - **Workers Cache** is enabled by `[cache] enabled = true` in both Worker
   configurations. It sits in front of the Worker; code deployments use the
   platform's default version-isolated cache and do not require a broad purge.
-- **Immutable browser cache:** labels intentionally use one-year
-  `Cache-Control: ... immutable`. A successful admin purge invalidates the
-  Cloudflare edge, not a response already stored in an end user's browser. This
-  is an accepted static-RDF tradeoff; use a new URL/version for an exceptional
-  correction that must bypass existing browser entries.
+- **Split browser/edge TTL:** labels use `max-age=3600, s-maxage=31536000`. A
+  successful admin purge invalidates the Cloudflare edge immediately; browsers
+  cannot be purged, but their hour-long `max-age` means a data refresh reaches
+  them on its own. Only the versioned context document stays `immutable` -
+  its URL never changes content.

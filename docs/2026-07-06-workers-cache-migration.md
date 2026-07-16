@@ -9,10 +9,12 @@
 
 > **Current policy (2026-07-16):** the former `all` tag and deploy-time broad
 > purge were removed. Data refreshes require `PURGE_TOKEN` and purge
-> `labels,context`; cache entries are version-isolated for code deploys. The
-> static-RDF `immutable` browser cache remains intentional, and an edge purge
-> cannot clear a browser-held response. This document records the original
-> migration and may contain superseded implementation details.
+> `labels,context`; cache entries are version-isolated for code deploys.
+> Labels are served `max-age=3600, s-maxage=31536000`: a purge clears the
+> Cloudflare edge, and browsers (which cannot be purged) refresh within the
+> hour. Only the versioned context document remains browser-`immutable`.
+> This document records the original migration and may contain superseded
+> implementation details.
 
 ---
 
