@@ -75,9 +75,16 @@ ex:acme a schema:Organization ;
   .lc-call .m { color: var(--accent); font-weight: 700; flex-shrink: 0; }
   .lc-call .u { color: var(--faint); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lc-open { color: var(--faint); flex-shrink: 0; font-size: 11px; }
-  .lc-pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
-  .lc-pill.hit { background: #dcfce7; color: #166534; } .lc-pill.miss { background: var(--code, #f3f4f6); color: var(--faint); }
-  @media (prefers-color-scheme: dark){ .lc-pill.hit { background: #10331d; color: #4ade80; } }
+  .lc-pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px; flex-shrink: 0; cursor: help; }
+  .lc-pill.cdn { background: #dcfce7; color: #166534; }
+  .lc-pill.origin { background: #fef3c7; color: #92400e; }
+  .lc-pill.browser { background: var(--code, #f3f4f6); color: var(--faint); }
+  @media (prefers-color-scheme: dark){
+    .lc-pill.cdn { background: #10331d; color: #4ade80; }
+    .lc-pill.origin { background: #3a2e12; color: #fbbf24; }
+  }
+  .lc-legend { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; }
+  .lc-legend span.lbl { color: var(--muted); }
   .lc-ms { color: var(--faint); flex-shrink: 0; }
   .lc-sum { margin-top: auto; padding: 10px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
   .lc-sum b { color: var(--good); }
@@ -179,7 +186,12 @@ ex:acme a schema:Organization ;
       Promise.all(uniq.map((curie) => resolveLabel(curie))).finally(() => {
         go.disabled = false; go.className = "lc-btn reset"; go.innerHTML = "↻ Reset";
         sum.style.display = "block";
-        sum.innerHTML = "<b>These are live, parallel requests. Click any request to open its raw JSON-LD response.</b>";
+        sum.innerHTML = `<b>Live, parallel requests - click any to open its raw JSON-LD.</b>
+          <div class="lc-legend">
+            <span><span class="lc-pill cdn">CDN HIT</span> <span class="lbl">edge cache, Worker skipped</span></span>
+            <span><span class="lc-pill origin">MISS</span> <span class="lbl">Worker ran, read R2</span></span>
+            <span><span class="lc-pill browser">BROWSER</span> <span class="lbl">your disk cache, 0 bytes on the wire</span></span>
+          </div>`;
       });
     }
 
@@ -205,23 +217,62 @@ ex:acme a schema:Organization ;
       try {
         const response = await fetch(href);
         const elapsed = Math.round(performance.now() - requestStartedAt);
-        appendNetworkRow(href, iri, response.headers.get("Cf-Cache-Status") || `HTTP ${response.status}`, elapsed);
+        appendNetworkRow(href, iri, await classifySource(href, response), elapsed);
         return response;
       } catch {
-        appendNetworkRow(href, iri, "network error", Math.round(performance.now() - requestStartedAt));
+        const src = { tier: "origin", label: "network error", title: "The request failed before any response arrived." };
+        appendNetworkRow(href, iri, src, Math.round(performance.now() - requestStartedAt));
         return new Response(null, { status: 599 });
       }
     }
 
-    function appendNetworkRow(href, iri, status, elapsed){
+    // The resource-timing entry finalizes at responseEnd (after the body), which
+    // can lag a beat behind fetch() resolving on headers. Poll a couple of ticks.
+    async function resourceTiming(href){
+      const name = new URL(href, location.href).href;
+      for (let i = 0; i < 3; i++){
+        const entries = performance.getEntriesByName(name);
+        const last = entries[entries.length - 1];
+        if (last) return last;
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      return performance.getEntriesByName(name).slice(-1)[0];
+    }
+
+    // Where did this response REALLY come from? Cf-Cache-Status alone lies: a
+    // browser disk-cache read replays the header captured at first fetch (often a
+    // stale MISS), so a 2ms hit can read "MISS". transferSize === 0 is the ground
+    // truth for browser-vs-network (0 bytes on the wire). Only when the network
+    // was truly used do we trust Cf-Cache-Status to split edge-HIT from origin.
+    async function classifySource(href, response){
+      const cf = response.headers.get("Cf-Cache-Status") || "";
+      const age = response.headers.get("Age");
+      const entry = await resourceTiming(href);
+      const fromBrowser = entry && (entry.transferSize === 0 || entry.deliveryType === "cache");
+      if (fromBrowser) {
+        return { tier: "browser", label: "BROWSER",
+          title: "Served from your browser's own cache - 0 bytes crossed the network.\nThe CDN status is replayed from the first fetch, so it means nothing here." };
+      }
+      if (cf === "HIT") {
+        return { tier: "cdn", label: "CDN HIT",
+          title: `Cloudflare edge cache HIT${age ? ` - cached ${age}s ago` : ""}.\nServed from the data center nearest you; the Worker never ran.` };
+      }
+      if (!response.ok) {
+        return { tier: "origin", label: cf || `HTTP ${response.status}`,
+          title: `Origin responded ${response.status}.` };
+      }
+      return { tier: "origin", label: cf || "MISS",
+        title: "Edge cache MISS - the Worker ran and read R2, then populated this region's edge.\nThe next request in your region will be a CDN HIT." };
+    }
+
+    function appendNetworkRow(href, iri, source, elapsed){
       const row = document.createElement("a"); row.className = "lc-call";
       row.href = href; row.target = "_blank"; row.rel = "noopener";
       row.title = `GET /label?iri=${iri}\n\nOpens the raw JSON-LD from the label cache`;
       const method = document.createElement("span"); method.className = "m"; method.textContent = "GET";
       const url = document.createElement("span"); url.className = "u"; url.textContent = `?iri=${iri}`;
       const pill = document.createElement("span");
-      const succeeded = status === "HIT" || /^HTTP 2\d\d$/.test(status);
-      pill.className = `lc-pill ${succeeded ? "hit" : "miss"}`; pill.textContent = status;
+      pill.className = `lc-pill ${source.tier}`; pill.textContent = source.label; pill.title = source.title;
       const ms = document.createElement("span"); ms.className = "lc-ms"; ms.textContent = `${elapsed}ms`;
       const open = document.createElement("span"); open.className = "lc-open"; open.setAttribute("aria-hidden", "true"); open.textContent = "↗";
       row.append(method, url, pill, ms, open); net.append(row); net.scrollTop = net.scrollHeight;
