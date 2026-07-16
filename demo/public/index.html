@@ -107,7 +107,7 @@
     <h2 class="sh">Deploy your own</h2>
     <p class="sub">Deploy your own RDF Label Cache. It ships empty; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your own IRIs and any other ontologies you reference (Schema.org, DCAT, …).</p>
     <div class="steps">
-      <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone …/rdf-label-cache &amp;&amp; pnpm install</code></div></div>
+      <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone https://github.com/recalcitrantsupplant/rdf-label-cache &amp;&amp; pnpm install</code></div></div>
       <div class="st"><span class="n">2</span><div><h3>Dump annotation properties</h3><p>One SPARQL <code>CONSTRUCT</code> → labels + descriptions for every IRI your data mentions.</p></div></div>
       <div class="st"><span class="n">3</span><div><h3>Set up Cloudflare &amp; get credentials</h3><p>Sign up or log in, create the R2 bucket, deploy the Worker, and make an R2 API token.</p></div></div>
       <div class="st"><span class="n">4</span><div><h3>Configuration</h3><p>Put your <code>SEED_BASE</code> (the deployed Worker URL) and R2 keys in <code>.env</code>.</p></div></div>
