@@ -287,15 +287,18 @@ function pickLabel(doc) {
 }
 function resolve(iri) {
   if (labelCache.has(iri)) return labelCache.get(iri);
-  const get = (suffix) => fetch(`/label?iri=${encodeURIComponent(iri)}${suffix}`);
+  const path = (suffix = "") => `/label?iri=${encodeURIComponent(iri)}${suffix}`;
+  const get = (suffix) => fetch(path(suffix));
   // Prefer the untagged label (no ?lang); fall back to English. The fallback is
   // client-side by design - the Worker stays a dumb single-key lookup.
   const p = get("")
-    .then((r) => (r.ok ? r : get("&lang=en")))
-    .then(async (r) => {
-      const doc = r.ok ? await r.json() : null;
+    .then(async (untagged) => {
+      const url = untagged.ok || untagged.status !== 404 ? path() : path("&lang=en");
+      const response = url === path() ? untagged : await get("&lang=en");
+      const doc = response.ok ? await response.json() : null;
       return {
-        status: r.status,
+        status: response.status,
+        url,
         label: doc ? pickLabel(doc) : null,
         definition: doc ? (pickText(doc.definition) ?? pickText(doc.comment)) : null,
       };
@@ -484,7 +487,7 @@ function drawSnippet() {
     pre.append(
       cm(`// expand the CURIE ${cu} to its full IRI, then ask the cache\n`),
       st("const"), ` iri = ${JSON.stringify(iri)};\n`,
-      cm(`// no ?lang= → the untagged label; add &lang=en to fall back client-side\n`),
+      cm(`// no ?lang= → the untagged label; add &lang=en to request English\n`),
       st("const"), ` res = `, st("await"), ` fetch(\n`,
       `  \`${location.origin}/label?iri=\${`, st("encodeURIComponent"), `(iri)}\`\n`,
       `);\n`,
@@ -512,10 +515,11 @@ function drawCalls() {
   for (const iri of last.fetched) {
     const r = last.resolved.get(iri) || {};
     const ok = !!(r && r.label);
-    const a = el("a", { class: "call", href: labelPath(iri), target: "_blank", rel: "noopener", title: `GET ${labelPath(iri)}` });
+    const requestPath = r.url || labelPath(iri);
+    const a = el("a", { class: "call", href: requestPath, target: "_blank", rel: "noopener", title: `GET ${requestPath}` });
     a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
     a.append(el("span", { class: "curie" }, curie(iri, last.prefixes)));
-    a.append(el("span", { class: "path" }, `?iri=${iri}`));
+    a.append(el("span", { class: "path" }, requestPath.slice("/label".length)));
     if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
     box.append(a);
   }
