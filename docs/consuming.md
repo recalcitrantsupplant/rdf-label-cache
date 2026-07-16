@@ -40,6 +40,11 @@ full transport rationale.
 Label responses are served `Cache-Control: public, max-age=31536000, immutable`
 (one year, no revalidation). What you do with that depends on where your code runs:
 
+This is deliberate for static RDF. An administrative edge purge after a rare
+correction does **not** evict an already-cached browser response. Consumers
+that need immediate correction semantics must use a new resource URL/version;
+write-heavy label workloads are not a fit for this cache policy.
+
 - **Browser apps — you generally do *not* need an app-level label cache.** The browser's
   HTTP cache stores each `(IRI, lang)` response and reuses it without even a revalidation
   round trip. A hand-rolled in-memory label map mostly duplicates it. The one thing worth

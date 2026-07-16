@@ -14,10 +14,12 @@ pointing it at your own R2 bucket.
 ```
 GET /label?iri={encoded_iri}          # untagged label (labels/und/{iri})
 GET /label?iri={encoded_iri}&lang=en  # a specific language (labels/en/{iri})
-GET /namespaces                       # list known namespaces
-GET /namespaces/{prefix}              # describe one namespace
+GET /namespaces                       # static known-prefix registry
 GET /context/labels-v1.json           # shared JSON-LD context
 ```
+
+Public read routes support CORS (`GET`, `HEAD`, and `OPTIONS`). The registry is
+not an inventory of labels present in a particular R2 bucket.
 
 Example:
 
@@ -25,7 +27,7 @@ Example:
 curl "https://<host>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23Concept"
 # → { "@context": ".../context/labels-v1.json",
 #     "@id": "http://www.w3.org/2004/02/skos/core#Concept",
-#     "prefLabel": { "en": "Concept" }, "definition": { "en": "An idea …" } }
+#     "prefLabel": { "@none": "Concept" }, "definition": { "@none": "An idea …" } }
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design, and
@@ -34,7 +36,8 @@ is fine over HTTP/2/3).
 
 ## Develop
 
-> Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
+> Requires **Node 22+**, **pnpm** (or npm/bun), and **just** for the recipe-based
+> deployment path. Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
 > reproducible, age-pinned installs - but **npm** and **bun** work too. Swap
 > `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
 > `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
@@ -100,6 +103,8 @@ it threads through everything (`project=orders`, or `PROJECT=orders` in `.env`):
 ```bash
 just project=orders bucket                    # create bucket label-cache-orders
 just project=orders deploy                    # prints your Worker URL
+export PURGE_TOKEN="$(openssl rand -base64 48)"
+just project=orders purge-token-set           # required before a data refresh
 ```
 
 Raw shell instead? Set the same name as `name` and `bucket_name` in
@@ -170,6 +175,11 @@ Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: fo
 open a PR, and use [Conventional Commits](https://www.conventionalcommits.org/) (enforced
 by commitlint on every PR and by a local husky hook). CI must be green — run
 `./scripts/ci.sh` (typecheck + tests) before pushing.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). Security reports follow the
+private process in [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 

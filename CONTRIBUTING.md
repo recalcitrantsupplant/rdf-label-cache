@@ -44,6 +44,9 @@ Project conventions worth matching:
   runs identically locally and in CI.
 - **IRI-keyed, namespace-agnostic.** The Worker builds the R2 key from the IRI; don't add
   per-namespace registration or config.
+- **One PR, one release entry.** Squash-merge focused PRs and use the final squash
+  commit's Conventional Commit title. This prevents duplicate release notes from
+  feature-branch merge commits.
 
 ## Commit messages — Conventional Commits (required)
 
@@ -86,6 +89,10 @@ does it from the commit history:
 
 So as a contributor: **write good Conventional Commits and the release takes care of
 itself.** No version bumps or changelog edits in your PR — release-please owns those files.
+
+Before merging a release PR, maintainers verify the package version, tag prefix,
+compare links, demo deployment, and data-compatibility notes. Existing historical
+tags retain their names; new release metadata uses the repository's current name.
 
 ## Dependencies
 

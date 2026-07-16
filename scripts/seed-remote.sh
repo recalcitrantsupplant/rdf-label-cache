@@ -15,6 +15,7 @@ BASE="${1:?usage: seed-remote.sh <BASE_URL> [WRANGLER_CONFIG]}"
 CONFIG="${2:-demo/wrangler.demo.toml}"
 PORT="${PORT:-8799}"
 LOG="$(mktemp)"
+: "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"
 
 pnpm wrangler dev --remote --config "$CONFIG" --var ENVIRONMENT:development \
   --port "$PORT" >"$LOG" 2>&1 &
@@ -32,13 +33,9 @@ echo "==> Seeding via ?base=$BASE"
 curl -fsS "http://localhost:$PORT/dev/seed?base=$BASE"
 echo
 
-# Data changed → invalidate label + context caches (best-effort; needs PURGE_TOKEN).
-if [ -n "${PURGE_TOKEN:-}" ]; then
-  echo "==> Purging cache (tags: labels,context)"
-  curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
-    "$BASE/admin/purge?tags=labels,context" && echo || echo "WARN: purge failed (non-fatal)"
-else
-  echo "==> PURGE_TOKEN unset - skipping purge; cached labels self-expire per TTL"
-fi
+echo "==> Purging cache (tags: labels,context)"
+curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+  "${BASE%/}/admin/purge?tags=labels,context"
+echo
 
 echo "==> Seed complete"

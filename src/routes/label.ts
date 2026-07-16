@@ -1,21 +1,15 @@
 import { parseIRI } from "../lib/namespaces";
 import { cacheHeaders, ERROR_CACHE } from "../lib/cache";
 
+const MAX_IRI_BYTES = 900;
+const MAX_LANG_LENGTH = 63;
+const LANGUAGE_TAG = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$/;
+
 export async function handleLabel(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const iriParam = url.searchParams.get("iri");
-  const lang = url.searchParams.get("lang");
-
-  if (!iriParam) {
-    return errorResponse({ error: "missing_param", message: "?iri= is required" }, 400);
-  }
-
-  let iri: string;
-  try {
-    iri = decodeURIComponent(iriParam);
-  } catch {
-    return errorResponse({ error: "invalid_param", message: "?iri= is not valid percent-encoding" }, 400);
-  }
+  const validated = validateQuery(url.searchParams);
+  if (validated instanceof Response) return validated;
+  const { iri, lang } = validated;
 
   // Key layout is lang-FIRST: labels/{lang}/{iri}. The lang segment is a fixed,
   // slash-free token, so it can never collide with the raw IRI (which contains
@@ -44,6 +38,43 @@ export async function handleLabel(request: Request, env: Env): Promise<Response>
     object.httpMetadata?.contentEncoding
   );
   return new Response(object.body, { status: 200, headers });
+}
+
+function validateQuery(params: URLSearchParams): { iri: string; lang: string | null } | Response {
+  const unknown = [...params.keys()].find((key) => key !== "iri" && key !== "lang");
+  if (unknown) {
+    return errorResponse({ error: "invalid_param", message: `Unsupported query parameter: ${unknown}` }, 400);
+  }
+
+  const iris = params.getAll("iri");
+  if (iris.length === 0 || !iris[0]) {
+    return errorResponse({ error: "missing_param", message: "?iri= is required" }, 400);
+  }
+  if (iris.length !== 1) {
+    return errorResponse({ error: "invalid_param", message: "?iri= must be supplied exactly once" }, 400);
+  }
+
+  const iri = iris[0];
+  if (new TextEncoder().encode(iri).byteLength > MAX_IRI_BYTES) {
+    return errorResponse({ error: "invalid_param", message: "?iri= is too long" }, 400);
+  }
+  try {
+    const parsed = new URL(iri);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("unsupported protocol");
+  } catch {
+    return errorResponse({ error: "invalid_param", message: "?iri= must be an absolute http(s) IRI" }, 400);
+  }
+
+  const langs = params.getAll("lang");
+  if (langs.length > 1) {
+    return errorResponse({ error: "invalid_param", message: "?lang= may be supplied at most once" }, 400);
+  }
+  const lang = langs[0] ?? null;
+  if (lang !== null && (!lang || lang.length > MAX_LANG_LENGTH || !LANGUAGE_TAG.test(lang))) {
+    return errorResponse({ error: "invalid_param", message: "?lang= must be an alphanumeric language tag" }, 400);
+  }
+
+  return { iri, lang };
 }
 
 function errorResponse(body: unknown, status: number): Response {

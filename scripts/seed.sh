@@ -8,7 +8,7 @@
 #   SEED_BASE             deployed origin, e.g. https://label-cache-demo.<sub>.workers.dev
 #   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 #   R2_BUCKET             bucket name (default: label-cache-demo, the demo instance)
-#   [PURGE_TOKEN]         if set, purge cached labels after upload
+#   PURGE_TOKEN           required to purge cached labels after upload
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -21,6 +21,7 @@ export R2_BUCKET="${R2_BUCKET:-label-cache-demo}"
 : "${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID (Cloudflare account id)}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID (from a Cloudflare R2 API token)}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY (from a Cloudflare R2 API token)}"
+: "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"
 
 echo "==> Ingesting ontologies → dist/seed/manifest.ndjson"
 SEED_BASE="$SEED_BASE" node scripts/ingest.mjs
@@ -28,13 +29,11 @@ SEED_BASE="$SEED_BASE" node scripts/ingest.mjs
 echo "==> Uploading to R2 ($R2_BUCKET)"
 node scripts/upload-seed.mjs
 
-# Data changed → invalidate cached labels + context (best-effort; needs PURGE_TOKEN).
-if [ -n "${PURGE_TOKEN:-}" ]; then
-  echo "==> Purging cache (tags: labels,context)"
-  curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
-    "${SEED_BASE%/}/admin/purge?tags=labels,context" && echo || echo "WARN: purge failed (non-fatal)"
-else
-  echo "==> PURGE_TOKEN unset - skipping purge; cached labels self-expire per TTL"
-fi
+# Data changed → invalidate edge cache. This does not invalidate browser
+# responses that were deliberately served with `immutable` cache-control.
+echo "==> Purging cache (tags: labels,context)"
+curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" \
+  "${SEED_BASE%/}/admin/purge?tags=labels,context"
+echo
 
 echo "==> Seed complete"

@@ -42,9 +42,12 @@ if (missing.length) {
 const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
 const aws = new AwsClient({ accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, region: "auto", service: "s3" });
 
+function objectUrl(key) {
+  return `${endpoint}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
 async function putObject(key, body) {
-  const url = `${endpoint}/${key.split("/").map(encodeURIComponent).join("/")}`;
-  const res = await aws.fetch(url, {
+  const res = await aws.fetch(objectUrl(key), {
     method: "PUT",
     body,
     headers: { "Content-Type": "application/ld+json", "Cache-Control": "public, max-age=86400" },
@@ -52,16 +55,37 @@ async function putObject(key, body) {
   if (!res.ok) throw new Error(`PUT ${key} → ${res.status} ${await res.text().catch(() => "")}`);
 }
 
+async function ensureImmutableContext(record) {
+  const res = await aws.fetch(objectUrl(record.key));
+  if (res.status === 404) {
+    await putObject(record.key, record.body);
+    console.log(`Published new immutable context: ${record.key}`);
+    return;
+  }
+  if (!res.ok) throw new Error(`GET ${record.key} → ${res.status} ${await res.text().catch(() => "")}`);
+  if ((await res.text()) !== record.body) {
+    throw new Error(
+      `Refusing to overwrite immutable context ${record.key}. Publish a new context version and regenerate labels instead.`
+    );
+  }
+  console.log(`Verified immutable context: ${record.key}`);
+}
+
 async function main() {
   const records = (await readFile(MANIFEST, "utf8"))
     .split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  const context = records.find((record) => record.key === "context/labels-v1.json");
+  if (!context) throw new Error("Manifest does not contain context/labels-v1.json");
+  await ensureImmutableContext(context);
+
+  const labelRecords = records.filter((record) => record !== context);
   const conc = Math.max(1, Number(CONCURRENCY) || 32);
-  console.log(`Uploading ${records.length} objects → ${R2_BUCKET} (concurrency ${conc})`);
+  console.log(`Uploading ${labelRecords.length} label objects → ${R2_BUCKET} (concurrency ${conc})`);
 
   let next = 0, done = 0, failed = 0;
   async function worker() {
-    while (next < records.length) {
-      const { key, body } = records[next++];
+    while (next < labelRecords.length) {
+      const { key, body } = labelRecords[next++];
       try {
         await putObject(key, body);
       } catch (e) {

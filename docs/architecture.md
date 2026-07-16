@@ -22,7 +22,7 @@ Serves a curated set of well-known public namespaces from R2, fronted by Workers
 
 **Supported namespaces:** rdfs, owl, skos, skos-xl, dc, dcterms, schema.org, foaf, prov, void, xsd, rdf
 
-**Self-hosting:** the repo is designed to be cloned and deployed as-is. Private label deployments load their own labels into their own R2 bucket alongside (or instead of) the public ones. Public label data is available as a public R2 bucket or versioned tarballs for easy bootstrap - no ingestion pipeline required.
+**Self-hosting:** the repo is designed to be cloned and deployed as-is. Private label deployments load their own labels into their own R2 bucket alongside (or instead of) the public ones. There is no published R2 bootstrap bucket or release tarball; use the included ingestion and upload pipeline.
 
 ---
 
@@ -63,8 +63,7 @@ The `@context` URL is a stable, heavily-cached document (see §4.2) that defines
 ### 2.2 Namespace Listing
 
 ```
-GET /namespaces             - list all namespaces in the store
-GET /namespaces/{prefix}    - describe a namespace (IRI base, ontology metadata)
+GET /namespaces             - static known-prefix registry (not store inventory)
 ```
 
 ---
@@ -102,7 +101,7 @@ Client
 ```
 1. Request arrives at Cloudflare edge
 2. Workers Cache check (regional tier → upper tier), keyed on full request URL
-   └── HIT  → return immediately (gzipped bytes, Worker NOT invoked, no CPU billed)
+   └── HIT  → return immediately (Worker not invoked)
    └── MISS → Worker invoked
 
 3. Worker: parse ?iri=, extract ?lang=
@@ -154,20 +153,12 @@ to English.
 
 **Namespace dumps** (`namespaces/{ns}/*.json`) are omitted. Schema.org has ~2,500 terms; a full dump would be tens of MB and has no clear use case for per-IRI resolution. Use the ingestion pipeline output directly if bulk access is needed.
 
-#### Compression
+#### Object metadata
 
-All objects stored gzip-compressed with `Content-Encoding: gzip` in R2 object metadata. The Worker streams bytes directly to the client - no decompression at any point. Browsers decompress natively.
-
-```javascript
-// Ingestion script (not the Worker)
-await r2.put("labels/und/http://www.w3.org/2000/01/rdf-schema#label", gzippedBytes, {
-  httpMetadata: {
-    contentType: "application/ld+json",
-    contentEncoding: "gzip",
-    cacheControl: "public, max-age=86400"
-  }
-});
-```
+The current uploader writes JSON-LD bytes without compression and sets
+`Content-Type: application/ld+json`. The Worker passes through R2 content
+encoding metadata if a future uploader supplies it; compression is not a
+current storage contract.
 
 #### Object format - JSON-LD
 
@@ -215,17 +206,21 @@ Stored in R2 at `context/labels-v1.json`. Served with an immutable TTL. Version 
 
 ### 4.3 Cache - Workers Cache
 
-The primary cache layer. **Workers Cache** is a platform-managed, regionally tiered cache that sits *in front of* the Worker: a lower regional tier near the requester and an upper network-wide tier. Hits are served **without invoking the Worker** (no CPU billed); cold PoPs are served from the upper tier instead of round-tripping to R2. Cache keys are the full request URL (IRI + lang param). Pre-gzipped objects are stored and served compressed - no recompression overhead.
+The primary cache layer. **Workers Cache** is a platform-managed, regionally tiered cache that sits *in front of* the Worker: a lower regional tier near the requester and an upper network-wide tier. Hits are served **without invoking the Worker**; cold PoPs are served from the upper tier instead of round-tripping to R2. Cache keys are the full request URL (IRI + lang param). Query validation rejects unknown and duplicate parameters; parameter ordering remains part of the key until a later canonical-URL design is adopted.
 
 Caching is enabled via config (`[cache] enabled = true`) and driven by the response `Cache-Control` header. The Worker does **not** call `caches.default` - no manual `match`/`put`/`waitUntil`.
 
 | Response type | Cache-Control |
 |---|---|
-| Label (found) | `public, max-age=86400` |
+| Label (found) | `public, max-age=31536000, immutable` |
 | 404 | `public, max-age=60` |
 | Context document | `public, max-age=31536000, immutable` |
 
-Every cacheable response also carries a `Cache-Tag` header (`public-labels`, plus a per-namespace tag such as `ns:skos`). Purge on ontology refresh via `ctx.cache.purge({ tags: [...] })`.
+Every cacheable response also carries a scoped `Cache-Tag` header (`labels`,
+`context`, or `namespaces`; labels also receive `labels:<namespace>` where known).
+Purge data tags on ontology refresh via `ctx.cache.purge({ tags: [...] })`. This
+invalidates the Cloudflare edge only: the one-year browser cache is an accepted
+static-RDF policy, so exceptional typo corrections require a new resource URL.
 
 See [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for migration detail and open caveats (404 cacheability, plan/GA status, `compatibility_date`).
 
@@ -241,15 +236,24 @@ See [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration
 
 Storage is not a cost concern.
 
-### Compute
+### Requests and reads
 
-| Monthly requests | Edge cache hits | Workers invocations | Approx. cost |
-|---|---|---|---|
-| <10M | most | few | **~$0** |
-| 50M | most | ~5M | **~$1.50** |
-| 500M | most | ~50M | **~$15** |
+Pricing below is a formula, not a traffic forecast, and was checked on
+2026-07-16 against [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
+and [R2 pricing](https://developers.cloudflare.com/r2/pricing/). Workers Cache
+hits avoid Worker CPU and R2 reads, but they are still Worker requests.
 
-Edge cache hit rate on popular IRIs (rdfs:label, rdf:type, owl:Class, schema:name) will be very high in practice - the same IRIs appear in many graphs. Worker invocations are the cold-miss tail only.
+| Plan / example | Workers request charge | R2 read charge at 10% cache miss | Total before CPU |
+|---|---:|---:|---:|
+| Free, at or below 100k requests/day | $0 | Usually within R2's 10M monthly free reads | $0 |
+| Paid, 50M requests/month | $5 base + 40M × $0.30 = $17.00 | 5M reads, within free tier = $0 | $17.00 |
+| Paid, 500M requests/month | $5 base + 490M × $0.30 = $152.00 | (50M - 10M) × $0.36 = $14.40 | $166.40 |
+
+The Free plan has no base account charge, but enforces a 100k-request daily
+limit. Paid-plan CPU is omitted because it depends on measured miss-path CPU;
+R2 storage is normally inside its 10 GB free tier for this use case. Internet
+egress is free for R2 Standard storage. Recalculate with the current prices
+before relying on these examples.
 
 ---
 
@@ -279,12 +283,9 @@ No secrets, no KV, no D1. `[cache] enabled = true` turns on Workers Cache; confi
 
 ### 6.2 Label Data Bootstrap
 
-Public label data is available as:
-
-- **Public R2 bucket** - sync directly into your own R2 using rclone or the S3-compatible API. Picks up the exact key structure the Worker expects.
-- **Versioned tarballs** - GitHub releases. Download, extract, upload to your R2 or S3. Pick only the namespaces you need.
-
-Self-hosters do not need to run the ingestion pipeline unless they are adding namespaces not covered by the public data.
+Run the included ingestion and upload pipeline. It produces the context and
+label objects for the R2 bucket bound to the Worker; no public bucket or
+release-tarball distribution channel exists today.
 
 ### 6.3 Adding Private Labels
 
@@ -296,11 +297,9 @@ The Worker itself has no auth logic. For access control, put an auth layer in fr
 
 **Cloudflare:** Cloudflare Access in front of the Worker. Configure with any IdP (Entra, Okta, Google, GitHub). Enforces JWT validity and group/role claims at the edge before the Worker is invoked. Free tier covers most private deployments.
 
-**Azure:** Azure API Management or Azure Front Door with Entra ID. APIM can validate Entra JWTs and enforce role claims via policy - Worker equivalent is an Azure Function or Static Web App behind APIM. Same pattern, different runtime.
-
-**AWS:** CloudFront + Lambda@Edge (or CloudFront Functions) for JWT validation, or API Gateway with a Cognito authorizer. S3 replaces R2 as the label store; CloudFront replaces the edge cache.
-
-Templates for each platform are a natural companion to this repo - deferred post-MVP but the pattern is identical across all three: auth layer → edge cache → compute → blob store.
+Other-cloud deployment support is parked. The service currently targets
+Cloudflare because Workers Cache and R2 are material parts of its behavior and
+cost model; do not treat the private-auth design as a portable implementation.
 
 Per-namespace access control (user A can read namespace X but not Y) is deliberately out of scope. It requires Worker-level logic and a policy store, which reintroduces the complexity this design avoids. Deployers needing it should fork and extend.
 
@@ -323,12 +322,11 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
    rdfs:comment, skos:definition, schema:name)
 4. Group by IRI and language tag, preserving tags faithfully (untagged literals under `und`)
 5. Serialise each group as JSON-LD referencing the context URL
-6. Gzip each document
-7. Write to R2: labels/{lang}/{iri}  (untagged -> labels/und/{iri})
-8. Write context/labels-v1.json (only if not exists - never overwrite)
-9. Publish tarball to GitHub releases
-10. Purge Workers Cache by tag: ctx.cache.purge({ tags: ["public-labels"] })
-    (or per-namespace tags, e.g. ["ns:skos"], to invalidate only refreshed namespaces)
+6. Write label objects to R2 using the manifest keys
+7. Verify `context/labels-v1.json` is byte-identical if it already exists;
+   otherwise publish it. A changed context must use a new versioned path.
+8. Purge `labels,context` through the authenticated Worker endpoint. The seed
+   command fails when this purge fails.
 ```
 
 ---

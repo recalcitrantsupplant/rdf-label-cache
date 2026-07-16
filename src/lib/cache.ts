@@ -1,10 +1,9 @@
-// Workers Cache strategy: responses are immutable between deploys and data
-// refreshes, so we cache them effectively forever and invalidate explicitly by
-// purging cache tags (POST /admin/purge → ctx.cache.purge).
+// Workers Cache strategy: static RDF responses are intentionally immutable for
+// a year. Cache-tag purges invalidate the Cloudflare edge after a data refresh,
+// but cannot evict an already-cached browser response.
 //
-// Every cacheable success carries the `all` tag (purged on deploy) plus finer
-// tags for targeted invalidation (e.g. purge just `labels` on a data refresh,
-// or `labels:skos` for a single namespace).
+// Cache tags are deliberately scoped. `labels` is the full label-data scope;
+// there is no catch-all tag because code deploys use version-isolated cache.
 export const IMMUTABLE = "public, max-age=31536000, immutable";
 
 // Errors self-expire quickly instead of being cached forever, so a label that
@@ -19,7 +18,7 @@ export function cacheHeaders(
   const headers = new Headers({
     "Content-Type": contentType,
     "Cache-Control": IMMUTABLE,
-    "Cache-Tag": ["all", ...tags].join(","),
+    "Cache-Tag": tags.join(","),
   });
   if (contentEncoding) headers.set("Content-Encoding", contentEncoding);
   return headers;

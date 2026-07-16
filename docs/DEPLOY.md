@@ -2,6 +2,10 @@
 
 Phase-1 deploy: static labels served from R2. Assumes a Cloudflare account.
 
+Prerequisites: Node 22+, pnpm (or an equivalent package manager), and
+[just](https://just.systems/) for the recipe path. A raw Wrangler path remains
+available in the README.
+
 Pick a **project name** first: your Worker and bucket are both named
 `label-cache-<project>`, so each app gets its own isolated instance. Set it once
 in `.env` (`PROJECT=orders`) or pass `project=orders` on each command below.
@@ -11,7 +15,13 @@ in `.env` (`PROJECT=orders`) or pass `project=orders` on each command below.
 ```bash
 just login                       # browser OAuth into your Cloudflare account
 just project=orders bucket       # create R2 bucket `label-cache-orders`
+export PURGE_TOKEN="$(openssl rand -base64 48)"
+just project=orders purge-token-set
 ```
+
+Keep the same `PURGE_TOKEN` in the secret store used by the production seed
+job. It is required: the upload scripts fail rather than report success with
+stale edge data.
 
 ## Deploy
 
@@ -29,6 +39,7 @@ schema.org) is produced by the ingestion pipeline and uploaded to R2 over the S3
 export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
 export R2_BUCKET=label-cache-orders
 export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
+export PURGE_TOKEN=...           # same value installed with purge-token-set
 ./scripts/seed.sh            # = pnpm seed:ingest (fetch + parse) then pnpm seed:upload
 ```
 
@@ -72,6 +83,11 @@ curl "https://<your-url>/namespaces" | jq
 - **Seed data**: the full set comes from the ingestion pipeline (`scripts/ingest.mjs` +
   `scripts/upload-seed.mjs`; see "Seed production R2" above). The 12-term sample in
   `src/routes/dev-seed.ts` is now only a local/dev smoke test.
-- **Workers Cache** (`[cache] enabled = true`) is documented but not yet enabled in
-  `wrangler.toml` - see `2026-07-06-workers-cache-migration.md`. Deploy works without it;
-  the Worker's own edge-cache code carries phase 1.
+- **Workers Cache** is enabled by `[cache] enabled = true` in both Worker
+  configurations. It sits in front of the Worker; code deployments use the
+  platform's default version-isolated cache and do not require a broad purge.
+- **Immutable browser cache:** labels intentionally use one-year
+  `Cache-Control: ... immutable`. A successful admin purge invalidates the
+  Cloudflare edge, not a response already stored in an end user's browser. This
+  is an accepted static-RDF tradeoff; use a new URL/version for an exceptional
+  correction that must bypass existing browser entries.

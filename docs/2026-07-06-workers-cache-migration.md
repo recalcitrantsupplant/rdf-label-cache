@@ -1,9 +1,18 @@
 # Migration: adopt Workers Cache
 
 **Date:** 2026-07-06 (implemented 2026-07-08)
-**Status:** Implemented
+**Status:** Historical - superseded in part by the 2026-07-16 remediation plan
 **Type:** Architecture decision / migration plan
 **Affects:** `wrangler.toml`, `demo/wrangler.demo.toml`, `src/index.ts`, `src/routes/{label,context,namespaces,purge}.ts`, `src/lib/cache.ts`, `scripts/{deploy-demo,seed-remote}.sh`, ingestion pipeline (§6.6 of [architecture.md](./architecture.md))
+
+---
+
+> **Current policy (2026-07-16):** the former `all` tag and deploy-time broad
+> purge were removed. Data refreshes require `PURGE_TOKEN` and purge
+> `labels,context`; cache entries are version-isolated for code deploys. The
+> static-RDF `immutable` browser cache remains intentional, and an edge purge
+> cannot clear a browser-held response. This document records the original
+> migration and may contain superseded implementation details.
 
 ---
 

@@ -2,10 +2,10 @@
 // inside the Worker (ctx.cache.purge - there is no external REST/CLI purge), so
 // CI/deploy and the ingestion pipeline invalidate by calling this endpoint.
 //
-//   POST /admin/purge?tags=all      Authorization: Bearer $PURGE_TOKEN
+//   POST /admin/purge?tags=labels,context      Authorization: Bearer $PURGE_TOKEN
 //
-// Default tag is `all` (a full invalidation, e.g. on deploy). Pass ?tags=labels
-// or ?tags=labels:skos for a targeted purge on a data refresh.
+// Default tags cover all data artifacts. Code deployments do not need a purge:
+// Workers Cache is version-isolated by default.
 
 interface CachePurger {
   purge(options: { tags: string[] }): Promise<void>;
@@ -26,7 +26,7 @@ export async function handlePurge(
     return json({ error: "unauthorized" }, 401);
   }
 
-  const tags = (new URL(request.url).searchParams.get("tags") ?? "all")
+  const tags = (new URL(request.url).searchParams.get("tags") ?? "labels,context,namespaces")
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);

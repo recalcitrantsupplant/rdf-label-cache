@@ -3,15 +3,15 @@
 // (--bg --fg --muted --faint --line --panel --accent --accent-soft --good --mono).
 // Usage:  LabelCacheDemo.mount(document.getElementById("demo"));
 (function () {
-  // Predicate / class CURIE -> [full IRI, cached label]. These are the CDN lookups.
+  // Predicate / class CURIE -> full IRI. Labels are resolved from the live API.
   const IRI = {
-    "rdf:type":            ["http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "type"],
-    "schema:Person":       ["https://schema.org/Person", "Person"],
-    "schema:Organization": ["https://schema.org/Organization", "Organization"],
-    "schema:name":         ["https://schema.org/name", "Name"],
-    "schema:jobTitle":     ["https://schema.org/jobTitle", "Job Title"],
-    "schema:worksFor":     ["https://schema.org/worksFor", "Works For"],
-    "schema:url":          ["https://schema.org/url", "URL"],
+    "rdf:type":            "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+    "schema:Person":       "https://schema.org/Person",
+    "schema:Organization": "https://schema.org/Organization",
+    "schema:name":         "https://schema.org/name",
+    "schema:jobTitle":     "https://schema.org/jobTitle",
+    "schema:worksFor":     "https://schema.org/worksFor",
+    "schema:url":          "https://schema.org/url",
   };
   // The graph, as data. `name` is a label the record supplies itself (in your data).
   const GRAPH = [
@@ -34,9 +34,6 @@ ex:jane a schema:Person ;
 ex:acme a schema:Organization ;
     schema:name "ACME Corp" ;
     schema:url  "https://acme.example.org" .`;
-
-  // Deterministic-looking latencies (no Math.random - keeps it stable/replayable).
-  const MS = [19, 24, 31, 22, 17, 28, 21];
 
   const css = `
   .lc { display: grid; grid-template-columns: 11fr 9fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--bg); }
@@ -134,6 +131,7 @@ ex:acme a schema:Organization ;
     }
     function renderGraph(){
       body.innerHTML = "";
+      termEls.clear();
       for (const r of GRAPH){
         const rec = document.createElement("div"); rec.className = "lc-rec";
         const h = document.createElement("div"); h.className = "lc-rh";
@@ -163,9 +161,8 @@ ex:acme a schema:Organization ;
     const net = side.querySelector("#lc-net");
     const sum = side.querySelector("#lc-sum");
     const go = side.querySelector("#lc-go");
-    let resolved = false, timers = [];
+    let resolved = false;
     function reset(){
-      timers.forEach(clearTimeout); timers = [];
       resolved = false;
       net.innerHTML = `<div class="lc-empty">No calls yet. Hit the button - one edge-cached GET per unique IRI.</div>`;
       sum.style.display = "none";
@@ -179,33 +176,54 @@ ex:acme a schema:Organization ;
       go.disabled = true; go.innerHTML = "resolving…";
       net.innerHTML = "";
       const uniq = [...new Set([...termEls.keys()])]; // dedup: schema:name appears twice -> one call
-      let i = 0;
-      // Reveal one at a time - clearest way to see each IRI become a label.
-      // (The footnote makes clear that in production you'd fire them all at once.)
-      uniq.forEach((curie, idx) => {
-        const t = setTimeout(() => {
-          const [iri, label] = IRI[curie];
-          const ms = MS[idx % MS.length];
-          // network row - a live link to the raw JSON-LD
-          const row = document.createElement("a"); row.className = "lc-call";
-          row.href = `/label?iri=${encodeURIComponent(iri)}`;
-          row.target = "_blank"; row.rel = "noopener";
-          row.title = `GET /label?iri=${iri}\n\nOpens the raw JSON-LD from the label cache`;
-          row.innerHTML = `<span class="m">GET</span><span class="u">?iri=${esc(iri)}</span><span class="lc-pill hit">HIT</span><span class="lc-ms">${ms}ms</span><span class="lc-open" aria-hidden="true">↗</span>`;
-          net.append(row); net.scrollTop = net.scrollHeight;
-          // swap the term(s) on the left
-          for (const el of termEls.get(curie)){
-            el.textContent = label; el.className = "term done flash"; el.title = iri;
-            setTimeout(() => el.classList.remove("flash"), 400);
-          }
-          if (++i === uniq.length){
-            go.disabled = false; go.className = "lc-btn reset"; go.innerHTML = "↻ Reset";
-            sum.style.display = "block";
-            sum.innerHTML = `<b>Your production application can fire these requests in parallel. Click any request to open its raw JSON-LD from the cache.</b>`;
-          }
-        }, 260 + idx * 240);
-        timers.push(t);
+      Promise.all(uniq.map((curie) => resolveLabel(curie))).finally(() => {
+        go.disabled = false; go.className = "lc-btn reset"; go.innerHTML = "↻ Reset";
+        sum.style.display = "block";
+        sum.innerHTML = "<b>These are live, parallel requests. Click any request to open its raw JSON-LD response.</b>";
       });
+    }
+
+    async function resolveLabel(curie){
+      const iri = IRI[curie];
+      const untaggedHref = `/label?iri=${encodeURIComponent(iri)}`;
+      let response = await fetchAndShow(untaggedHref, iri);
+      if (!response.ok && response.status === 404) {
+        response = await fetchAndShow(`${untaggedHref}&lang=en`, iri);
+      }
+      if (!response.ok) return;
+
+      const doc = await response.json();
+      const label = doc.prefLabel?.en || doc.prefLabel?.["@none"] || Object.values(doc.prefLabel || {})[0] || curie;
+      for (const el of termEls.get(curie) || []) {
+        el.textContent = label; el.className = "term done flash"; el.title = iri;
+        setTimeout(() => el.classList.remove("flash"), 400);
+      }
+    }
+
+    async function fetchAndShow(href, iri){
+      const requestStartedAt = performance.now();
+      try {
+        const response = await fetch(href);
+        const elapsed = Math.round(performance.now() - requestStartedAt);
+        appendNetworkRow(href, iri, response.headers.get("Cf-Cache-Status") || `HTTP ${response.status}`, elapsed);
+        return response;
+      } catch {
+        appendNetworkRow(href, iri, "network error", Math.round(performance.now() - requestStartedAt));
+        return new Response(null, { status: 599 });
+      }
+    }
+
+    function appendNetworkRow(href, iri, status, elapsed){
+      const row = document.createElement("a"); row.className = "lc-call";
+      row.href = href; row.target = "_blank"; row.rel = "noopener";
+      row.title = `GET /label?iri=${iri}\n\nOpens the raw JSON-LD from the label cache`;
+      const method = document.createElement("span"); method.className = "m"; method.textContent = "GET";
+      const url = document.createElement("span"); url.className = "u"; url.textContent = `?iri=${iri}`;
+      const pill = document.createElement("span");
+      pill.className = `lc-pill ${status === "HIT" ? "hit" : "miss"}`; pill.textContent = status;
+      const ms = document.createElement("span"); ms.className = "lc-ms"; ms.textContent = `${elapsed}ms`;
+      const open = document.createElement("span"); open.className = "lc-open"; open.setAttribute("aria-hidden", "true"); open.textContent = "↗";
+      row.append(method, url, pill, ms, open); net.append(row); net.scrollTop = net.scrollHeight;
     }
     go.addEventListener("click", resolve);
 

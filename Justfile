@@ -36,7 +36,7 @@ bootstrap ENDPOINT="":
     : "${EP:?pass an endpoint (just bootstrap <url>) or set SPARQL_ENDPOINT in .env}"
     just pm={{pm}} install
     just extract-labels "$EP"
-    just pm={{pm}} project="$P" bucket || true # ignore "bucket already exists"
+    just pm={{pm}} project="$P" bucket
     just pm={{pm}} project="$P" deploy
     just ingest
     just pm={{pm}} project="$P" upload
@@ -73,7 +73,12 @@ bucket:
     #!/usr/bin/env bash
     set -euo pipefail
     P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders bucket) or PROJECT in .env}"
-    {{run}} wrangler r2 bucket create "label-cache-$P"
+    BUCKETS="$({{run}} wrangler r2 bucket list)"
+    if grep -Fq "label-cache-$P" <<<"$BUCKETS"; then
+        echo "R2 bucket label-cache-$P already exists"
+    else
+        {{run}} wrangler r2 bucket create "label-cache-$P"
+    fi
 
 # Generate .wrangler.gen.toml for `project` from wrangler.toml, rewriting the
 # Worker name + bound bucket to label-cache-<project>. The R2 binding can't read
@@ -88,6 +93,15 @@ _gen:
 # Deploy this project's Worker (label-cache-<project>). Requires project=<name>.
 deploy: _gen
     {{run}} wrangler deploy -c .wrangler.gen.toml
+
+# Install the purge token as a Worker secret. Generate it first, for example:
+#   export PURGE_TOKEN="$(openssl rand -base64 48)"
+# Store the same token in the secret manager used by your seed job.
+purge-token-set: _gen
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${PURGE_TOKEN:?set a random PURGE_TOKEN before running this recipe}"
+    printf '%s' "$PURGE_TOKEN" | {{run}} wrangler secret put PURGE_TOKEN -c .wrangler.gen.toml
 
 # Seed the REAL R2 bucket via a throwaway --remote dev server, so no
 # seeding endpoint is exposed in production. Pass your deployed base URL, e.g.

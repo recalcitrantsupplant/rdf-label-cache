@@ -50,8 +50,9 @@ describe("/label", () => {
     const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
     expect(res.headers.get("Cache-Control")).toContain("immutable");
     const tag = res.headers.get("Cache-Tag") ?? "";
-    expect(tag).toContain("all");
+    expect(tag).toContain("labels");
     expect(tag).toContain("labels:skos");
+    expect(tag).not.toContain("all");
   });
 
   it("404s an unknown IRI", async () => {
@@ -67,6 +68,29 @@ describe("/label", () => {
     const body = (await res.json()) as any;
     expect(body.error).toBe("missing_param");
   });
+
+  it("rejects unknown and repeated query parameters", async () => {
+    const unknown = await SELF.fetch(`${labelUrl(SKOS_CONCEPT)}&nonce=123`);
+    expect(unknown.status).toBe(400);
+
+    const repeated = await SELF.fetch(`${labelUrl(SKOS_CONCEPT)}&iri=${encodeURIComponent(SKOS_CONCEPT)}`);
+    expect(repeated.status).toBe(400);
+  });
+
+  it("preserves a literal percent escape instead of decoding it twice", async () => {
+    const iri = "https://example.org/a%2Fb";
+    const res = await SELF.fetch(labelUrl(iri));
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as any;
+    expect(body.iri).toBe(iri);
+  });
+
+  it("rejects invalid IRI schemes and malformed language tags", async () => {
+    const badIri = await SELF.fetch(`${BASE}/label?iri=urn%3Aexample%3Aterm`);
+    expect(badIri.status).toBe(400);
+    const badLang = await SELF.fetch(`${labelUrl(SKOS_CONCEPT)}&lang=en/au`);
+    expect(badLang.status).toBe(400);
+  });
 });
 
 describe("/namespaces", () => {
@@ -80,6 +104,11 @@ describe("/namespaces", () => {
     // each entry exposes prefix + namespace (base URI)
     const skos = body.namespaces.find((n: any) => n.prefix === "skos");
     expect(skos.namespace).toBe("http://www.w3.org/2004/02/skos/core#");
+  });
+
+  it("does not advertise or serve per-namespace dumps", async () => {
+    const res = await SELF.fetch(`${BASE}/namespaces/skos`);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -96,6 +125,22 @@ describe("method handling", () => {
   it("405s a non-GET method", async () => {
     const res = await SELF.fetch(`${BASE}/namespaces`, { method: "POST" });
     expect(res.status).toBe(405);
+  });
+
+  it("supports CORS and HEAD on public read routes only", async () => {
+    const options = await SELF.fetch(`${BASE}/label`, { method: "OPTIONS" });
+    expect(options.status).toBe(204);
+    expect(options.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(options.headers.get("Allow")).toBe("GET, HEAD, OPTIONS");
+
+    const head = await SELF.fetch(labelUrl(SKOS_CONCEPT), { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(head.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(await head.text()).toBe("");
+
+    const admin = await SELF.fetch(`${BASE}/admin/purge`, { method: "OPTIONS" });
+    expect(admin.status).toBe(405);
+    expect(admin.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 });
 
@@ -118,5 +163,15 @@ describe("/admin/purge", () => {
   it("405s a GET on the purge endpoint", async () => {
     const res = await SELF.fetch(`${BASE}/admin/purge`);
     expect(res.status).toBe(405);
+  });
+
+  it("uses the scoped data tags by default", async () => {
+    const res = await SELF.fetch(`${BASE}/admin/purge`, {
+      method: "POST",
+      headers: { Authorization: "Bearer test-token" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.purged).toEqual(["labels", "context", "namespaces"]);
   });
 });
