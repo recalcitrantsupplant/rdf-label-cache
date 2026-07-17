@@ -12,7 +12,7 @@
 #                         (baked into each object's @context URL)
 #   R2_BUCKET             your bucket name, e.g. label-cache-<you> (no default -
 #                         always target your own bucket explicitly)
-#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY   R2 API token
+#   CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY   R2 API token
 #   PURGE_TOKEN           required to invalidate cached labels after upload
 #   LABELS_DIR            folder of RDF files to ingest (default: labels)
 #   INCLUDE_PUBLIC        non-empty = also seed the bundled public vocabularies
@@ -25,7 +25,7 @@ LABELS_DIR="${LABELS_DIR:-labels}"
 # credential doesn't surface only after parsing.
 : "${SEED_BASE:?set SEED_BASE (deployed origin, for the embedded @context URL)}"
 : "${R2_BUCKET:?set R2_BUCKET (your bucket name, e.g. label-cache-<you>)}"
-: "${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID (Cloudflare account id)}"
+: "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID (Cloudflare account id)}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID (from a Cloudflare R2 API token)}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY (from a Cloudflare R2 API token)}"
 : "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"

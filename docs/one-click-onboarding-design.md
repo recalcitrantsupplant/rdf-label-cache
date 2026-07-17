@@ -118,7 +118,7 @@ Actions**:
 |---|---|---|
 | Variable | `SEED_BASE` | deployed Worker URL from Phase 1 (`https://…workers.dev`) |
 | Variable | `R2_BUCKET` | their bucket name (button-generated, or `label-cache-<you>`) |
-| Secret | `R2_ACCOUNT_ID` | Cloudflare account id |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id |
 | Secret | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | from an R2 API token |
 | Secret | `PURGE_TOKEN` | same value installed on the Worker (`purge-token-set`) |
 

@@ -52,7 +52,7 @@ schema.org) is produced by the ingestion pipeline and uploaded to R2 over the S3
 ```bash
 export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
 export R2_BUCKET=label-cache-orders
-export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
+export CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 export PURGE_TOKEN=...           # same value installed with purge-token-set
 ./scripts/seed.sh            # = pnpm seed:ingest (fetch + parse) then pnpm seed:upload
 ```

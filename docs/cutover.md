@@ -93,7 +93,7 @@ just saw printed:
 ```
 PROJECT=demo
 SEED_BASE=https://label-cache-demo.dhabgood.workers.dev
-R2_ACCOUNT_ID=...
+CLOUDFLARE_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
 ```
@@ -137,8 +137,7 @@ The demo runs itself from the repo. Set these in the **maintainer repo**
 | Kind | Name | Value |
 |---|---|---|
 | Secret | `CLOUDFLARE_API_TOKEN` | the Cloudflare API token from Part 1 |
-| Secret | `CLOUDFLARE_ACCOUNT_ID` | your account ID |
-| Secret | `R2_ACCOUNT_ID` | account ID |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | your account ID (also the R2 S3 endpoint host) |
 | Secret | `R2_ACCESS_KEY_ID` | R2 token access key |
 | Secret | `R2_SECRET_ACCESS_KEY` | R2 token secret |
 | Secret | `PURGE_TOKEN` | *(optional)* cache-purge bearer token |

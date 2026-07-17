@@ -77,7 +77,7 @@ variables → Actions**:
 |---|---|---|
 | Variable | `SEED_BASE` | your deployed Worker URL (`https://…workers.dev`) |
 | Variable | `R2_BUCKET` | the bucket the button created |
-| Secret | `R2_ACCOUNT_ID` | Cloudflare account id (`wrangler whoami`, or the dashboard) |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id (`wrangler whoami`, or the dashboard) |
 | Secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | an R2 API token (dashboard → R2 → Manage API Tokens) |
 | Secret | `PURGE_TOKEN` | a random value — **also** add it as a *Worker* secret (dashboard → your Worker → Settings → Variables) so purges are accepted |
 
@@ -172,7 +172,7 @@ just ingest                    # data.ttl → dist/seed/manifest.ndjson
 just project=orders upload     # → R2, over the S3 API
 ```
 
-Raw shell instead? `SEED_BASE=… R2_BUCKET=… R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=…
+Raw shell instead? `SEED_BASE=… R2_BUCKET=… CLOUDFLARE_ACCOUNT_ID=… R2_ACCESS_KEY_ID=…
 R2_SECRET_ACCESS_KEY=… node scripts/ingest.mjs --input data.ttl && node
 scripts/upload-seed.mjs`.
 

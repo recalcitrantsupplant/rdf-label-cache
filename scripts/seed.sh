@@ -6,7 +6,7 @@
 #
 # Env (from GitHub Actions secrets, never inlined):
 #   SEED_BASE             deployed origin, e.g. https://label-cache-demo.<sub>.workers.dev
-#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+#   CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
 #   R2_BUCKET             bucket name (default: label-cache-demo, the demo instance)
 #   PURGE_TOKEN           required to purge cached labels after upload
 set -euo pipefail
@@ -18,7 +18,7 @@ export R2_BUCKET="${R2_BUCKET:-label-cache-demo}"
 # Fail fast: validate everything the run needs before the expensive ingest step,
 # so a missing credential doesn't surface only after fetching ~3k terms.
 : "${SEED_BASE:?set SEED_BASE (deployed origin, for the embedded @context URL)}"
-: "${R2_ACCOUNT_ID:?set R2_ACCOUNT_ID (Cloudflare account id)}"
+: "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID (Cloudflare account id)}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID (from a Cloudflare R2 API token)}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY (from a Cloudflare R2 API token)}"
 : "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"

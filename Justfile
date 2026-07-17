@@ -2,7 +2,7 @@
 # same vars in your shell - either way these are what the deploy + seed need:
 #   PROJECT               names your Worker + bucket, both label-cache-<PROJECT>
 #   SEED_BASE             your deployed Worker URL (https://<worker>.workers.dev)
-#   R2_ACCOUNT_ID         Cloudflare account id
+#   CLOUDFLARE_ACCOUNT_ID Cloudflare account id (also the R2 S3 endpoint host)
 #   R2_ACCESS_KEY_ID      R2 API token access key id
 #   R2_SECRET_ACCESS_KEY  R2 API token secret
 #   SPARQL_ENDPOINT       (optional) your triplestore, for `just bootstrap`
