@@ -157,6 +157,14 @@ triples are ignored.
 - Cross-file `(IRI, language)` collisions resolve by predicate list-order, then
   first-seen in sorted filename order — deterministic but worth documenting for
   users spreading one subject across files.
+- **Re-running is an upsert, not a mirror** (true of the whole pipeline, local or
+  CI). Ingest dedupes to exactly one object per `labels/{lang}/{iri}` key
+  (`collectLiterals` precedence + the `writeTerms` `seen` guard);
+  `upload-seed.mjs` `PUT`s each key (overwrite), so changed labels update in place
+  and re-runs are idempotent. But it never lists or deletes, so a label removed
+  from source is **not** pruned from R2 — the stale object lingers until purged.
+  A true mirror (list + diff + delete, or versioned key prefixes) is a deliberate
+  follow-up, not part of this path.
 
 ### 3.4 Mode 2 — SPARQL endpoint **(deferred — captured here)**
 

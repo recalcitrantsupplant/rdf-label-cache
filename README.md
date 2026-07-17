@@ -89,10 +89,42 @@ sets precedence when a subject carries several). Your app then resolves labels a
 production. Local R2 persists between runs (`.wrangler/state`); re-running overwrites
 by key, so changed labels update in place. Override the port with `PORT=8790`.
 
+## Run your own: two paths
+
+Two ways to stand up your own instance — pick by data size and how much local
+tooling you want.
+
+| | ⚡ Get started fast | 🏭 Larger datasets / production |
+|---|---|---|
+| **Seeding runs in** | GitHub Actions (browser only) | Your machine or your own CI |
+| **Local tooling** | None¹ | Node 22+, pnpm, `just` |
+| **Add your labels** | Drop RDF into the `labels/` folder, run the **seed-labels** workflow | `just` pipeline from a file or SPARQL endpoint |
+| **Best for** | Vocabularies, small/modest label sets, trying it out | Large dumps, frequent refreshes, full control |
+| **Projects** | One label cache per repo | Many, via `just project=<name>` |
+| **Details** | [one-click design](docs/one-click-onboarding-design.md) | [Getting started](#getting-started) · [DEPLOY.md](docs/DEPLOY.md) |
+
+**Fast path, in short:** deploy the Worker¹ → set your Cloudflare secrets/vars on
+the repo → drop RDF in [`labels/`](labels/) → **Actions → seed-labels → Run
+workflow**. No clone, no local Node.
+
+**Limitations of the fast path** — uploads run through GitHub Actions, so it's for
+**small/modest RDF** (vocabs, a few thousand terms), not large or high-frequency
+production loads. Runners have no VPN (a private SPARQL endpoint isn't reachable),
+and labels you commit live in git history. Re-running is an **upsert, not a
+mirror**: new and changed labels are written in place, but a label you remove from
+source is *not* deleted from R2. Large or serious deployments should use the
+production path below.
+
+¹ The Worker still has to be deployed first. A one-click *Deploy to Cloudflare*
+button (provisions the Worker + R2 bucket from a Cloudflare account alone) is on
+the [roadmap](#roadmap); until then a one-time `just project=<you> deploy` stands
+it up, after which all seeding can run from the Action.
+
 ## Getting started
 
-Cache the labels your app needs - your own IRIs plus the public-vocabulary terms
-your data uses - in five steps. Nothing ships pre-loaded; you populate R2 once.
+The **production / clone path**: cache the labels your app needs - your own IRIs
+plus the public-vocabulary terms your data uses - in five steps. Nothing ships
+pre-loaded; you populate R2 once.
 
 **1. Clone & install**
 
