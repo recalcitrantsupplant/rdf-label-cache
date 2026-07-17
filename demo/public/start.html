@@ -134,6 +134,7 @@
 <nav class="rail" aria-label="Getting started steps">
   <div class="rail-title">Getting started</div>
   <ol class="rail-steps">
+    <li><a href="#fast" data-step="fast"><b>⚡</b> Get started fast</a></li>
     <li><a href="#step-1" data-step="step-1"><b>1</b> Clone &amp; install</a></li>
     <li><a href="#step-2" data-step="step-2"><b>2</b> Dump annotation properties</a></li>
     <li><a href="#step-3" data-step="step-3"><b>3</b> Cloudflare &amp; credentials</a></li>
@@ -145,7 +146,23 @@
 <div class="wrap">
   <a class="back" href="/">← Home</a>
   <h1>Getting started</h1>
-  <p class="lede">Cache the labels your app needs - your own IRIs plus the public-vocabulary terms your data uses - in six steps. Nothing ships pre-loaded; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once.</p>
+  <p class="lede">Cache the labels your app needs - your own IRIs plus the public-vocabulary terms your data uses. Nothing ships pre-loaded; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once. Two paths, by data size:</p>
+
+  <div class="optbox" id="fast" style="border-left: 3px solid var(--accent);">
+    <h2 style="font-size: 18px; margin: 2px 0 6px;">⚡ Get started fast — no clone, no local Node</h2>
+    <p class="note">Deploy from the browser, then seed from a GitHub Action. Best for vocabularies and small/modest label sets. For large dumps or full control, use the clone + pipeline guide below.</p>
+    <p style="margin: 12px 0;"><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></p>
+    <ol class="note" style="margin: 8px 0 0; padding-left: 20px; line-height: 1.85;">
+      <li><strong>Deploy</strong> — the button provisions the Worker + R2 bucket and clones this repo into your GitHub.</li>
+      <li><strong>Add credentials</strong> on the repo (Settings → Secrets and variables → Actions): <code>SEED_BASE</code> and <code>R2_BUCKET</code> as Variables; <code>R2_ACCOUNT_ID</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>PURGE_TOKEN</code> as Secrets — also add <code>PURGE_TOKEN</code> as a <em>Worker</em> secret in the dashboard.</li>
+      <li><strong>Add labels</strong> — drop RDF into the <code>labels/</code> folder and commit (a full instance-data dump is fine; only label/description triples are extracted).</li>
+      <li><strong>Seed</strong> — Actions → <strong>seed-labels</strong> → Run workflow (tick <em>include public</em> for the bundled vocabularies).</li>
+    </ol>
+    <p class="note" style="margin-top: 10px;">Uploads run through GitHub Actions — for small/modest RDF, not large production loads; re-running is an upsert, not a mirror. <strong>The rest of this page is the production / clone path.</strong></p>
+  </div>
+
+  <h2 style="font-size: 19px; margin: 30px 0 4px; letter-spacing: -0.01em;">🏭 Larger datasets, production — the clone + pipeline guide</h2>
+  <p class="note">The six steps below give full control over concurrency, credentials, and multiple projects.</p>
 
   <div class="cmdtoggle">
     <span class="cmdtoggle-lbl">Commands:</span>

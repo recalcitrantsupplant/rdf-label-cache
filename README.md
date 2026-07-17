@@ -11,6 +11,12 @@ pointing it at your own R2 bucket.
 
 **▶ Live demo: https://label-cache-demo.dhabgood.workers.dev/**
 
+**⚡ Deploy your own** (Worker + R2 bucket, from a Cloudflare account alone), then
+seed your labels from a GitHub Action — no clone, no local tooling. Steps:
+[Get started fast ↓](#get-started-fast).
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
+
 ## API
 
 ```
@@ -35,96 +41,71 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design, and
 [`docs/FAQ.md`](docs/FAQ.md) for design rationale (including why "one request per label"
 is fine over HTTP/2/3).
 
-## Develop
-
-> Requires **Node 22+**, **pnpm** (or npm/bun), and **just** for the recipe-based
-> deployment path. Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
-> reproducible, age-pinned installs - but **npm** and **bun** work too. Swap
-> `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
-> `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
-> all three. For the `just` recipes, name your manager once and it threads through:
-> `just pm=npm bootstrap`.
-
-```bash
-pnpm install
-pnpm dev          # wrangler dev on :8787 (local emulated R2)
-just seed         # or: curl -s localhost:8787/dev/seed   - load sample labels
-pnpm test         # vitest suite (runs handlers on the real Workers runtime)
-pnpm typecheck
-```
-
-`/dev/seed` is disabled when `ENVIRONMENT=production`; `pnpm dev` overrides it to
-`development` so seeding works locally.
-
-To run the landing page and playground with seeded local R2 in one command:
-
-```bash
-just demo-local
-```
-
-It starts the demo asset configuration, waits for the Worker, seeds it plus the
-committed widget-label fixture, and serves the landing page at
-`http://localhost:8787/` (`/demo` is the playground).
-If that port is occupied, use `PORT=8790 just demo-local`.
-
-### Try it with your own data — no deploy
-
-Point the service at your own RDF and hit it locally, running the *same* Worker
-path production does (edge → R2 → 404) — no Cloudflare account, no deploy:
-
-```bash
-just dev-local                                     # ingests ./data.ttl
-INPUT=my.ttl just dev-local                         # a different Turtle file
-ENDPOINT=https://my-endpoint/sparql just dev-local  # extract from SPARQL first
-PUBLIC=1 just dev-local                             # also load bundled public vocab
-```
-
-The input can be a **full instance-data dump or a labels-only file** — non-label
-triples are ignored. Extraction keeps only the label/description predicates
-(`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`; `skos:definition`,
-`rdfs:comment`, `dcterms:description`, `schema:description` by default). Override per
-run with `ingest.mjs --label-preds`/`--desc-preds` (comma-separated IRIs; list order
-sets precedence when a subject carries several). Your app then resolves labels at
-`http://localhost:8787/label?iri=…`, and a genuine miss is a 404 — exactly as in
-production. Local R2 persists between runs (`.wrangler/state`); re-running overwrites
-by key, so changed labels update in place. Override the port with `PORT=8790`.
-
-## Run your own: two paths
+## Run your own
 
 Two ways to stand up your own instance — pick by data size and how much local
-tooling you want.
+tooling you want. Both end the same way: your labels in your own R2 bucket, served
+edge-cached. Nothing ships pre-loaded; you populate R2 once.
 
-| | ⚡ Get started fast | 🏭 Larger datasets / production |
+| | ⚡ Get started fast | 🏭 Larger datasets, production |
 |---|---|---|
 | **Seeding runs in** | GitHub Actions (browser only) | Your machine or your own CI |
 | **Local tooling** | None¹ | Node 22+, pnpm, `just` |
 | **Add your labels** | Drop RDF into the `labels/` folder, run the **seed-labels** workflow | `just` pipeline from a file or SPARQL endpoint |
 | **Best for** | Vocabularies, small/modest label sets, trying it out | Large dumps, frequent refreshes, full control |
 | **Projects** | One label cache per repo | Many, via `just project=<name>` |
-| **Details** | [one-click design](docs/one-click-onboarding-design.md) | [Getting started](#getting-started) · [DEPLOY.md](docs/DEPLOY.md) |
+| **Full steps** | [below ↓](#get-started-fast) | [below ↓](#larger-datasets-production) · [DEPLOY.md](docs/DEPLOY.md) |
 
-**Fast path, in short:** deploy the Worker¹ → set your Cloudflare secrets/vars on
-the repo → drop RDF in [`labels/`](labels/) → **Actions → seed-labels → Run
-workflow**. No clone, no local Node.
+### Get started fast
+
+No clone, no local Node — deploy from the browser, then seed from a GitHub Action.
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
+
+**1. Deploy the Worker + R2 bucket.** Click the button. Cloudflare provisions the
+Worker and its R2 bucket from `wrangler.toml` and **clones this repo into your own
+GitHub** — that clone is where you do the rest. It comes up **empty**: every
+`/label` 404s until you seed (steps 3–4). *(No button? A one-time
+`just project=<you> deploy` from a local clone stands up the same thing.)*
+
+**2. Add your Cloudflare credentials to the repo** — **Settings → Secrets and
+variables → Actions**:
+
+| Kind | Name | Value |
+|---|---|---|
+| Variable | `SEED_BASE` | your deployed Worker URL (`https://…workers.dev`) |
+| Variable | `R2_BUCKET` | the bucket the button created |
+| Secret | `R2_ACCOUNT_ID` | Cloudflare account id (`wrangler whoami`, or the dashboard) |
+| Secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | an R2 API token (dashboard → R2 → Manage API Tokens) |
+| Secret | `PURGE_TOKEN` | a random value — **also** add it as a *Worker* secret (dashboard → your Worker → Settings → Variables) so purges are accepted |
+
+**3. Add your labels.** Drop RDF files (Turtle/N-Triples/…) into the
+[`labels/`](labels/) folder and commit. A full instance-data dump is fine — only
+label/description triples are extracted. See [`labels/README.md`](labels/README.md).
+
+**4. Run the seed.** **Actions → seed-labels → Run workflow.** It ingests `labels/`,
+uploads to R2, and purges the edge. Tick **include public** to also seed the bundled
+public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org). Re-run any
+time you change `labels/`.
+
+**5. Consume from your app.** Plain edge-cached `GET`s — see the example in the
+production flow below and [`docs/consuming.md`](docs/consuming.md).
 
 **Limitations of the fast path** — uploads run through GitHub Actions, so it's for
 **small/modest RDF** (vocabs, a few thousand terms), not large or high-frequency
 production loads. Runners have no VPN (a private SPARQL endpoint isn't reachable),
 and labels you commit live in git history. Re-running is an **upsert, not a
 mirror**: new and changed labels are written in place, but a label you remove from
-source is *not* deleted from R2. Large or serious deployments should use the
-production path below.
+source is *not* deleted from R2. For anything larger, use the production path.
 
-¹ The Worker still has to be deployed first. A one-click *Deploy to Cloudflare*
-button (provisions the Worker + R2 bucket from a Cloudflare account alone) is on
-the [roadmap](#roadmap); until then a one-time `just project=<you> deploy` stands
-it up, after which all seeding can run from the Action.
+¹ The Worker itself is deployed by the button (or one `deploy` command); "no local
+tooling" refers to the seeding, which runs entirely in GitHub Actions thereafter.
 
-## Getting started
+### Larger datasets, production
 
-The **production / clone path**: cache the labels your app needs - your own IRIs
-plus the public-vocabulary terms your data uses - in five steps. Nothing ships
-pre-loaded; you populate R2 once.
+The **clone + pipeline path**: cache the labels your app needs - your own IRIs plus
+the public-vocabulary terms your data uses - in five steps, with full control over
+concurrency, credentials, and multiple projects (`just project=<name>`).
 
 **1. Clone & install**
 
@@ -223,6 +204,60 @@ instance for many apps: [`docs/consuming.md`](docs/consuming.md). Full runbook:
 [`docs/DEPLOY.md`](docs/DEPLOY.md). Rationale &amp; the alternatives this replaces: the
 demo's **Why RDF Label Cache?** page.
 
+## Develop
+
+> Requires **Node 22+**, **pnpm** (or npm/bun), and **just** for the recipe-based
+> deployment path. Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
+> reproducible, age-pinned installs - but **npm** and **bun** work too. Swap
+> `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
+> `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
+> all three. For the `just` recipes, name your manager once and it threads through:
+> `just pm=npm bootstrap`.
+
+```bash
+pnpm install
+pnpm dev          # wrangler dev on :8787 (local emulated R2)
+just seed         # or: curl -s localhost:8787/dev/seed   - load sample labels
+pnpm test         # vitest suite (runs handlers on the real Workers runtime)
+pnpm typecheck
+```
+
+`/dev/seed` is disabled when `ENVIRONMENT=production`; `pnpm dev` overrides it to
+`development` so seeding works locally.
+
+To run the landing page and playground with seeded local R2 in one command:
+
+```bash
+just demo-local
+```
+
+It starts the demo asset configuration, waits for the Worker, seeds it plus the
+committed widget-label fixture, and serves the landing page at
+`http://localhost:8787/` (`/demo` is the playground).
+If that port is occupied, use `PORT=8790 just demo-local`.
+
+### Try it with your own data — no deploy
+
+Point the service at your own RDF and hit it locally, running the *same* Worker
+path production does (edge → R2 → 404) — no Cloudflare account, no deploy:
+
+```bash
+just dev-local                                     # ingests ./data.ttl
+INPUT=my.ttl just dev-local                         # a different Turtle file
+ENDPOINT=https://my-endpoint/sparql just dev-local  # extract from SPARQL first
+PUBLIC=1 just dev-local                             # also load bundled public vocab
+```
+
+The input can be a **full instance-data dump or a labels-only file** — non-label
+triples are ignored. Extraction keeps only the label/description predicates
+(`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`; `skos:definition`,
+`rdfs:comment`, `dcterms:description`, `schema:description` by default). Override per
+run with `ingest.mjs --label-preds`/`--desc-preds` (comma-separated IRIs; list order
+sets precedence when a subject carries several). Your app then resolves labels at
+`http://localhost:8787/label?iri=…`, and a genuine miss is a 404 — exactly as in
+production. Local R2 persists between runs (`.wrangler/state`); re-running overwrites
+by key, so changed labels update in place. Override the port with `PORT=8790`.
+
 ## CI / releases
 
 - **CI** (`.github/workflows/ci.yml`) runs typecheck + tests on every push and PR.
@@ -252,9 +287,10 @@ private process in [SECURITY.md](SECURITY.md).
 Tracked in [`docs/architecture.md` §7](docs/architecture.md#7-open-questions--future-work).
 Headline items:
 
-- **One-click onboarding** — a *Deploy to Cloudflare* button (+ template repo / C3) to stand
-  up the Worker and bucket from a CF account alone, then a guided two-path seed (drop RDF in a
-  folder, or point at a SPARQL endpoint), each with an optional public-ontology top-up.
+- **One-click onboarding** — the *Deploy to Cloudflare* button and the file-folder
+  [seed Action](#get-started-fast) now ship. Remaining: the **SPARQL-endpoint** seed
+  mode and **Use this template** / C3 entries. Design:
+  [`docs/one-click-onboarding-design.md`](docs/one-click-onboarding-design.md).
 - **Native authentication for private deployments** — built-in access control so a private
   label set can protect itself without a platform auth layer in front (today auth is
   delegated to the edge; see [`docs/architecture.md` §6.4](docs/architecture.md#64-protecting-a-private-deployment-auth)).
