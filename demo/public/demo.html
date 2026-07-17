@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>RDF Label Cache - demo</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="/favicon-180.png" />
 <!-- Self-hosted N3 bundle (scripts/vendor-n3.sh); warm the single same-origin
      request early so the auto-render on load isn't gated on a cold fetch. -->
 <link rel="modulepreload" href="/vendor/n3.mjs" />
@@ -37,6 +41,7 @@
   .why-link:hover { text-decoration: underline; }
   .head-cta { padding: 6px 12px; border-radius: 7px; background: var(--accent); color: #fff !important; }
   .head-cta:hover { text-decoration: none; opacity: 0.92; }
+  .ico { width: 1.05em; height: 1.05em; vertical-align: -0.16em; }
   main { display: grid; grid-template-columns: 0.9fr 1.15fr 1fr; gap: 0; height: calc(100% - 66px); }
   @media (max-width: 1000px) { main { grid-template-columns: 1fr; height: auto; } }
   .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -136,7 +141,7 @@
 <header>
   <div class="head-main">
     <h1>RDF Label Cache <span class="info"><button type="button" class="info-btn" aria-label="What this does">i</button><span class="info-pop">Opaque RDF IRIs become human-readable labels, served from a globally edge-cached CDN. Paste Turtle on the left: it renders those labels — plus any labels you provide in your own RDF. An IRI with no label shows as a CURIE (when your Turtle declares a matching prefix) or the full IRI.</span></span></h1>
-    <span class="head-links"><a class="why-link" href="/">← Home</a> <a class="why-link" href="/why">Why RDF Label Cache?</a> <a class="why-link head-cta" href="/start">Getting started →</a></span>
+    <span class="head-links"><a class="why-link" href="/"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6"/><path d="M12 5l-7 7 7 7"/></svg> Home</a> <a class="why-link" href="/why">Why RDF Label Cache?</a> <a class="why-link head-cta" href="/start">Getting started <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></span>
   </div>
 </header>
 <main>
