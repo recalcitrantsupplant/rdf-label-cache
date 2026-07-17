@@ -7,11 +7,15 @@
 // stay distinct).
 //
 // Env (from GitHub Actions secrets, never inlined):
-//   R2_ACCOUNT_ID         Cloudflare account id (→ S3 endpoint host)
+//   CLOUDFLARE_ACCOUNT_ID Cloudflare account id (→ S3 endpoint host)
 //   R2_ACCESS_KEY_ID      R2 API token access key id
 //   R2_SECRET_ACCESS_KEY  R2 API token secret
 //   R2_BUCKET             bucket name, e.g. label-cache-<project>
 //   CONCURRENCY           parallel PUTs (default: 32)
+//   FORCE_CONTEXT         PRE-RELEASE ESCAPE HATCH. Truthy = overwrite an existing
+//                         context/labels-v1.json in place even when it changed,
+//                         instead of refusing. Safe only while no consumer has
+//                         pinned the URL; once public, bump to -v2 and NEVER force.
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,25 +25,29 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST = join(ROOT, "dist", "seed", "manifest.ndjson");
 
 const {
-  R2_ACCOUNT_ID,
+  CLOUDFLARE_ACCOUNT_ID,
   R2_ACCESS_KEY_ID,
   R2_SECRET_ACCESS_KEY,
   R2_BUCKET,
   CONCURRENCY = "32",
 } = process.env;
 
+// Pre-release only: allow overwriting the "immutable" context in place. Off by
+// default so the guard below stays the norm.
+const FORCE_CONTEXT = /^(1|true|yes)$/i.test(process.env.FORCE_CONTEXT ?? "");
+
 // Fail fast: report every missing value at once, not one per run. R2_BUCKET is
 // explicit (no default) so uploads always target the same bucket the Worker is
 // bound to — per project, that's label-cache-<project>.
-const missing = Object.entries({ R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET })
+const missing = Object.entries({ CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET })
   .filter(([, v]) => !v)
   .map(([k]) => k);
 if (missing.length) {
-  console.error(`Missing required env: ${missing.join(", ")} (R2_* from a Cloudflare R2 API token; R2_BUCKET is your bucket name, e.g. label-cache-<project>)`);
+  console.error(`Missing required env: ${missing.join(", ")} (CLOUDFLARE_ACCOUNT_ID is your Cloudflare account id; R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY from a Cloudflare R2 API token; R2_BUCKET is your bucket name, e.g. label-cache-<project>)`);
   process.exit(1);
 }
 
-const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
+const endpoint = `https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
 const aws = new AwsClient({ accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, region: "auto", service: "s3" });
 
 function objectUrl(key) {
@@ -64,8 +72,13 @@ async function ensureImmutableContext(record) {
   }
   if (!res.ok) throw new Error(`GET ${record.key} → ${res.status} ${await res.text().catch(() => "")}`);
   if ((await res.text()) !== record.body) {
+    if (FORCE_CONTEXT) {
+      await putObject(record.key, record.body);
+      console.warn(`⚠ FORCE_CONTEXT: overwrote ${record.key} in place. Only safe pre-release - bump to a new version (-v2) once the URL is pinned by consumers.`);
+      return;
+    }
     throw new Error(
-      `Refusing to overwrite immutable context ${record.key}. Publish a new context version and regenerate labels instead.`
+      `Refusing to overwrite immutable context ${record.key}. Publish a new context version and regenerate labels instead. (Pre-release: set FORCE_CONTEXT=1 to overwrite in place.)`
     );
   }
   console.log(`Verified immutable context: ${record.key}`);

@@ -248,7 +248,7 @@
           <dd>Your Worker's URL. Dashboard → <strong>Workers &amp; Pages</strong> → your Worker → copy the <code>*.workers.dev</code> URL.</dd>
           <dt>R2_BUCKET</dt>
           <dd>The bucket the deploy created for you. Dashboard → <strong>R2</strong> → your bucket's name.</dd>
-          <dt>R2_ACCOUNT_ID</dt>
+          <dt>CLOUDFLARE_ACCOUNT_ID</dt>
           <dd>Dashboard → <strong>R2</strong> → <strong>Overview</strong> - the account ID is in the right sidebar (or run <code>wrangler whoami</code>).</dd>
           <dt>R2_ACCESS_KEY_ID<br>R2_SECRET_ACCESS_KEY</dt>
           <dd>An R2 API token: dashboard → <strong>R2</strong> → <strong>Manage R2 API Tokens</strong> → <strong>Create API Token</strong> with <em>Object Read &amp; Write</em>. The secret is shown only once.</dd>
@@ -455,7 +455,7 @@ just project=orders deploy        # prints your Cloudflare Worker URL → SEED_B
           <dd>Names your Worker + bucket, both <code>label-cache-&lt;PROJECT&gt;</code>. Required by every Cloudflare recipe; pick one per app.</dd>
           <dt>SEED_BASE</dt>
           <dd>Your deployed Cloudflare Worker URL, e.g. <code>https://label-cache-&lt;PROJECT&gt;.&lt;subdomain&gt;.workers.dev</code> - printed by <code>wrangler deploy</code> in step&nbsp;3.</dd>
-          <dt>R2_ACCOUNT_ID</dt>
+          <dt>CLOUDFLARE_ACCOUNT_ID</dt>
           <dd>Your Cloudflare account id - right sidebar of the <a href="https://dash.cloudflare.com/">dashboard</a>, or run <code>wrangler whoami</code>.</dd>
           <dt>R2_ACCESS_KEY_ID<br>R2_SECRET_ACCESS_KEY</dt>
           <dd>The R2 API token you created in step&nbsp;3 (<em>Object Read &amp; Write</em>). The secret is shown only once.</dd>
@@ -472,7 +472,7 @@ just project=orders deploy        # prints your Cloudflare Worker URL → SEED_B
       <h2>Generate &amp; upload your label objects</h2>
       <pre class="cmd shell"><code>export SEED_BASE=https://label-cache-orders.&lt;subdomain&gt;.workers.dev
 export R2_BUCKET=label-cache-orders
-export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
+export CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
       <pre class="cmd just"><code># PROJECT + SEED_BASE + R2_* come from your .env (see .env.example)

@@ -43,7 +43,7 @@ jobs:
           SEED_BASE: ${{ vars.SEED_BASE }}
           R2_BUCKET: ${{ vars.R2_BUCKET }}
           # Set these as repository Secrets (same page → Secrets).
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           PURGE_TOKEN: ${{ secrets.PURGE_TOKEN }}

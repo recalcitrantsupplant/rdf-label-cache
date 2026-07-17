@@ -1,0 +1,120 @@
+# ops/Justfile - maintainer cutover operations for the DEPLOYED demo instance
+# (label-cache-demo). Run from the repo root:  just -f ops/Justfile <recipe>
+#
+# WHY THIS EXISTS
+# The faithful-ingestion change alters two things the live demo serves:
+#   1. the object SHAPE in R2 - each predicate now under its own JSON-LD term
+#      (no coercion to prefLabel; multi-valued terms are arrays), and
+#   2. the demo WIDGET JS - a static asset the demo Worker ships.
+# Cutting the live demo over therefore needs a Worker redeploy (ships the asset),
+# an R2 re-seed (rewrites every object), AND a cache purge. `demo-cutover` does
+# all three in order, then verifies the deployed instance is serving the new shape.
+#
+# WHY NO DELETE STEP
+# Re-seed is a safe upsert: keys are unchanged (labels/{lang}/{iri}), so new
+# bodies overwrite old ones in place, and the new predicate set is a SUPERSET of
+# the old (adds altLabel + standalone descriptions), so nothing is orphaned. A
+# plain re-seed + purge is a COMPLETE cutover for this change - no mirror needed.
+#
+# ENV (from your .env at the repo root, or exported in the shell - the same vars
+# the main Justfile and scripts/seed.sh already use, nothing demo-specific):
+#   SEED_BASE              deployed demo origin (baked into each object's @context),
+#                          e.g. https://label-cache-demo.<subdomain>.workers.dev
+#   CLOUDFLARE_API_TOKEN   API token for wrangler, used by scripts/deploy-demo.sh
+#   CLOUDFLARE_ACCOUNT_ID  your account id - used for BOTH deploy and the R2 S3
+#                          endpoint host (R2's account id IS the Cloudflare one)
+#   R2_ACCESS_KEY_ID       \  an R2 API token's S3 key + secret - NOT the API token
+#   R2_SECRET_ACCESS_KEY   /  above; create under R2 -> Manage R2 API Tokens
+#   PURGE_TOKEN            required to invalidate cached labels/context after seed
+#
+# Requires `pnpm` on PATH for the deploy step (`corepack enable` provides it) and
+# `jq` + `python3` for verify. `demo-deploy` publishes the CURRENT checkout, so
+# run it from the branch/commit whose behaviour you want the demo to match.
+set dotenv-load := true
+# This justfile lives in ops/, but every script + config it drives (scripts/,
+# .env, demo/) is at the repo ROOT. Run recipes from the root (../ relative to
+# this file) so ./scripts/... and .env resolve no matter where `just -f
+# ops/Justfile` is invoked from. Requires just >= 1.33.
+set working-directory := ".."
+
+# The demo's Worker + bucket are both named label-cache-demo (see
+# demo/wrangler.demo.toml and scripts/seed.sh's default).
+bucket := "label-cache-demo"
+
+# `just -f ops/Justfile` with no recipe lists what's here.
+default:
+    @just -f {{justfile()}} --list
+
+# Each step below is also runnable on its own.
+# Full cutover of the live demo: redeploy (asset) -> re-seed R2 (new shape) -> verify.
+demo-cutover:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${SEED_BASE:?set SEED_BASE (deployed demo origin) in .env or the shell}"
+    just -f {{justfile()}} demo-deploy
+    just -f {{justfile()}} demo-seed
+    just -f {{justfile()}} verify "$SEED_BASE"
+    echo "✓ demo cut over to the faithful-ingestion shape"
+
+# scripts/deploy-demo.sh is idempotent and (re)creates the bucket if missing.
+# Redeploy the demo Worker + static assets (ships the widget JS); no R2 data change.
+demo-deploy:
+    ./scripts/deploy-demo.sh
+
+# Thin wrapper over scripts/seed.sh; every object at labels/{lang}/{iri} is overwritten.
+# Re-ingest public vocab in the NEW shape, upload to the demo bucket, and purge.
+# R2_BUCKET is pinned so a stray R2_BUCKET in .env can't misdirect the seed.
+demo-seed:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${SEED_BASE:?set SEED_BASE (deployed demo origin) in .env or the shell}"
+    R2_BUCKET="{{bucket}}" ./scripts/seed.sh
+
+# Browsers still refresh on their own within their short max-age.
+# Purge the edge cache (labels,context) WITHOUT re-seeding - e.g. after an out-of-band upload.
+demo-purge:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${SEED_BASE:?set SEED_BASE (deployed demo origin) in .env or the shell}"
+    : "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"
+    B="${SEED_BASE%/}"
+    RESP="$(curl -fsS -X POST -H "Authorization: Bearer $PURGE_TOKEN" "$B/admin/purge?tags=labels,context")"
+    echo "$RESP"
+    grep -q '"applied":true' <<<"$RESP" \
+        || { echo "ERROR: purge was not applied - is the Worker's [cache] binding enabled?" >&2; exit 1; }
+
+# Assert a DEPLOYED instance is serving the NEW faithful shape, so you can tell a
+# cutover actually landed. Two probes:
+#   1. context/labels-v1.json defines the `description` term (context re-seeded), and
+#   2. skos:Concept is kept under its real predicate `label` (rdfs:label), NOT
+#      coerced to `prefLabel` (data re-seeded).
+# Assert a DEPLOYED base URL is serving the new faithful shape (context + data).
+verify BASE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    B="{{BASE}}"; B="${B%/}"
+    : "${B:?usage: just -f ops/Justfile verify <base-url>}"
+    enc() { python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"; }
+    fail=0
+
+    echo "==> context/labels-v1.json defines the 'description' term"
+    CTX="$(curl -fsS "$B/context/labels-v1.json")"
+    if jq -e '.["@context"].description["@id"] == "dcterms:description"' >/dev/null <<<"$CTX"; then
+        echo "   PASS"
+    else
+        echo "   FAIL - context not re-seeded (no 'description' term). Run demo-seed." >&2; fail=1
+    fi
+
+    echo "==> skos:Concept kept under rdfs:label (not coerced to prefLabel)"
+    DOC="$(curl -fsS "$B/label?iri=$(enc 'http://www.w3.org/2004/02/skos/core#Concept')")"
+    if jq -e 'has("label")' >/dev/null <<<"$DOC"; then
+        echo "   PASS ($(jq -c '{label: .label, prefLabel: .prefLabel}' <<<"$DOC"))"
+    else
+        echo "   FAIL - data still coerced (no 'label' term). Got keys: $(jq -c 'keys' <<<"$DOC")" >&2; fail=1
+    fi
+
+    if [ "$fail" = 0 ]; then
+        echo "✓ $B is serving the faithful shape"
+    else
+        echo "✗ cutover incomplete - see FAILs above" >&2; exit 1
+    fi
