@@ -62,7 +62,7 @@
   .path.fast { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
   .path-h { margin: 0 0 4px; font-size: 17px; }
   .path-sub { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
-  .cfbtn { display: inline-block; margin: 10px 0 2px; }
+  .cfbtn { display: inline-block; margin: 6px 0 8px; }
   .cfbtn img { display: block; border-radius: 10px; }
   .path .steps { margin-top: 2px; }
   .path .st { padding: 12px 0; }
@@ -120,7 +120,7 @@
         <h3 class="path-h">Get started fast</h3>
         <p class="path-sub">No clone, no local Node — deploy from the browser, seed from a GitHub Action. Best for vocabularies &amp; small/modest label sets.</p>
         <div class="steps">
-          <div class="st"><span class="n">1</span><div><h3>Deploy</h3><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p><a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></div></div>
+          <div class="st"><span class="n">1</span><div><h3>Deploy</h3><a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p></div></div>
           <div class="st"><span class="n">2</span><div><h3>Add credentials</h3><p>Set <code>SEED_BASE</code> + <code>R2_BUCKET</code> and the R2 / purge secrets on the repo.</p></div></div>
           <div class="st"><span class="n">3</span><div><h3>Add labels</h3><p>Drop RDF into the <code>labels/</code> folder and commit.</p></div></div>
           <div class="st"><span class="n">4</span><div><h3>Run the seed</h3><p><strong>Actions → seed-labels → Run workflow.</strong> Optionally tick “include common ontology labels”.</p></div></div>
