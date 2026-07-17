@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types",
     "vendor:n3": "./scripts/vendor-n3.sh",
+    "vendor:label-client": "./scripts/vendor-label-client.sh",
     "seed:ingest": "node scripts/ingest.mjs",
     "seed:upload": "node scripts/upload-seed.mjs",
     "prepare": "husky"
