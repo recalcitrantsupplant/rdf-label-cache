@@ -4,6 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Why RDF Label Cache?</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="/favicon-180.png" />
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
@@ -24,6 +28,7 @@
   .wrap { max-width: 760px; margin: 0 auto; padding: 32px 24px 80px; }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
+  .ico { width: 1.05em; height: 1.05em; vertical-align: -0.16em; }
   .back { font-size: 13px; }
   .kicker { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 5px 12px; border-radius: 999px; margin: 22px 0 0; }
   h1 { font-size: 34px; letter-spacing: -0.025em; line-height: 1.15; margin: 14px 0 10px; }
@@ -71,7 +76,7 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="/">← Home</a>
+  <a class="back" href="/"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6"/><path d="M12 5l-7 7 7 7"/></svg> Home</a>
   <span class="kicker">The case for RDF Label Cache</span>
   <h1>Why RDF Label Cache?</h1>
   <p class="lede">Presenting RDF in a human readable form requires retrieving labels for all IRIs.</p>
@@ -119,15 +124,15 @@
     <div class="diagram">
       <div class="lane"><span class="tag">Data</span>
         <span class="box app">Your app</span>
-        <span class="arrow">- query <b>→</b></span>
+        <span class="arrow">query <b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></b></span>
         <span class="box kg">Knowledge graph</span>
-        <span class="arrow"><b>←</b> results (opaque IRIs)</span>
+        <span class="arrow"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6"/><path d="M12 5l-7 7 7 7"/></svg></b> results (opaque IRIs)</span>
       </div>
       <div class="lane"><span class="tag">Labels</span>
         <span class="box app">Your app</span>
-        <span class="arrow">- <b>GET /label?iri=…</b> →</span>
+        <span class="arrow"><b>GET /label?iri=…</b> <b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></b></span>
         <span class="box cache">Label cache</span>
-        <span class="arrow">→ edge cache → R2</span>
+        <span class="arrow"><b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></b> edge cache <b><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></b> R2</span>
       </div>
       <div class="caption">Labels come from a globally distributed <strong>edge CDN</strong>, not your triplestore.</div>
     </div>
@@ -167,7 +172,7 @@
     </div>
   </div>
 
-  <p class="foot"><a href="/demo">← Try the demo</a> &nbsp;·&nbsp; <a href="/start">Getting started</a> &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/rdf-label-cache">Source &amp; design docs</a></p>
+  <p class="foot"><a href="/demo"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H6"/><path d="M12 5l-7 7 7 7"/></svg> Try the demo</a> &nbsp;·&nbsp; <a href="/start">Getting started</a> &nbsp;·&nbsp; <a href="https://github.com/recalcitrantsupplant/rdf-label-cache">Source &amp; design docs</a></p>
 </div>
 </body>
 </html>

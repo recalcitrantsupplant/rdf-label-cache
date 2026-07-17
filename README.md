@@ -13,9 +13,9 @@ pointing it at your own R2 bucket.
 
 **Deploy your own** (Worker + R2 bucket, from a Cloudflare account alone), then
 seed your labels from a GitHub Action — no clone, no local tooling. Steps:
-[Get started fast ↓](#get-started-fast).
+[Get started fast](#get-started-fast).
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
+[![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
 
 ## API
 
@@ -54,13 +54,13 @@ edge-cached. Nothing ships pre-loaded; you populate R2 once.
 | **Add your labels** | Drop RDF into the `labels/` folder, run the **seed-labels** workflow | `just` pipeline from a file or SPARQL endpoint |
 | **Best for** | Vocabularies, small/modest label sets, trying it out | Large label sets, frequent refreshes, robust sync | 
 | **Projects** | One label cache per repo | Many, via `just project=<name>` |
-| **Full steps** | [below ↓](#get-started-fast) | [below ↓](#larger-datasets) · [DEPLOY.md](docs/DEPLOY.md) |
+| **Full steps** | [below](#get-started-fast) | [below](#larger-datasets) · [DEPLOY.md](docs/DEPLOY.md) |
 
 ### Get started fast
 
 No clone, no local Node — deploy from the browser, then seed from a GitHub Action.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
+[![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
 
 **1. Deploy the Worker + R2 bucket.** Click the button. Cloudflare provisions the
 Worker and its R2 bucket from `wrangler.toml` and **clones this repo into your own
@@ -138,8 +138,8 @@ WHERE {
 ```
 
 This grabs both your own entities' labels and any public-vocabulary terms your data
-references. Any RDF file works - no triplestore required for small data. Prefer whole
-public vocabularies instead? Run `just seed-public` (no dump needed).
+references. Any RDF file works - no triplestore required for small data. Want to
+include common ontology labels (DCAT, SKOS etc.) as well? Run `just seed-public`.
 
 **3. Set up Cloudflare**
 
