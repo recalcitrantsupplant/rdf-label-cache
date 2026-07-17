@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.6.0...rdf-label-cache-v0.7.0) (2026-07-17)
+
+
+### Features
+
+* **cache:** add stale-while-revalidate to label responses ([6b77fd1](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/6b77fd1b35bfbd64873cb3b9fdd22322a516d64f))
+* **cache:** add stale-while-revalidate to label responses ([cacd90a](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/cacd90af2b151e4f09167ab82ddd21493a1deca4))
+* **demo:** favicons and landing-page polish ([dd1e5cd](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/dd1e5cda22a33319e4891b620b712cd369729215))
+* **demo:** one-click onboarding — getting-started guide + landing polish ([0ab0435](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/0ab0435c64060a3f287f83fe769f0837ecd686eb))
+* **demo:** restructure the getting-started guide into two paths ([f6c9c5d](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/f6c9c5d0a813db5bf6a00604e8412545bac5bd33))
+* **demo:** sidebar "you are here" getting-started guide ([10af0fd](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/10af0fd0dff1583d0afacede4ba5049b78f9a075))
+* **seed:** fork-friendly GitHub Action seed path + one-click design doc ([8aa83b2](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/8aa83b2b70dbcf12101f3ca4883e816eb34db2a2))
+* **seed:** fork-friendly GitHub Action seed path + one-click onboarding design ([44980bf](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/44980bfd315a85b99ca033b75cbaf9df88cdddb2))
+
 ## [0.6.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.5.0...rdf-label-cache-v0.6.0) (2026-07-16)
 
 
