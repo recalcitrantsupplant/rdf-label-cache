@@ -1,0 +1,49 @@
+name: seed-labels
+
+# Seed YOUR labels into your R2 bucket from a folder of RDF files (the file-based
+# Phase-2 seed path). Unlike `seed.yml` (maintainer-only public-vocab refresh),
+# this runs in ANY fork: add the Cloudflare secrets/variables below, drop RDF in
+# labels/, then Actions tab → Run workflow. Manual only - never on push - so a
+# fork's secrets are never exposed to an untrusted contribution.
+# See docs/one-click-onboarding-design.md.
+on:
+  workflow_dispatch:
+    inputs:
+      labels_dir:
+        description: Folder of RDF label files to ingest
+        default: labels
+        type: string
+      include_public:
+        description: Also seed common ontology labels (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ./scripts/seed-labels.sh
+        env:
+          LABELS_DIR: ${{ inputs.labels_dir }}
+          # workflow_dispatch booleans arrive as strings; map to the non-empty
+          # flag scripts/seed-labels.sh expects (and '' when unchecked).
+          INCLUDE_PUBLIC: ${{ inputs.include_public && '1' || '' }}
+          # Set these as repository Variables (Settings → Secrets and variables →
+          # Actions → Variables). SEED_BASE is your deployed Worker URL.
+          SEED_BASE: ${{ vars.SEED_BASE }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          # Set these as repository Secrets (same page → Secrets).
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PURGE_TOKEN: ${{ secrets.PURGE_TOKEN }}

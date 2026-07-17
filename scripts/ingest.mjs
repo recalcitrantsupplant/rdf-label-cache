@@ -24,13 +24,19 @@
 //   node ingest.mjs                     all public vocabularies
 //   node ingest.mjs --only skos,rdf     just those vocabularies
 //   node ingest.mjs --input data.ttl    your own RDF dump instead
+//   node ingest.mjs --input labels/     every RDF file in a folder (multi-file)
+//
+// `--input` accepts a single RDF file OR a directory. A directory ingests every
+// RDF file inside it (see RDF_EXTS) in sorted order, merging their quads before
+// extraction - the drop-a-folder-of-labels convention the GitHub Action seed
+// path uses (see docs/one-click-onboarding-design.md).
 //
 // Label/description predicates default to the JSON-LD context's families (see
 // DEFAULT_LABEL_PREDS / DEFAULT_DESC_PREDS, kept in sync with extract-labels.rq).
 // Override per run: `--label-preds <iri,…>` / `--desc-preds <iri,…>` (list order =
 // priority when one subject has several).
-import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readFile, writeFile, mkdir, rm, stat, readdir } from "node:fs/promises";
+import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import N3 from "n3";
 
@@ -200,11 +206,39 @@ async function ingestSource(src) {
   return toRecords(labels, defs);
 }
 
-// A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props):
-// every labelled subject IRI is emitted - keying is namespace-agnostic, so no
-// registration is needed.
-async function ingestDump(file) {
-  const { labels, defs } = collectLiterals(await parseRDF(await readFile(file, "utf8")), () => true);
+// RDF file extensions ingested from an `--input` directory. N3's parser is a
+// superset of Turtle/N-Triples/TriG/N-Quads, so those all parse; JSON-LD does
+// not and is deliberately excluded. Non-RDF files (e.g. a README) are skipped.
+const RDF_EXTS = new Set([".ttl", ".turtle", ".nt", ".n3", ".nq", ".trig"]);
+
+// Resolve `--input` to the list of files to parse: a single file stays itself;
+// a directory expands to its RDF files in sorted (deterministic) order.
+async function resolveInputFiles(input) {
+  if (!(await stat(input)).isDirectory()) return [input];
+  const entries = await readdir(input, { withFileTypes: true });
+  const files = entries
+    .filter((e) => e.isFile() && RDF_EXTS.has(extname(e.name).toLowerCase()))
+    .map((e) => join(input, e.name))
+    .sort();
+  if (!files.length) {
+    throw new Error(`No RDF files (${[...RDF_EXTS].join(", ")}) in ${input}/`);
+  }
+  return files;
+}
+
+// A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props), or a
+// folder of them: every labelled subject IRI is emitted - keying is namespace-
+// agnostic, so no registration is needed. Quads from all files are merged before
+// extraction, so cross-file (IRI, language) precedence follows the same predicate
+// list-order rule; ties keep the first literal seen in sorted file order.
+async function ingestDump(input) {
+  const files = await resolveInputFiles(input);
+  const quads = [];
+  for (const file of files) {
+    if (files.length > 1) process.stdout.write(`    + ${file}\n`);
+    quads.push(...(await parseRDF(await readFile(file, "utf8"))));
+  }
+  const { labels, defs } = collectLiterals(quads, () => true);
   return toRecords(labels, defs);
 }
 

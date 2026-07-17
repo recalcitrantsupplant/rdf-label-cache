@@ -1,11 +1,12 @@
 name: seed
 
-# Ingest common ontologies and upload label data to R2. Manual, plus a monthly
-# refresh. Maintainer repo only - needs Cloudflare R2 secrets, which forks lack.
+# Refresh the maintainer DEMO instance's public-vocabulary labels in R2. Manual
+# (on demand): there's no automatic data drift to chase - releases deploy code,
+# not data (scripts/deploy-demo.sh), so upstream vocab changes are picked up
+# whenever this is run. Maintainer repo only - needs the demo's Cloudflare R2
+# secrets, which forks lack. Forks self-serve via seed-labels.yml instead.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 4 1 * *" # 04:00 UTC on the 1st of each month
 
 permissions:
   contents: read
