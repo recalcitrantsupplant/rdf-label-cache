@@ -138,8 +138,8 @@ WHERE {
 ```
 
 This grabs both your own entities' labels and any public-vocabulary terms your data
-references. Any RDF file works - no triplestore required for small data. Prefer whole
-public vocabularies instead? Run `just seed-public` (no dump needed).
+references. Any RDF file works - no triplestore required for small data. Want to
+include common ontology labels (DCAT, SKOS etc.) as well? Run `just seed-public`.
 
 **3. Set up Cloudflare**
 
