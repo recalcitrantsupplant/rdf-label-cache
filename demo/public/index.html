@@ -50,7 +50,7 @@
   td.bad { color: var(--bad); } td.good { color: var(--good); font-weight: 600; }
   tr.win { background: var(--accent-soft); } tr.win td:first-child { font-weight: 700; }
   .deploy { max-width: 720px; }
-  .dephead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .dephead { display: flex; align-items: center; gap: 14px; }
   .dephead h3 { margin: 0; }
   .dephead .cfbtn { margin: 0; flex-shrink: 0; }
   .steps { counter-reset: n; margin-top: 8px; }
@@ -123,7 +123,7 @@
         <h3 class="path-h">Get started fast</h3>
         <p class="path-sub">No clone, no local Node — deploy from the browser, seed from a GitHub Action. Best for vocabularies &amp; small/modest label sets.</p>
         <div class="steps">
-          <div class="st"><span class="n">1</span><div><div class="dephead"><h3>Deploy</h3><a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></div><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p></div></div>
+          <div class="st"><span class="n">1</span><div><div class="dephead"><h3>Deploy</h3><a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache" target="_blank" rel="noopener noreferrer"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></div><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p></div></div>
           <div class="st"><span class="n">2</span><div><h3>Add credentials</h3><p>Set <code>SEED_BASE</code> + <code>R2_BUCKET</code> and the R2 / purge secrets on the repo.</p></div></div>
           <div class="st"><span class="n">3</span><div><h3>Add labels</h3><p>Drop RDF into the <code>labels/</code> folder and commit.</p></div></div>
           <div class="st"><span class="n">4</span><div><h3>Run the seed</h3><p><strong>Actions → seed-labels → Run workflow.</strong> Optionally tick “include common ontology labels”.</p></div></div>

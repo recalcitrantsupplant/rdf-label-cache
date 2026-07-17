@@ -151,7 +151,7 @@
   <div class="optbox" id="fast" style="border-left: 3px solid var(--accent);">
     <h2 style="font-size: 18px; margin: 2px 0 6px;">Get started fast — no clone, no local Node</h2>
     <p class="note">Deploy from the browser, then seed from a GitHub Action. Best for vocabularies and small/modest label sets. For large dumps or full control, use the clone + pipeline guide below.</p>
-    <p style="margin: 12px 0;"><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></p>
+    <p style="margin: 12px 0;"><a href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache" target="_blank" rel="noopener noreferrer"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></p>
     <ol class="note" style="margin: 8px 0 0; padding-left: 20px; line-height: 1.85;">
       <li><strong>Deploy</strong> — the button provisions the Worker + R2 bucket and clones this repo into your GitHub.</li>
       <li><strong>Add credentials</strong> on the repo (Settings → Secrets and variables → Actions): <code>SEED_BASE</code> and <code>R2_BUCKET</code> as Variables; <code>R2_ACCOUNT_ID</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>PURGE_TOKEN</code> as Secrets — also add <code>PURGE_TOKEN</code> as a <em>Worker</em> secret in the dashboard.</li>
