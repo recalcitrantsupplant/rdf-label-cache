@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.7.0...rdf-label-cache-v0.8.0) (2026-07-17)
+
+
+### Features
+
+* **ingest:** store each label predicate faithfully, not coerced to prefLabel ([f745970](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/f7459707e0ffd85c9dd44800370bc06ead429639))
+
 ## [0.7.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.6.0...rdf-label-cache-v0.7.0) (2026-07-17)
 
 
