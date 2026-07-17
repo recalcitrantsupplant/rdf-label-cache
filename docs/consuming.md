@@ -13,13 +13,29 @@ not depend on each other, so resolve them **concurrently** — never one at a ti
 Cloudflare's HTTP/2 and HTTP/3 they multiplex over a single connection and land within
 roughly one round trip.
 
+Each response keeps every source predicate under its own term (`prefLabel`, `label`,
+`title`, `name`, …) and **never** collapses them into `prefLabel` — so *you* pick the
+preference order. A term can also hold an **array** when the source had several
+values (e.g. multiple `altLabel`s). A small picker handles both:
+
 ```js
-const pickLabel = (m) => (m ? m["@none"] ?? m.en ?? Object.values(m)[0] : null);
+// Your preference order across predicates - first hit wins.
+const ORDER = ["prefLabel", "label", "title", "name"];
+const first = (v) => (Array.isArray(v) ? v[0] : v); // a term may hold several
+const pickLang = (m) => m && (m["@none"] ?? m.en ?? Object.values(m)[0]);
+const pickLabel = (doc) => {
+  for (const term of ORDER) {
+    const v = first(pickLang(doc[term]));
+    if (v) return v;
+  }
+  return null;
+};
+
 const labels = Object.fromEntries(await Promise.all(
   iris.map(async (iri) => {
     // no ?lang= -> untagged label; add &lang=xx for a specific language.
     const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
-    return [iri, res.ok ? pickLabel((await res.json()).prefLabel) : null];
+    return [iri, res.ok ? pickLabel(await res.json()) : null];
   }),
 ));
 ```

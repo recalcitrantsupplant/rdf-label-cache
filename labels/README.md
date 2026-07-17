@@ -7,11 +7,13 @@ one of them into your R2 bucket. This is the file-based Phase-2 seed path from
 - **Accepted formats:** Turtle/N-Triples/TriG/N-Quads — `.ttl`, `.turtle`,
   `.nt`, `.n3`, `.nq`, `.trig`. Non-RDF files (like this README) are skipped.
 - **What's extracted:** only the label/description predicates
-  (`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`;
-  `skos:definition`, `rdfs:comment`, `dcterms:description`, `schema:description`).
-  A **full instance-data dump works** — non-label triples are ignored.
-- **Multiple files** are merged; when a subject carries the same `(IRI, language)`
-  label in several files, predicate list-order wins (see `scripts/ingest.mjs`).
+  (`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`, `skos:altLabel`;
+  `skos:definition`, `rdfs:comment`, `dcterms:description`, `schema:description`),
+  **each kept under its own JSON-LD term** — nothing is coerced to prefLabel. A
+  **full instance-data dump works** — non-label triples are ignored.
+- **Multiple files** are merged; a subject accumulates every value it carries
+  across files (exact duplicates collapse; multi-valued terms become arrays — see
+  `scripts/ingest.mjs`).
 
 Then run the **seed-labels** workflow (Actions tab → *Run workflow*) once your
 Cloudflare secrets/variables are set. See the design doc for the full runbook.

@@ -29,6 +29,16 @@ describe("/label", () => {
     expect(body["@context"]).toContain("/context/labels-v1.json");
   });
 
+  it("keeps each predicate as its own term, not coerced to prefLabel", async () => {
+    const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
+    const body = (await res.json()) as any;
+    // Concept carries prefLabel + rdfs:label + a multi-valued altLabel; each stays
+    // under its own term and the multi-valued one is an array (consumer picks).
+    expect(body.prefLabel).toEqual({ "@none": "Concept" });
+    expect(body.label).toEqual({ "@none": "Concept" });
+    expect(body.altLabel).toEqual({ "@none": ["Idea", "Notion"] });
+  });
+
   it("404s a no-lang request when only a tagged label exists", async () => {
     const res = await SELF.fetch(labelUrl(DCTERMS_TITLE)); // only en exists
     expect(res.status).toBe(404);
