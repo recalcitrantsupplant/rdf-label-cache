@@ -50,6 +50,7 @@ describe("/label", () => {
     const res = await SELF.fetch(labelUrl(SKOS_CONCEPT));
     expect(res.headers.get("Cache-Control")).toContain("max-age=3600");
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=31536000");
+    expect(res.headers.get("Cache-Control")).toContain("stale-while-revalidate=604800");
     const tag = res.headers.get("Cache-Tag") ?? "";
     expect(tag).toBe("labels");
   });

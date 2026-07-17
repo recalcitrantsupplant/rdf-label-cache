@@ -37,20 +37,50 @@ full transport rationale.
 
 ## 2. Let the HTTP cache do the caching
 
-Label responses are served `Cache-Control: public, max-age=3600, s-maxage=31536000`
-(browsers revalidate hourly; the Cloudflare edge holds entries for a year and is
-invalidated by tag purges). What you do with that depends on where your code runs:
+Label responses are served:
 
-This is deliberate for static RDF. An administrative edge purge after a data
-refresh does **not** evict an already-cached browser response, but the short
-browser `max-age` means refreshed data reaches returning browsers within the
-hour. Consumers that need immediate correction semantics must use a new
-resource URL/version;
-write-heavy label workloads are not a fit for this cache policy.
+```
+Cache-Control: public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800
+```
+
+Four knobs plus the tag purge, each answering a different question. Defaults and when to
+change them:
+
+| Knob | Default | What it controls | Tune when |
+|---|---|---|---|
+| browser `max-age` | `3600` (1h) | Worst-case time a **changed** label keeps showing stale to a returning browser — a purge can't reach browsers | Lower for faster change propagation; raise if labels rarely change |
+| edge `s-maxage` | `31536000` (1y) | How long the edge holds an entry — a **cost/efficiency** dial, *not* freshness (the tag purge overrides it) | Leave long |
+| `stale-while-revalidate` | `604800` (1w) | How far past `max-age` a browser serves its cached copy **instantly** while refreshing in the background | Raise toward `s-maxage` for near-always local hits; lower to bound returning-visitor staleness |
+| error/404 `max-age` | `60s`, untagged | How fast a newly-**added** label for a previously-missing IRI appears — no purge needed | Keep short |
+| tag purge | on change | Invalidate the edge after **editing** existing labels | Always, after changing an existing label |
+
+**Why `stale-while-revalidate` is there.** A shared cache forwards an `Age` header (how long
+the entry has sat in caches), and a browser judges freshness as `age < max-age` against that
+forwarded age — not against when *it* fetched. Popular labels stay warm at the edge for
+hours, so they arrive with `Age` already **past** `max-age=3600`: stale on arrival. Without
+`stale-while-revalidate` the browser then blocks and refetches on **every** request, so its
+own cache goes effectively unused for any warm entry. With it, a stale-but-within-window copy
+is served **instantly (0 bytes, ~2 ms)** while a background refresh pulls the current value in
+for next time. Returning visitors get local-cache speed; freshness stays bounded by `max-age`
++ the purge, at the cost of one stale render immediately after a change.
+
+**Changes vs. additions** — only one needs a purge:
+
+- **Editing an existing label:** upload + purge the `labels` tag. The edge serves the new
+  value immediately; a returning browser picks it up within one request (SWR background
+  refresh) and within `max-age` at worst. Write-heavy label workloads that need instant,
+  guaranteed correction are not a fit — version the resource URL instead.
+- **Adding a label for a new IRI:** no purge. An IRI never requested before simply misses to
+  origin and returns the new value. If it had previously returned a 404, that 404 is cached
+  only ~60s (and untagged, so a `labels` purge wouldn't touch it) — the added label appears
+  within about a minute on its own.
+
+What you do on the client depends on where your code runs:
 
 - **Browser apps — you generally do *not* need an app-level label cache.** The browser's
-  HTTP cache stores each `(IRI, lang)` response and reuses it without even a revalidation
-  round trip. A hand-rolled in-memory label map mostly duplicates it. The one thing worth
+  HTTP cache stores each `(IRI, lang)` response and serves it locally — instantly, refreshing
+  in the background when the copy is stale (see above). A hand-rolled in-memory label map
+  mostly duplicates it. The one thing worth
   adding is an **in-flight de-dupe** so a single render that mentions the same IRI twice
   fires one request, not two:
 

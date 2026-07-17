@@ -331,7 +331,7 @@ async function classifySource(url, response) {
   const fromBrowser = entry && (entry.transferSize === 0 || entry.deliveryType === "cache");
   if (fromBrowser) {
     return { tier: "browser", label: "BROWSER",
-      title: "Served from your browser's own cache - 0 bytes crossed the network.\nThe CDN status is replayed from the first fetch, so it means nothing here." };
+      title: "Served from your browser's own cache - 0 bytes crossed the network.\nMay be silently refreshing in the background (stale-while-revalidate).\nThe CDN status is replayed from the first fetch, so it means nothing here." };
   }
   if (cf === "HIT") {
     return { tier: "cdn", label: "CDN HIT",
