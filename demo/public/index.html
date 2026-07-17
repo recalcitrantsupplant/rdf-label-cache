@@ -62,7 +62,8 @@
   .path.fast { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
   .path-h { margin: 0 0 4px; font-size: 17px; }
   .path-sub { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
-  .cfbtn { display: inline-block; margin: 2px 0 6px; }
+  .cfbtn { display: inline-block; margin: 10px 0 2px; }
+  .cfbtn img { display: block; border-radius: 10px; }
   .path .steps { margin-top: 2px; }
   .path .st { padding: 12px 0; }
 </style>
@@ -84,7 +85,6 @@
 
 <section id="demo-sec" class="wrap">
   <h2 class="sh">Watch the IRIs resolve</h2>
-  <p class="sub">This is real RDF your query might return. Hit the button and watch each unique IRI fire one edge-cached <code>GET</code> - and become a word.</p>
   <div id="demo"></div>
   <p class="scope-note">RDF Label Cache allows you to serve labels from the Cloudflare CDN. Rendering them is up to your app; it ships no rendering library.</p>
   <p style="text-align:center;margin-top:22px"><a class="btn ghost" href="/demo">Try it with your own RDF - open the playground →</a></p>
@@ -117,29 +117,27 @@
     <p class="sub">Two paths — both end with your labels in your own R2 bucket. It ships empty; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your own IRIs and any ontologies you reference (Schema.org, DCAT, …).</p>
     <div class="paths">
       <div class="path fast">
-        <h3 class="path-h">⚡ Get started fast</h3>
+        <h3 class="path-h">Get started fast</h3>
         <p class="path-sub">No clone, no local Node — deploy from the browser, seed from a GitHub Action. Best for vocabularies &amp; small/modest label sets.</p>
-        <a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a>
         <div class="steps">
-          <div class="st"><span class="n">1</span><div><h3>Deploy</h3><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p></div></div>
+          <div class="st"><span class="n">1</span><div><h3>Deploy</h3><p>The button provisions the Worker + R2 bucket and clones the repo into your GitHub.</p><a class="cfbtn" href="https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare" height="32"></a></div></div>
           <div class="st"><span class="n">2</span><div><h3>Add credentials</h3><p>Set <code>SEED_BASE</code> + <code>R2_BUCKET</code> and the R2 / purge secrets on the repo.</p></div></div>
           <div class="st"><span class="n">3</span><div><h3>Add labels</h3><p>Drop RDF into the <code>labels/</code> folder and commit.</p></div></div>
-          <div class="st"><span class="n">4</span><div><h3>Run the seed</h3><p><strong>Actions → seed-labels → Run workflow.</strong> Optionally tick “include public”.</p></div></div>
+          <div class="st"><span class="n">4</span><div><h3>Run the seed</h3><p><strong>Actions → seed-labels → Run workflow.</strong> Optionally tick “include common ontology labels”.</p></div></div>
         </div>
       </div>
       <div class="path">
-        <h3 class="path-h">🏭 Larger datasets, production</h3>
-        <p class="path-sub">Clone + pipeline, on your machine or your CI. Best for large dumps, frequent refreshes &amp; full control.</p>
+        <h3 class="path-h">Larger datasets</h3>
+        <p class="path-sub">Clone + pipeline, on your machine or your own CI. Best for large label sets, frequent refreshes &amp; full control.</p>
         <div class="steps">
-          <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone …/rdf-label-cache &amp;&amp; pnpm install</code></div></div>
+          <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone …/rdf-label-cache &amp;&amp; just install</code></div></div>
           <div class="st"><span class="n">2</span><div><h3>Dump annotation properties</h3><p>One SPARQL <code>CONSTRUCT</code> → labels + descriptions for every IRI your data mentions.</p></div></div>
           <div class="st"><span class="n">3</span><div><h3>Cloudflare &amp; credentials</h3><p>Create the R2 bucket, deploy the Worker, make an R2 API token.</p></div></div>
-          <div class="st"><span class="n">4</span><div><h3>Generate &amp; upload</h3><code>node scripts/ingest.mjs --input data.ttl &amp;&amp; node scripts/upload-seed.mjs</code></div></div>
-          <div class="st"><span class="n">5</span><div><h3>Consume from your app</h3><p>Plain HTTP <code>GET</code>s, fired concurrently over HTTP/2/3.</p></div></div>
+          <div class="st"><span class="n">4</span><div><h3>Generate &amp; upload</h3><code>just project=&lt;you&gt; ingest upload</code></div></div>
         </div>
       </div>
     </div>
-    <p class="scope-note">Fast path uploads run through GitHub Actions — for small/modest RDF, not large production loads, and re-running is an upsert, not a mirror. Larger or serious? Use the production path.</p>
+    <p class="scope-note">The fast path uploads through GitHub Actions — for small/modest RDF, and re-running is an upsert, not a mirror. For large label sets, or more robust synchronisation than a GitHub Action, use the clone + pipeline path.</p>
     <p style="text-align:center;margin-top:22px"><a href="/start">Full guide - every command, copy-paste ready →</a></p>
   </div>
 </section>

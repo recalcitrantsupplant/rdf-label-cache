@@ -11,7 +11,7 @@ pointing it at your own R2 bucket.
 
 **▶ Live demo: https://label-cache-demo.dhabgood.workers.dev/**
 
-**⚡ Deploy your own** (Worker + R2 bucket, from a Cloudflare account alone), then
+**Deploy your own** (Worker + R2 bucket, from a Cloudflare account alone), then
 seed your labels from a GitHub Action — no clone, no local tooling. Steps:
 [Get started fast ↓](#get-started-fast).
 
@@ -47,14 +47,14 @@ Two ways to stand up your own instance — pick by data size and how much local
 tooling you want. Both end the same way: your labels in your own R2 bucket, served
 edge-cached. Nothing ships pre-loaded; you populate R2 once.
 
-| | ⚡ Get started fast | 🏭 Larger datasets, production |
+| | Get started fast | Larger datasets |
 |---|---|---|
 | **Seeding runs in** | GitHub Actions (browser only) | Your machine or your own CI |
 | **Local tooling** | None¹ | Node 22+, pnpm, `just` |
 | **Add your labels** | Drop RDF into the `labels/` folder, run the **seed-labels** workflow | `just` pipeline from a file or SPARQL endpoint |
-| **Best for** | Vocabularies, small/modest label sets, trying it out | Large dumps, frequent refreshes, full control |
+| **Best for** | Vocabularies, small/modest label sets, trying it out | Large label sets, frequent refreshes, robust sync | 
 | **Projects** | One label cache per repo | Many, via `just project=<name>` |
-| **Full steps** | [below ↓](#get-started-fast) | [below ↓](#larger-datasets-production) · [DEPLOY.md](docs/DEPLOY.md) |
+| **Full steps** | [below ↓](#get-started-fast) | [below ↓](#larger-datasets) · [DEPLOY.md](docs/DEPLOY.md) |
 
 ### Get started fast
 
@@ -84,27 +84,27 @@ variables → Actions**:
 label/description triples are extracted. See [`labels/README.md`](labels/README.md).
 
 **4. Run the seed.** **Actions → seed-labels → Run workflow.** It ingests `labels/`,
-uploads to R2, and purges the edge. Tick **include public** to also seed the bundled
-public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org). Re-run any
-time you change `labels/`.
+uploads to R2, and purges the edge. Tick **include common ontology labels** to also
+seed the bundled vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org).
+Re-run any time you change `labels/`.
 
-**5. Consume from your app.** Plain edge-cached `GET`s — see the example in the
-production flow below and [`docs/consuming.md`](docs/consuming.md).
+Then [consume from your app](#consume-from-your-app) — the same for both paths.
 
 **Limitations of the fast path** — uploads run through GitHub Actions, so it's for
 **small/modest RDF** (vocabs, a few thousand terms), not large or high-frequency
-production loads. Runners have no VPN (a private SPARQL endpoint isn't reachable),
-and labels you commit live in git history. Re-running is an **upsert, not a
-mirror**: new and changed labels are written in place, but a label you remove from
-source is *not* deleted from R2. For anything larger, use the production path.
+loads. Runners have no VPN (a private SPARQL endpoint isn't reachable), and labels
+you commit live in git history. Re-running is an **upsert, not a mirror**: new and
+changed labels are written in place, but a label you remove from source is *not*
+deleted from R2. For large label sets, or more robust synchronisation than a GitHub
+Action, use the clone + pipeline path.
 
 ¹ The Worker itself is deployed by the button (or one `deploy` command); "no local
 tooling" refers to the seeding, which runs entirely in GitHub Actions thereafter.
 
-### Larger datasets, production
+### Larger datasets
 
 The **clone + pipeline path**: cache the labels your app needs - your own IRIs plus
-the public-vocabulary terms your data uses - in five steps, with full control over
+the public-vocabulary terms your data uses - in four steps, with full control over
 concurrency, credentials, and multiple projects (`just project=<name>`).
 
 **1. Clone & install**
@@ -139,7 +139,7 @@ WHERE {
 
 This grabs both your own entities' labels and any public-vocabulary terms your data
 references. Any RDF file works - no triplestore required for small data. Prefer whole
-public vocabularies instead? Run `pnpm seed:ingest` with no `--input`.
+public vocabularies instead? Run `just seed-public` (no dump needed).
 
 **3. Set up Cloudflare**
 
@@ -165,24 +165,24 @@ namespace resolves once its labels are uploaded. Then create an **R2 API token**
 **4. Generate & upload your label objects**
 
 ```bash
-export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
-export R2_BUCKET=label-cache-orders
-export R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
-node scripts/ingest.mjs --input data.ttl     # → dist/seed/manifest.ndjson
-node scripts/upload-seed.mjs                  # → R2, over the S3 API
+# SEED_BASE + R2_* from your .env (copy .env.example); project sets R2_BUCKET
+just ingest                    # data.ttl → dist/seed/manifest.ndjson
+just project=orders upload     # → R2, over the S3 API
 ```
 
-(With `just`: `just project=orders ingest upload` sets `R2_BUCKET` for you.)
+Raw shell instead? `SEED_BASE=… R2_BUCKET=… R2_ACCOUNT_ID=… R2_ACCESS_KEY_ID=…
+R2_SECRET_ACCESS_KEY=… node scripts/ingest.mjs --input data.ttl && node
+scripts/upload-seed.mjs`.
 
 Objects are keyed lang-first by the full IRI (`labels/und/https://schema.org/name`,
 `labels/en/http://purl.org/dc/terms/title`) - browsable in R2, each language a listable
 prefix, and any namespace resolves without configuration.
 
-**5. Consume from your app**
+### Consume from your app
 
-Resolve any cached IRI over plain HTTP. Request all the labels a view needs **in
-parallel** - they're independent, edge-cached `GET`s that multiplex over HTTP/2/3
-(see [`docs/FAQ.md`](docs/FAQ.md)):
+Once seeded (either path), resolve any cached IRI over plain HTTP. Request all the
+labels a view needs **in parallel** - they're independent, edge-cached `GET`s that
+multiplex over HTTP/2/3 (see [`docs/FAQ.md`](docs/FAQ.md)):
 
 ```js
 const labels = Object.fromEntries(await Promise.all(

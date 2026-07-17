@@ -14,7 +14,7 @@ on:
         default: labels
         type: string
       include_public:
-        description: Also seed the bundled public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)
+        description: Also seed common ontology labels (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)
         default: false
         type: boolean
 
