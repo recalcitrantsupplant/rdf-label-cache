@@ -210,7 +210,7 @@ Caching is enabled via config (`[cache] enabled = true`) and driven by the respo
 
 | Response type | Cache-Control |
 |---|---|
-| Label (found) | `public, max-age=3600, s-maxage=31536000` |
+| Label (found) | `public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800` |
 | 404 | `public, max-age=60` |
 | Context document | `public, max-age=31536000, immutable` (versioned URL, content never changes) |
 

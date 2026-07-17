@@ -99,8 +99,12 @@ curl "https://<your-url>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2F
 - **Workers Cache** is enabled by `[cache] enabled = true` in both Worker
   configurations. It sits in front of the Worker; code deployments use the
   platform's default version-isolated cache and do not require a broad purge.
-- **Split browser/edge TTL:** labels use `max-age=3600, s-maxage=31536000`. A
-  successful admin purge invalidates the Cloudflare edge immediately; browsers
-  cannot be purged, but their hour-long `max-age` means a data refresh reaches
-  them on its own. Only the versioned context document stays `immutable` -
+- **Split browser/edge TTL:** labels use
+  `max-age=3600, s-maxage=31536000, stale-while-revalidate=604800`. A successful
+  admin purge invalidates the Cloudflare edge immediately; browsers cannot be
+  purged, but `stale-while-revalidate` lets a returning browser serve its cached
+  copy instantly and refresh in the background, so a data refresh reaches it
+  within one request (bounded by the hour-long `max-age`). See
+  [`docs/consuming.md`](./consuming.md#2-let-the-http-cache-do-the-caching) for
+  the freshness model. Only the versioned context document stays `immutable` -
   its URL never changes content.
