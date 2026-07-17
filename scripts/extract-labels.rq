@@ -3,11 +3,11 @@
 # Run against your SPARQL endpoint (see `just extract-labels`); the Turtle it
 # returns is the input to `scripts/ingest.mjs`.
 #
-# The predicate set below mirrors ingest.mjs' DEFAULT_LABEL_PREDS / DEFAULT_DESC_PREDS
-# so the SPARQL and file paths extract the same labels. Keep the two in sync; ingest
-# applies list-order precedence when a subject carries several. (schema: is https
-# here - dumps that use http://schema.org/ resolve on the file path, which accepts
-# both schemes.)
+# The predicate set below mirrors ingest.mjs' LABEL_TERMS / DESC_TERMS so the SPARQL
+# and file paths extract the same annotation props. Keep the two in sync; ingest
+# stores each predicate under its OWN JSON-LD term (no coercion, no precedence) and
+# keeps every value a subject carries. (schema: is https here - dumps that use
+# http://schema.org/ resolve on the file path, which accepts both schemes.)
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX dcterms: <http://purl.org/dc/terms/>

@@ -20,50 +20,58 @@ const CONTEXT_DOC = {
     comment: { "@id": "rdfs:comment", "@container": "@language" },
     title: { "@id": "dcterms:title", "@container": "@language" },
     name: { "@id": "schema:name", "@container": "@language" },
+    description: { "@id": "dcterms:description", "@container": "@language" },
   },
 };
 
+// Each optional field is a JSON-LD term mapping a distinct predicate - nothing is
+// coerced to prefLabel. An array becomes a multi-valued language entry (a subject
+// can carry several, e.g. altLabels). Mirrors scripts/ingest.mjs' emitted shape.
+const TERM_FIELDS = ["prefLabel", "label", "altLabel", "title", "name", "definition", "comment", "description"] as const;
+
 interface LabelEntry {
-  ns: string;
-  local: string;
   iri: string;
-  prefLabel: string;
-  definition?: string;
-  comment?: string;
   // BCP-47 tag; omit for an untagged literal (served on a no-`lang` request).
   lang?: string;
+  prefLabel?: string;
+  label?: string;
+  altLabel?: string | string[];
+  title?: string;
+  name?: string;
+  definition?: string;
+  comment?: string;
+  description?: string;
 }
 
 const SEED_LABELS: LabelEntry[] = [
   // rdfs
-  { ns: "rdfs", local: "label", iri: "http://www.w3.org/2000/01/rdf-schema#label", prefLabel: "label", definition: "A human-readable name for the subject." },
-  { ns: "rdfs", local: "comment", iri: "http://www.w3.org/2000/01/rdf-schema#comment", prefLabel: "comment", definition: "A description of the subject resource." },
-  { ns: "rdfs", local: "Class", iri: "http://www.w3.org/2000/01/rdf-schema#Class", prefLabel: "Class", definition: "The class of all classes." },
-  { ns: "rdfs", local: "subClassOf", iri: "http://www.w3.org/2000/01/rdf-schema#subClassOf", prefLabel: "subClassOf", definition: "The subject is a subclass of a class." },
+  { iri: "http://www.w3.org/2000/01/rdf-schema#label", prefLabel: "label", definition: "A human-readable name for the subject." },
+  { iri: "http://www.w3.org/2000/01/rdf-schema#comment", prefLabel: "comment", definition: "A description of the subject resource." },
+  { iri: "http://www.w3.org/2000/01/rdf-schema#Class", prefLabel: "Class", definition: "The class of all classes." },
+  { iri: "http://www.w3.org/2000/01/rdf-schema#subClassOf", prefLabel: "subClassOf", definition: "The subject is a subclass of a class." },
   // owl
-  { ns: "owl", local: "Class", iri: "http://www.w3.org/2002/07/owl#Class", prefLabel: "Class", definition: "The class of OWL classes." },
-  { ns: "owl", local: "ObjectProperty", iri: "http://www.w3.org/2002/07/owl#ObjectProperty", prefLabel: "ObjectProperty", definition: "The class of object properties." },
-  { ns: "owl", local: "DatatypeProperty", iri: "http://www.w3.org/2002/07/owl#DatatypeProperty", prefLabel: "DatatypeProperty", definition: "The class of data properties." },
-  // skos
-  { ns: "skos", local: "Concept", iri: "http://www.w3.org/2004/02/skos/core#Concept", prefLabel: "Concept", definition: "An idea or notion; a unit of thought." },
-  { ns: "skos", local: "prefLabel", iri: "http://www.w3.org/2004/02/skos/core#prefLabel", prefLabel: "preferred label", definition: "The preferred lexical label for a resource, in a given language." },
-  { ns: "skos", local: "definition", iri: "http://www.w3.org/2004/02/skos/core#definition", prefLabel: "definition", definition: "A statement or formal explanation of the meaning of a concept." },
-  { ns: "skos", local: "ConceptScheme", iri: "http://www.w3.org/2004/02/skos/core#ConceptScheme", prefLabel: "Concept Scheme", definition: "A set of concepts, optionally including statements about semantic relationships between those concepts." },
+  { iri: "http://www.w3.org/2002/07/owl#Class", prefLabel: "Class", definition: "The class of OWL classes." },
+  { iri: "http://www.w3.org/2002/07/owl#ObjectProperty", prefLabel: "ObjectProperty", definition: "The class of object properties." },
+  { iri: "http://www.w3.org/2002/07/owl#DatatypeProperty", prefLabel: "DatatypeProperty", definition: "The class of data properties." },
+  // skos - Concept carries several distinct predicates plus a multi-valued
+  // altLabel, so the sample exercises the faithful multi-term / multi-value shape.
+  { iri: "http://www.w3.org/2004/02/skos/core#Concept", prefLabel: "Concept", label: "Concept", altLabel: ["Idea", "Notion"], definition: "An idea or notion; a unit of thought." },
+  { iri: "http://www.w3.org/2004/02/skos/core#prefLabel", prefLabel: "preferred label", definition: "The preferred lexical label for a resource, in a given language." },
+  { iri: "http://www.w3.org/2004/02/skos/core#definition", prefLabel: "definition", definition: "A statement or formal explanation of the meaning of a concept." },
+  { iri: "http://www.w3.org/2004/02/skos/core#ConceptScheme", prefLabel: "Concept Scheme", definition: "A set of concepts, optionally including statements about semantic relationships between those concepts." },
   // A language-TAGGED entry (the rest are untagged, like the real vocabularies),
   // so the sample exercises both the `labels/en/...` and `labels/und/...` paths.
-  { ns: "dcterms", local: "title", iri: "http://purl.org/dc/terms/title", prefLabel: "Title", definition: "A name given to the resource.", lang: "en" },
+  { iri: "http://purl.org/dc/terms/title", prefLabel: "Title", definition: "A name given to the resource.", lang: "en" },
 ];
 
 function labelDoc(entry: LabelEntry, contextUrl: string): string {
   // JSON-LD @language map key: the real tag, or `@none` for untagged literals.
   const lk = entry.lang || "@none";
-  const doc: Record<string, unknown> = {
-    "@context": contextUrl,
-    "@id": entry.iri,
-    prefLabel: { [lk]: entry.prefLabel },
-  };
-  if (entry.definition) doc.definition = { [lk]: entry.definition };
-  if (entry.comment) doc.comment = { [lk]: entry.comment };
+  const doc: Record<string, unknown> = { "@context": contextUrl, "@id": entry.iri };
+  for (const term of TERM_FIELDS) {
+    const value = entry[term];
+    if (value !== undefined) doc[term] = { [lk]: value };
+  }
   return JSON.stringify(doc);
 }
 

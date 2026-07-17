@@ -154,12 +154,13 @@ triples are ignored.
 - Committing labels puts them in git history — fine for **public or modest** sets;
   for **large dumps** (git bloat) or **sensitive labels** prefer a private repo or
   Mode 2.
-- Cross-file `(IRI, language)` collisions resolve by predicate list-order, then
-  first-seen in sorted filename order — deterministic but worth documenting for
-  users spreading one subject across files.
+- Across files a subject **accumulates** every value it carries per `(term,
+  language)`; exact-duplicate literals collapse (first-seen in sorted filename
+  order), and a term with several distinct values becomes an array — deterministic
+  and worth documenting for users spreading one subject across files.
 - **Re-running is an upsert, not a mirror** (true of the whole pipeline, local or
   CI). Ingest dedupes to exactly one object per `labels/{lang}/{iri}` key
-  (`collectLiterals` precedence + the `writeTerms` `seen` guard);
+  (`collectLiterals` merges values per term + the `writeTerms` `seen` guard);
   `upload-seed.mjs` `PUT`s each key (overwrite), so changed labels update in place
   and re-runs are idempotent. But it never lists or deletes, so a label removed
   from source is **not** pruned from R2 — the stale object lingers until purged.

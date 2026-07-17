@@ -205,7 +205,12 @@ ex:acme a schema:Organization ;
       if (!response.ok) return;
 
       const doc = await response.json();
-      const label = doc.prefLabel?.en || doc.prefLabel?.["@none"] || Object.values(doc.prefLabel || {})[0] || curie;
+      // Each predicate is kept under its own term (no coercion to prefLabel), so
+      // pick a preference order; a term may hold an array when the source has several.
+      const pickLang = (m) => m && (m.en ?? m["@none"] ?? Object.values(m)[0]);
+      const first = (v) => (Array.isArray(v) ? v[0] : v);
+      const label = ["prefLabel", "label", "title", "name"]
+        .map((t) => first(pickLang(doc[t]))).find(Boolean) || curie;
       for (const el of termEls.get(curie) || []) {
         el.textContent = label; el.className = "term done flash"; el.title = iri;
         setTimeout(() => el.classList.remove("flash"), 400);

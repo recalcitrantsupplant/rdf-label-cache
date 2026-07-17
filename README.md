@@ -34,7 +34,9 @@ Example:
 curl "https://<host>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore%23Concept"
 # → { "@context": ".../context/labels-v1.json",
 #     "@id": "http://www.w3.org/2004/02/skos/core#Concept",
-#     "prefLabel": { "@none": "Concept" }, "definition": { "@none": "An idea …" } }
+#     "label": { "@none": "Concept" }, "definition": { "@none": "An idea …" } }
+# Each source predicate is kept under its own term (label/prefLabel/title/name/…),
+# never coerced to prefLabel; the consumer picks a preference order.
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design, and
@@ -185,12 +187,17 @@ labels a view needs **in parallel** - they're independent, edge-cached `GET`s th
 multiplex over HTTP/2/3 (see [`docs/FAQ.md`](docs/FAQ.md)):
 
 ```js
+// Each source predicate is kept under its own term; pick your preference order.
+const ORDER = ["prefLabel", "label", "title", "name"];
+const first = (v) => (Array.isArray(v) ? v[0] : v); // a term may hold several
+const pickLang = (m) => m && (m["@none"] ?? Object.values(m)[0]);
+const pickLabel = (doc) => ORDER.map((t) => first(pickLang(doc[t]))).find(Boolean) ?? null;
+
 const labels = Object.fromEntries(await Promise.all(
   iris.map(async (iri) => {
     // no ?lang= -> the untagged label; add &lang=xx for a specific language
     const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
-    const m = res.ok ? (await res.json()).prefLabel : null;
-    return [iri, m ? (m["@none"] ?? Object.values(m)[0]) : null];
+    return [iri, res.ok ? pickLabel(await res.json()) : null];
   }),
 ));
 ```
@@ -250,10 +257,12 @@ PUBLIC=1 just dev-local                             # also load bundled public v
 
 The input can be a **full instance-data dump or a labels-only file** — non-label
 triples are ignored. Extraction keeps only the label/description predicates
-(`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`; `skos:definition`,
-`rdfs:comment`, `dcterms:description`, `schema:description` by default). Override per
-run with `ingest.mjs --label-preds`/`--desc-preds` (comma-separated IRIs; list order
-sets precedence when a subject carries several). Your app then resolves labels at
+(`skos:prefLabel`, `rdfs:label`, `dcterms:title`, `schema:name`, `skos:altLabel`;
+`skos:definition`, `rdfs:comment`, `dcterms:description`, `schema:description` by
+default), **each stored under its own JSON-LD term** — nothing is coerced to
+prefLabel, and a subject keeps every value it carries (your app applies its own
+preference order). Override the harvested set per run with `ingest.mjs
+--label-preds`/`--desc-preds` (comma-separated IRIs). Your app then resolves labels at
 `http://localhost:8787/label?iri=…`, and a genuine miss is a 404 — exactly as in
 production. Local R2 persists between runs (`.wrangler/state`); re-running overwrites
 by key, so changed labels update in place. Override the port with `PORT=8790`.

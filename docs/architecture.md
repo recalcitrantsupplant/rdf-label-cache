@@ -42,10 +42,19 @@ Language is a single value - one request, one language. Consumers requiring mult
 {
   "@context": "https://your-label-cache/context/labels-v1.json",
   "@id": "https://www.w3.org/2004/02/skos/core#Concept",
-  "prefLabel": "Concept",
-  "definition": "An idea or notion; a unit of thought."
+  "prefLabel": { "@none": "Concept" },
+  "altLabel": { "@none": ["Idea", "Notion"] },
+  "definition": { "@none": "An idea or notion; a unit of thought." }
 }
 ```
+
+Each source predicate is kept under its **own** term - `prefLabel`, `label`,
+`title`, `name`, `altLabel`, `definition`, `comment`, `description` - **never
+coerced** to `prefLabel`. A term whose source carries several values for the
+language holds an **array**. Choosing a preferred label (prefLabel over label over
+title over …) is a **consumer** concern; the service stores every predicate
+faithfully. Each value is a JSON-LD `@language` map with a single key: the language
+tag, or `@none` for the untagged literal this object was keyed under.
 
 The `@context` URL is a stable, heavily-cached document (see §4.2) that defines all prefix mappings and property aliases. Individual label responses are small - context is a URL reference, not inline.
 
@@ -164,12 +173,17 @@ current storage contract.
 {
   "@context": "https://your-label-cache/context/labels-v1.json",
   "@id": "https://www.w3.org/2004/02/skos/core#Concept",
-  "prefLabel": "Concept",
-  "definition": "An idea or notion; a unit of thought."
+  "prefLabel": { "@none": "Concept" },
+  "altLabel": { "@none": ["Idea", "Notion"] },
+  "definition": { "@none": "An idea or notion; a unit of thought." }
 }
 ```
 
-With `@container: @language` declared in the context, single-language responses are plain strings - no array wrapping needed.
+The object is keyed to a single `(IRI, language)`, so every property is an
+`@container: @language` map with one key - the language tag, or `@none` for the
+untagged literal. Each harvested predicate keeps its own property (no coercion to
+`prefLabel`); a property whose source has several values for the language is an
+**array**. Precedence across properties is resolved by the consumer, not baked in.
 
 ### 4.2 JSON-LD Context Document
 
@@ -191,16 +205,22 @@ Stored in R2 at `context/labels-v1.json`. Served with an immutable TTL. Version 
     "foaf":     "http://xmlns.com/foaf/0.1/",
     "void":     "http://rdfs.org/ns/void#",
 
-    "label":      { "@id": "rdfs:label",      "@container": "@language" },
-    "prefLabel":  { "@id": "skos:prefLabel",  "@container": "@language" },
-    "altLabel":   { "@id": "skos:altLabel",   "@container": "@language" },
-    "definition": { "@id": "skos:definition", "@container": "@language" },
-    "comment":    { "@id": "rdfs:comment",    "@container": "@language" },
-    "title":      { "@id": "dcterms:title",   "@container": "@language" },
-    "name":       { "@id": "schema:name",     "@container": "@language" }
+    "label":       { "@id": "rdfs:label",         "@container": "@language" },
+    "prefLabel":   { "@id": "skos:prefLabel",     "@container": "@language" },
+    "altLabel":    { "@id": "skos:altLabel",      "@container": "@language" },
+    "definition":  { "@id": "skos:definition",    "@container": "@language" },
+    "comment":     { "@id": "rdfs:comment",       "@container": "@language" },
+    "title":       { "@id": "dcterms:title",      "@container": "@language" },
+    "name":        { "@id": "schema:name",        "@container": "@language" },
+    "description": { "@id": "dcterms:description", "@container": "@language" }
   }
 }
 ```
+
+Each label/description predicate has its own term, so ingestion can store the value
+under the predicate it actually came from rather than collapsing everything into
+`prefLabel`. `schema:description` is folded into `description` (a synonym, like the
+http/https pair of `schema:name`); every other predicate stays distinct.
 
 ### 4.3 Cache - Workers Cache
 
@@ -317,8 +337,10 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 1. Fetch authoritative ontology files (rdfs, owl, skos, dc, schema.org, foaf, prov, void)
 2. Parse RDF (N-Triples or Turtle)
 3. Extract label triples (rdfs:label, skos:prefLabel, skos:altLabel, dcterms:title,
-   rdfs:comment, skos:definition, schema:name)
-4. Group by IRI and language tag, preserving tags faithfully (untagged literals under `und`)
+   rdfs:comment, skos:definition, dcterms:description, schema:name)
+4. Group by IRI and language tag, preserving tags faithfully (untagged literals under
+   `und`). Keep each predicate under its own term - no coercion to prefLabel - and
+   keep every value a subject carries (multiple values for a term become an array)
 5. Serialise each group as JSON-LD referencing the context URL
 6. Write label objects to R2 using the manifest keys
 7. Verify `context/labels-v1.json` is byte-identical if it already exists;

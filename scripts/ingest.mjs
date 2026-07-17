@@ -32,9 +32,10 @@
 // path uses (see docs/one-click-onboarding-design.md).
 //
 // Label/description predicates default to the JSON-LD context's families (see
-// DEFAULT_LABEL_PREDS / DEFAULT_DESC_PREDS, kept in sync with extract-labels.rq).
-// Override per run: `--label-preds <iri,…>` / `--desc-preds <iri,…>` (list order =
-// priority when one subject has several).
+// LABEL_TERMS / DESC_TERMS, kept in sync with extract-labels.rq). Every harvested
+// predicate is stored under its OWN JSON-LD term - nothing is coerced to prefLabel,
+// and a term may hold several values per language. Precedence is a consumer choice.
+// Override the harvested set per run: `--label-preds <iri,…>` / `--desc-preds <iri,…>`.
 import { readFile, writeFile, mkdir, rm, stat, readdir } from "node:fs/promises";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,27 +63,34 @@ const ONLY = onlyIdx > -1
   ? new Set(process.argv[onlyIdx + 1].split(",").map((s) => s.trim()).filter(Boolean))
   : null;
 
-// Which predicates carry the label (→ prefLabel) and the description (→ definition).
-// Defaults mirror the JSON-LD context's label/description families and are kept in
-// sync with scripts/extract-labels.rq so the file and SPARQL paths agree. Override
-// with `--label-preds <iri,iri,…>` / `--desc-preds <iri,iri,…>` (full IRIs, comma-
-// separated); the flag REPLACES the default list. List ORDER is priority: for a
-// given (IRI, language) the value from the earliest-listed predicate present wins,
-// so `--label-preds` order is how you resolve prefLabel-vs-label-vs-title conflicts.
-const DEFAULT_LABEL_PREDS = [
-  "http://www.w3.org/2004/02/skos/core#prefLabel",
-  "http://www.w3.org/2000/01/rdf-schema#label",
-  "http://purl.org/dc/terms/title",
-  "https://schema.org/name",
-  "http://schema.org/name",
-];
-const DEFAULT_DESC_PREDS = [
-  "http://www.w3.org/2004/02/skos/core#definition",
-  "http://www.w3.org/2000/01/rdf-schema#comment",
-  "http://purl.org/dc/terms/description",
-  "https://schema.org/description",
-  "http://schema.org/description",
-];
+// Which RDF predicates we harvest, and the JSON-LD term each is stored under.
+// We do NOT coerce across predicates: skos:prefLabel, rdfs:label, dcterms:title,
+// schema:name and skos:altLabel each keep their own term, as do the description
+// predicates. A (term, language) may carry several values - all are preserved.
+// Precedence ("prefer prefLabel over label over …") is a CONSUMER concern; we
+// store every predicate faithfully and the client picks. Kept in sync with the
+// JSON-LD context (CONTEXT_DOC) and scripts/extract-labels.rq.
+//
+// The only merges are genuine synonyms, not precedence choices: the two schema.org
+// rows are one predicate under http+https, and schema:description is folded into
+// dcterms `description`. Override the harvested set with `--label-preds` /
+// `--desc-preds` (comma-separated IRIs); a recognised predicate keeps its friendly
+// term, an unrecognised one falls back to the family term (`label` / `description`).
+const LABEL_TERMS = {
+  "http://www.w3.org/2004/02/skos/core#prefLabel": "prefLabel",
+  "http://www.w3.org/2004/02/skos/core#altLabel": "altLabel",
+  "http://www.w3.org/2000/01/rdf-schema#label": "label",
+  "http://purl.org/dc/terms/title": "title",
+  "https://schema.org/name": "name",
+  "http://schema.org/name": "name",
+};
+const DESC_TERMS = {
+  "http://www.w3.org/2004/02/skos/core#definition": "definition",
+  "http://www.w3.org/2000/01/rdf-schema#comment": "comment",
+  "http://purl.org/dc/terms/description": "description",
+  "https://schema.org/description": "description",
+  "http://schema.org/description": "description",
+};
 const predArg = (flag, fallback) => {
   const i = process.argv.indexOf(flag);
   if (i === -1) return fallback;
@@ -93,8 +101,13 @@ const predArg = (flag, fallback) => {
   }
   return list;
 };
-const LABEL_PREDS = predArg("--label-preds", DEFAULT_LABEL_PREDS);
-const DESC_PREDS = predArg("--desc-preds", DEFAULT_DESC_PREDS);
+// predicate IRI -> JSON-LD term. Custom predicates supplied via the flags fall
+// back to their family's generic term (`label` / `description`).
+const PRED_TERM = new Map();
+for (const p of predArg("--label-preds", Object.keys(LABEL_TERMS))) PRED_TERM.set(p, LABEL_TERMS[p] || "label");
+for (const p of predArg("--desc-preds", Object.keys(DESC_TERMS))) PRED_TERM.set(p, DESC_TERMS[p] || "description");
+// Terms that count as a description in the run-summary tally.
+const DESC_TERM_SET = new Set(Object.values(DESC_TERMS));
 
 // Kept in sync with src/routes/dev-seed.ts CONTEXT_DOC.
 const CONTEXT_DOC = {
@@ -119,6 +132,7 @@ const CONTEXT_DOC = {
     comment: { "@id": "rdfs:comment", "@container": "@language" },
     title: { "@id": "dcterms:title", "@container": "@language" },
     name: { "@id": "schema:name", "@container": "@language" },
+    description: { "@id": "dcterms:description", "@container": "@language" },
   },
 };
 
@@ -151,59 +165,56 @@ function parseRDF(text) {
   });
 }
 
-// Collect labels + descriptions FAITHFULLY: keep every (subject, language) pair
-// as-is - untagged literals stay untagged (lang ""), tags are preserved, nothing
-// is coerced to a default language. Shape: iri -> Map(lang -> value).
-//
-// Predicate list order defines priority: for each (iri, lang) the value from the
-// earliest-listed predicate present wins, deterministically, regardless of quad
-// order in the source. Ties within the same predicate keep the first literal seen.
+// Harvest annotation literals FAITHFULLY into:
+//   iri -> Map(term -> Map(lang -> string[]))
+// Every harvested predicate keeps its own term; a (term, language) may carry many
+// values, all preserved (exact duplicates dropped, first-seen order kept). Untagged
+// literals stay untagged (lang ""); nothing is coerced to a default language OR a
+// default predicate. Deterministic regardless of quad order in the source.
 function collectLiterals(quads, accept) {
-  const labelRank = new Map(LABEL_PREDS.map((p, i) => [p, i]));
-  const descRank = new Map(DESC_PREDS.map((p, i) => [p, i]));
-  const labels = new Map(); // iri -> Map(lang -> { value, rank })
-  const defs = new Map();
-  const consider = (map, rank, iri, lang, value) => {
-    if (rank === undefined) return;
-    let m = map.get(iri);
-    if (!m) map.set(iri, (m = new Map()));
-    const cur = m.get(lang);
-    if (!cur || rank < cur.rank) m.set(lang, { value, rank });
-  };
+  const out = new Map();
   for (const q of quads) {
     if (q.subject.termType !== "NamedNode" || q.object.termType !== "Literal") continue;
+    const term = PRED_TERM.get(q.predicate.value);
+    if (!term) continue;
     if (!accept(q.subject.value)) continue;
     const lang = q.object.language || "";
-    consider(labels, labelRank.get(q.predicate.value), q.subject.value, lang, q.object.value);
-    consider(defs, descRank.get(q.predicate.value), q.subject.value, lang, q.object.value);
+    let byTerm = out.get(q.subject.value);
+    if (!byTerm) out.set(q.subject.value, (byTerm = new Map()));
+    let byLang = byTerm.get(term);
+    if (!byLang) byTerm.set(term, (byLang = new Map()));
+    let vals = byLang.get(lang);
+    if (!vals) byLang.set(lang, (vals = []));
+    if (!vals.includes(q.object.value)) vals.push(q.object.value);
   }
-  const strip = (map) => {
-    for (const [, byLang] of map) for (const [lang, v] of byLang) byLang.set(lang, v.value);
-    return map;
-  };
-  return { labels: strip(labels), defs: strip(defs) };
+  return out;
 }
 
-// Flatten to one record per (iri, language): { iri, lang, label, definition }.
-// The description is matched by the same language as the label.
-function toRecords(labels, defs) {
-  const recs = [];
-  for (const [iri, byLang] of labels) {
-    for (const [lang, label] of byLang) {
-      recs.push({ iri, lang, label, definition: defs.get(iri)?.get(lang) });
+// Flatten to one record per (iri, language): { iri, lang, terms }, where `terms`
+// maps each JSON-LD term to its value - a string, or an array when several values
+// share that (term, language). The whole (iri, lang) becomes a single R2 object.
+function toRecords(byIri) {
+  const recs = new Map(); // `${iri}\t${lang}` -> record
+  for (const [iri, byTerm] of byIri) {
+    for (const [term, byLang] of byTerm) {
+      for (const [lang, vals] of byLang) {
+        const k = `${iri}\t${lang}`;
+        let rec = recs.get(k);
+        if (!rec) recs.set(k, (rec = { iri, lang, terms: {} }));
+        rec.terms[term] = vals.length === 1 ? vals[0] : vals;
+      }
     }
   }
-  return recs;
+  return [...recs.values()];
 }
 
 // A public ontology: terms are those defined in the namespace, keyed by its alias.
 async function ingestSource(src) {
   const quads = await parseRDF(await loadText(src));
-  const { labels, defs } = collectLiterals(
+  return toRecords(collectLiterals(
     quads,
     (iri) => iri.startsWith(src.base) && iri.length > src.base.length && !/[/#?]/.test(iri.slice(src.base.length))
-  );
-  return toRecords(labels, defs);
+  ));
 }
 
 // RDF file extensions ingested from an `--input` directory. N3's parser is a
@@ -229,8 +240,8 @@ async function resolveInputFiles(input) {
 // A user RDF dump (e.g. a SPARQL CONSTRUCT of your data's annotation props), or a
 // folder of them: every labelled subject IRI is emitted - keying is namespace-
 // agnostic, so no registration is needed. Quads from all files are merged before
-// extraction, so cross-file (IRI, language) precedence follows the same predicate
-// list-order rule; ties keep the first literal seen in sorted file order.
+// extraction, so a subject's values from several files accumulate under their
+// terms; exact-duplicate literals collapse, first-seen (sorted file order) kept.
 async function ingestDump(input) {
   const files = await resolveInputFiles(input);
   const quads = [];
@@ -238,8 +249,7 @@ async function ingestDump(input) {
     if (files.length > 1) process.stdout.write(`    + ${file}\n`);
     quads.push(...(await parseRDF(await readFile(file, "utf8"))));
   }
-  const { labels, defs } = collectLiterals(quads, () => true);
-  return toRecords(labels, defs);
+  return toRecords(collectLiterals(quads, () => true));
 }
 
 async function main() {
@@ -260,13 +270,16 @@ async function main() {
       const key = `labels/${t.lang || "und"}/${t.iri}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      // JSON-LD @language map: the real tag as the key, `@none` for untagged.
+      // Each term is emitted under its own predicate alias as a JSON-LD @language
+      // map (real tag as key, `@none` for untagged) - no coercion to prefLabel. The
+      // value is a string, or an array when the source has several for that term.
       const lk = t.lang || "@none";
-      const doc = { "@context": CONTEXT_URL, "@id": t.iri, prefLabel: { [lk]: t.label } };
-      if (t.definition) doc.definition = { [lk]: t.definition };
+      const doc = { "@context": CONTEXT_URL, "@id": t.iri };
+      for (const [term, value] of Object.entries(t.terms)) doc[term] = { [lk]: value };
       emit(key, JSON.stringify(doc));
     }
-    summary.push({ ns: nsLabel, terms: records.length, withDefinition: records.filter((t) => t.definition).length });
+    const withDesc = records.filter((t) => Object.keys(t.terms).some((term) => DESC_TERM_SET.has(term))).length;
+    summary.push({ ns: nsLabel, terms: records.length, withDefinition: withDesc });
     total += records.length;
   };
 
