@@ -160,6 +160,34 @@ typecheck:
 vendor-n3:
     ./scripts/vendor-n3.sh
 
+# Rebuild the self-hosted client bundle for the demo page
+# (demo/public/vendor/label-cache-client.mjs). Run after changing the client;
+# commit the regenerated file.
+vendor-label-client:
+    ./scripts/vendor-label-client.sh
+
+# Publish the client library (@rdf-label-cache/client) to npm. Reads NPM_TOKEN
+# from .env - a granular or automation token with 2FA bypass (a plain token 403s
+# on npm's publish 2FA gate). `npm test` builds + runs the suite first; prepack
+# rebuilds dist; publishConfig makes it public. Bump the version in
+# packages/label-cache-client/package.json first. Dry-run by default:
+#   just publish-client         # build, test, and show the tarball - publishes NOTHING
+#   just publish-client live    # actually publish
+publish-client MODE="dry":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${NPM_TOKEN:?set NPM_TOKEN in .env (npm granular/automation token with 2FA bypass)}"
+    cd packages/label-cache-client
+    npm test
+    AUTH="--//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
+    if [ "{{MODE}}" = "live" ]; then
+        npm publish "$AUTH"
+        echo "✓ published $(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")"
+    else
+        echo "== DRY RUN — nothing published. Run 'just publish-client live' to publish for real. =="
+        npm publish --dry-run "$AUTH"
+    fi
+
 # Seed the LOCAL (Miniflare) R2 bucket.
 seed:
     curl -s http://localhost:8787/dev/seed | jq
