@@ -73,12 +73,16 @@ Sources: `dcterms`, `dcat` (W3C DXWG GitHub mirror) and schema.org are fetched l
 `rdf/rdfs/owl/skos` are hand-curated Turtle under `scripts/vocab/` because w3.org's
 namespace docs sit behind a Cloudflare bot challenge (403 to scripts).
 
-**Smoke test only:** to seed just the 12-term sample (no ingest, no S3 keys) via a
-throwaway `--remote` dev server calling `/dev/seed`:
+`just seed-remote <url>` (or `scripts/seed-remote.sh <url>`) is a one-command wrapper
+for the same full seed — a thin shim over `seed.sh` that takes the base URL as an
+argument and runs ingest → S3 upload → purge:
 
 ```bash
 just project=orders seed-remote https://label-cache-orders.<subdomain>.workers.dev
 ```
+
+For a quick 12-term smoke sample (no ingest, no S3 keys), hit the Worker's dev-only
+`/dev/seed` endpoint directly (`just seed` against a local dev server).
 
 ## Verify / demo
 

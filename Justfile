@@ -247,18 +247,16 @@ purge-token-set: _gen
     : "${PURGE_TOKEN:?set a random PURGE_TOKEN before running this recipe}"
     printf '%s' "$PURGE_TOKEN" | {{run}} wrangler secret put PURGE_TOKEN -c .wrangler.gen.toml
 
-# Seed the REAL R2 bucket via a throwaway --remote dev server, so no
-# seeding endpoint is exposed in production. Pass your deployed base URL, e.g.
+# Seed a deployed instance's REAL R2 with the public vocabularies via the
+# production pipeline (ingest -> S3 upload -> purge). project=<name> sets the
+# target bucket (label-cache-<project>); R2_* + PURGE_TOKEN come from .env. Pass
+# your deployed base URL (drives the embedded @context), e.g.
 #   just project=orders seed-remote https://label-cache-orders.<subdomain>.workers.dev
-seed-remote BASE: _gen
+seed-remote BASE:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{run}} wrangler dev --remote -c .wrangler.gen.toml --var ENVIRONMENT:development --port 8788 > /tmp/lc-remote.log 2>&1 &
-    PID=$!
-    trap "kill $PID 2>/dev/null || true" EXIT
-    echo "waiting for remote dev server..."
-    for i in $(seq 1 60); do curl -sf -o /dev/null -X OPTIONS "http://localhost:8788/label" && break; sleep 1; done
-    curl -s "http://localhost:8788/dev/seed?base={{BASE}}" | jq
+    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders seed-remote <url>) or PROJECT in .env}"
+    R2_BUCKET="label-cache-$P" scripts/seed-remote.sh "{{BASE}}"
 
 # --- your own labels ---
 
