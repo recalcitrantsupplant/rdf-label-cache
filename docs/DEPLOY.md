@@ -18,11 +18,14 @@ Run the asset-backed landing page and playground with a local R2 bucket:
 just demo-local
 ```
 
-The recipe starts the demo Worker, loads the normal development seed, then loads
-the committed `demo/seed/widget.ndjson` fixture used by the landing widget. Its
-`__LABEL_CACHE_ORIGIN__` placeholder is rewritten to the selected local origin,
-so the returned JSON-LD context resolves locally. Open `/` for the landing page
-or `/demo` for the playground. Set `PORT=8790` if port 8787 is already occupied.
+The recipe starts the demo Worker, then seeds it through the **production ingest
+pipeline** (`scripts/ingest.mjs`) and loads the result via `/dev/load` - the same
+public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org) and the same
+faithful labels a real deployment serves, with each object's `@context` baked to
+the local origin. So the local demo shows exactly what production does - no curated
+fixtures. The first run fetches schema.org, so it takes a few seconds. Open `/`
+for the landing page or `/demo` for the playground. Set `PORT=8790` if port 8787
+is already occupied.
 
 ## One-time
 

@@ -78,11 +78,15 @@ demo-local:
         echo "ERROR: local demo Worker did not become ready within 60 seconds." >&2
         exit 1
     fi
-    curl -fsS "http://localhost:$PORT/dev/seed"
-    echo
-    sed "s|__LABEL_CACHE_ORIGIN__|http://localhost:$PORT|g" demo/seed/widget.ndjson \
-        | curl -fsS -X POST --data-binary @- "http://localhost:$PORT/dev/load"
-    echo
+    # Seed the real public vocabularies through the PRODUCTION ingest pipeline
+    # (scripts/ingest.mjs), then load via /dev/load - the same faithful labels a
+    # real deployment serves (rdfs:label -> `label`, values verbatim, nothing
+    # coerced to prefLabel or humanized). The local demo now shows exactly what
+    # production does; no curated fixtures to drift out of sync.
+    echo "ingesting public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)..."
+    SEED_BASE="http://localhost:$PORT" node scripts/ingest.mjs
+    curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "http://localhost:$PORT/dev/load" >/dev/null
+    echo "seeded $(wc -l < dist/seed/manifest.ndjson) objects"
     echo "Demo ready: http://localhost:$PORT/ (playground: /demo)"
     wait "$PID"
 
