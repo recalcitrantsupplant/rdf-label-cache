@@ -166,10 +166,15 @@ vendor-n3:
 vendor-label-client:
     ./scripts/vendor-label-client.sh
 
-# Publish the client library (@rdf-label-cache/client) to npm. Reads NPM_TOKEN
-# from .env - a granular or automation token with 2FA bypass (a plain token 403s
-# on npm's publish 2FA gate). `npm test` builds + runs the suite first; prepack
-# rebuilds dist; publishConfig makes it public. On `live` it auto-bumps the
+# Publish the client library (@rdf-label-cache/client) to npm.
+#
+# NORMAL FLOW is CI: bump the version in a PR, and .github/workflows/publish-client.yml
+# publishes on merge to main. Use this recipe for a DRY RUN (default) to preview the
+# tarball, or `live` only for a local/emergency publish - don't race CI on versions.
+#
+# Reads NPM_TOKEN from .env - a granular or automation token with 2FA bypass (a plain
+# token 403s on npm's publish 2FA gate). `npm test` builds + runs the suite first;
+# prepack rebuilds dist; publishConfig makes it public. On `live` it auto-bumps the
 # version (npm rejects republishing an existing one) - default patch, or pass
 # minor/major/<version>. --no-git-tag-version means it only edits package.json;
 # commit that yourself afterwards (the printed command). Dry-run by default:
