@@ -1,9 +1,11 @@
 # @rdf-label-cache/client
 
 A **really thin** (one file, zero dependencies), isomorphic client for the
-[RDF Label Cache](../../README.md). It is the canonical example of *how* to
-consume the service well — it encodes, in code, the guidance from
-[`docs/consuming.md`](../../docs/consuming.md) and [`docs/FAQ.md`](../../docs/FAQ.md):
+[RDF Label Cache](https://github.com/recalcitrantsupplant/rdf-label-cache). It is
+the canonical example of *how* to consume the service well — it encodes, in code,
+the guidance from
+[`consuming.md`](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/consuming.md)
+and [`FAQ.md`](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md):
 
 - **Parallel by default, bounded to ~100 in flight** — the per-connection
   H2/H3 stream limit. Independent, edge-cached GETs multiplexed over one warm
@@ -12,8 +14,6 @@ consume the service well — it encodes, in code, the guidance from
   a returning view is served from the browser's own HTTP cache at 0 bytes on the
   wire. In the browser it adds only an in-flight de-dupe; outside the browser
   (Node/Workers/Deno — no shared HTTP cache) it keeps a small memo LRU.
-- **Picks labels faithfully.** The server keeps every predicate under its own
-  term and never coerces to `prefLabel`, so *you* choose the preference order.
 - **Client-side language fallback.** There is no server-side fallback; a
   `?lang=` miss is corrected with a cheap, separately-cached second call.
 - **Warms the connection** with `preconnect()` (browsers).
@@ -134,9 +134,5 @@ only a context that **renames** the aliases does — then pass your own `order`.
 Because the service is designed so the client *can* be thin: the edge cache,
 HPACK/QPACK header compression, and HTTP/3 stream multiplexing do the heavy
 lifting. The client's whole job is to fire requests in parallel, get out of the
-cache's way, and pick a label. See [`docs/FAQ.md`](../../docs/FAQ.md) for why
-"one request per label" is the right shape.
-
-> **Note.** This package is standalone (not yet wired into the pnpm workspace),
-> so it doesn't touch the Worker's lockfile or CI. To develop it in place, add
-> `packages/*` to `pnpm-workspace.yaml`.
+cache's way, and pick a label. See [the FAQ](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md)
+for why "one request per label" is the right shape.
