@@ -5,6 +5,19 @@
   "type": "module",
   "sideEffects": false,
   "license": "Apache-2.0",
+  "author": "recalcitrantsupplant",
+  "homepage": "https://github.com/recalcitrantsupplant/rdf-label-cache/tree/main/packages/label-cache-client#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/recalcitrantsupplant/rdf-label-cache.git",
+    "directory": "packages/label-cache-client"
+  },
+  "bugs": {
+    "url": "https://github.com/recalcitrantsupplant/rdf-label-cache/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": ["dist", "src"],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
