@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.8.0...rdf-label-cache-v1.0.0) (2026-07-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ops:** R2_ACCOUNT_ID is removed. Set CLOUDFLARE_ACCOUNT_ID instead, and rename any GitHub Actions secret R2_ACCOUNT_ID -> CLOUDFLARE_ACCOUNT_ID.
+
+### Features
+
+* @rdf-label-cache/client consumer library + demo dogfooding ([dfc15b3](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/dfc15b31fae8cdcc543250ed90e5c3952b3a4dd1))
+* **client:** add @rdf-label-cache/client consumer library ([59ef1c7](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/59ef1c7801b86d8abb7c38ac5173980f2dd091a0))
+* **demo:** resolve labels through the client library ([e401400](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/e4014006321012985cf80830beafbe2061d21f19))
+
+
+### Code Refactoring
+
+* **ops:** drop R2_ACCOUNT_ID for CLOUDFLARE_ACCOUNT_ID; add cutover tooling ([ba6c37f](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/ba6c37fdadbb7411cc71cb9b0ec5a2841ab6e377))
+
 ## [0.8.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v0.7.0...rdf-label-cache-v0.8.0) (2026-07-17)
 
 
