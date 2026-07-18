@@ -169,11 +169,14 @@ vendor-label-client:
 # Publish the client library (@rdf-label-cache/client) to npm. Reads NPM_TOKEN
 # from .env - a granular or automation token with 2FA bypass (a plain token 403s
 # on npm's publish 2FA gate). `npm test` builds + runs the suite first; prepack
-# rebuilds dist; publishConfig makes it public. Bump the version in
-# packages/label-cache-client/package.json first. Dry-run by default:
-#   just publish-client         # build, test, and show the tarball - publishes NOTHING
-#   just publish-client live    # actually publish
-publish-client MODE="dry":
+# rebuilds dist; publishConfig makes it public. On `live` it auto-bumps the
+# version (npm rejects republishing an existing one) - default patch, or pass
+# minor/major/<version>. --no-git-tag-version means it only edits package.json;
+# commit that yourself afterwards (the printed command). Dry-run by default:
+#   just publish-client            # build, test, show the tarball - publishes/bumps NOTHING
+#   just publish-client live       # bump patch + publish  (0.1.0 -> 0.1.1)
+#   just publish-client live minor # bump minor + publish  (0.1.0 -> 0.2.0)
+publish-client MODE="dry" BUMP="patch":
     #!/usr/bin/env bash
     set -euo pipefail
     : "${NPM_TOKEN:?set NPM_TOKEN in .env (npm granular/automation token with 2FA bypass)}"
@@ -181,10 +184,14 @@ publish-client MODE="dry":
     npm test
     AUTH="--//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
     if [ "{{MODE}}" = "live" ]; then
+        npm version {{BUMP}} --no-git-tag-version >/dev/null
+        NAME="$(node -p "require('./package.json').name")"
+        VERSION="$(node -p "require('./package.json').version")"
         npm publish "$AUTH"
-        echo "✓ published $(node -p "require('./package.json').name")@$(node -p "require('./package.json').version")"
+        echo "✓ published ${NAME}@${VERSION}"
+        echo "  → commit the bump: git commit -am 'chore(client): release ${NAME}@${VERSION}'"
     else
-        echo "== DRY RUN — nothing published. Run 'just publish-client live' to publish for real. =="
+        echo "== DRY RUN — nothing published or bumped. 'just publish-client live' bumps ({{BUMP}}) + publishes. =="
         npm publish --dry-run "$AUTH"
     fi
 
