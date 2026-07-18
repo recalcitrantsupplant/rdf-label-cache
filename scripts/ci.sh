@@ -12,3 +12,11 @@ pnpm typecheck
 
 echo "==> Test"
 pnpm test
+
+# The client library (packages/label-cache-client) is a standalone, zero-dep
+# package, not yet a pnpm workspace member, so it is built and tested explicitly
+# here using the root-installed toolchain (TypeScript from the root lockfile,
+# Node's built-in test runner). No extra install, so --frozen-lockfile holds.
+echo "==> Client library: build & test (packages/label-cache-client)"
+node_modules/.bin/tsc -p packages/label-cache-client/tsconfig.json
+node --test packages/label-cache-client/test/*.test.mjs

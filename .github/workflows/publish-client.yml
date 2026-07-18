@@ -1,0 +1,53 @@
+name: publish-client
+
+# Publishes the client library (packages/label-cache-client, @rdf-label-cache/client)
+# to npm when its version in package.json is new. Bump the version in a PR; on
+# merge to main this tests and publishes it. README-only / test-only changes
+# (no version bump) run the tests but skip the publish - npm rejects republishing
+# an existing version anyway. Requires an NPM_TOKEN repo secret: a granular or
+# automation token with 2FA bypass.
+on:
+  push:
+    branches: [main]
+    paths: ["packages/label-cache-client/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-client
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository_owner == 'recalcitrantsupplant'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance attestation
+    defaults:
+      run:
+        working-directory: packages/label-cache-client
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+
+      # Build + the full node:test suite gate the publish (prepack rebuilds dist).
+      - run: npm install
+      - run: npm test
+
+      - name: Publish if the version is new
+        run: |
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
+            echo "${NAME}@${VERSION} is already on npm - nothing to publish."
+            exit 0
+          fi
+          echo "Publishing ${NAME}@${VERSION}"
+          npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

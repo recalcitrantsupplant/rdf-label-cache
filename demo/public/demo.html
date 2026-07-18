@@ -8,9 +8,11 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="apple-touch-icon" href="/favicon-180.png" />
-<!-- Self-hosted N3 bundle (scripts/vendor-n3.sh); warm the single same-origin
-     request early so the auto-render on load isn't gated on a cold fetch. -->
+<!-- Self-hosted bundles (scripts/vendor-*.sh); warm the same-origin requests
+     early so the auto-render on load isn't gated on a cold fetch. n3 parses the
+     Turtle; the label-cache client is the real library this demo consumes. -->
 <link rel="modulepreload" href="/vendor/n3.mjs" />
+<link rel="modulepreload" href="/vendor/label-cache-client.mjs" />
 <style>
   :root {
     --bg: #ffffff; --fg: #1a1a1a; --muted: #6b7280; --faint: #9ca3af;
@@ -207,6 +209,9 @@
 // same-origin request, no third-party CDN at runtime. Regenerate the bundle with
 // ./scripts/vendor-n3.sh. The <link rel="modulepreload"> in <head> warms it early.
 import { Parser } from "/vendor/n3.mjs";
+// The demo consumes its own service through the real client library
+// (@rdf-label-cache/client), self-hosted the same way (./scripts/vendor-label-client.sh).
+import { createLabelClient, pickLabel, pickFromMap } from "/vendor/label-cache-client.mjs";
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 // Predicates whose literal object can name an entity when the cache can't (its data supplies its own label).
@@ -270,46 +275,56 @@ ex:crimson a skos:Concept ;
     skos:inScheme ex:scheme .`,
 };
 
-// ---- label resolution (dedup + session cache) ----
-const labelCache = new Map(); // iri -> Promise<{label, definition}|null>
-function pickText(v) {
-  if (v == null) return null;
-  if (typeof v === "string") return v;
-  if (typeof v === "object") return v.en ?? Object.values(v)[0] ?? null;
-  return null;
-}
-function pickLabel(doc) {
-  for (const k of ["prefLabel", "label", "title", "name"]) {
-    const t = pickText(doc[k]);
-    if (t) return t;
-  }
-  return null;
-}
-function resolve(iri) {
-  if (labelCache.has(iri)) return labelCache.get(iri);
-  const path = (suffix = "") => `/label?iri=${encodeURIComponent(iri)}${suffix}`;
-  const get = (suffix) => fetch(path(suffix));
-  // Prefer the untagged label (no ?lang); fall back to English. The fallback is
-  // client-side by design - the Worker stays a dumb single-key lookup.
+// ---- label resolution via the canonical client (dogfooding the library) ----
+// Rather than hand-roll fetching, de-dupe and label-picking, the demo drives the
+// real @rdf-label-cache/client. We inject an instrumented fetch (a supported
+// client option) so the middle pane can still show every request and its cache
+// tier; the client owns URL building, in-flight de-dupe, the session memo
+// (cache: true - browsers skip it by default), and faithful label picking.
+const callInfo = new Map(); // request URL -> { status, elapsed, source }
+async function instrumentedFetch(url, opts) {
   const startedAt = performance.now();
-  const p = get("")
-    .then(async (untagged) => {
-      const url = untagged.ok || untagged.status !== 404 ? path() : path("&lang=en");
-      const response = url === path() ? untagged : await get("&lang=en");
-      const doc = response.ok ? await response.json() : null;
-      const elapsed = Math.round(performance.now() - startedAt);
-      return {
-        status: response.status,
-        url,
-        elapsed,
-        source: await classifySource(url, response),
-        label: doc ? pickLabel(doc) : null,
-        definition: doc ? (pickText(doc.definition) ?? pickText(doc.comment)) : null,
-      };
-    })
-    .catch(() => ({ status: 0, label: null, definition: null, source: null, elapsed: 0 }));
-  labelCache.set(iri, p);
-  return p;
+  let response;
+  try {
+    response = await fetch(url, opts);
+  } catch (e) {
+    callInfo.set(url, {
+      status: 0, elapsed: Math.round(performance.now() - startedAt),
+      source: { tier: "origin", label: "network error", title: "The request failed before any response arrived." },
+    });
+    throw e; // the client turns a throw into a null document
+  }
+  callInfo.set(url, {
+    status: response.status,
+    elapsed: Math.round(performance.now() - startedAt),
+    source: await classifySource(url, response),
+  });
+  return response;
+}
+
+const client = createLabelClient({
+  base: location.origin, // same-origin: /label is served by this Worker
+  cache: true,           // memo across live re-renders (browsers skip it by default)
+  fetch: instrumentedFetch,
+});
+
+// Untagged label first, then English - the client-side fallback the Worker
+// deliberately omits. document() de-dupes + memoizes; instrumentedFetch records
+// each call. We read the whole doc so we can also surface the definition.
+async function resolve(iri) {
+  let lang = null;
+  let doc = await client.document(iri);
+  if (!doc) { lang = "en"; doc = await client.document(iri, "en"); }
+  const url = client.url(iri, lang);
+  const info = callInfo.get(url) || {};
+  return {
+    status: info.status ?? (doc ? 200 : 404),
+    url,
+    elapsed: info.elapsed,
+    source: info.source ?? null,
+    label: doc ? pickLabel(doc, undefined, lang) : null,
+    definition: doc ? (pickFromMap(doc.definition, lang) ?? pickFromMap(doc.comment, lang)) : null,
+  };
 }
 
 // The resource-timing entry finalizes at responseEnd (after the body), which can
@@ -553,12 +568,15 @@ function drawCalls() {
   for (const iri of last.fetched) {
     const r = last.resolved.get(iri) || {};
     const ok = !!(r && r.label);
-    const requestPath = r.url || labelPath(iri);
-    const a = el("a", { class: "call", href: requestPath, target: "_blank", rel: "noopener", title: `GET ${requestPath}` });
+    const requestUrl = r.url || labelPath(iri);
+    // r.url is absolute (client.url uses the origin as base); show just the
+    // /label?... part in the pane, but link to the absolute URL.
+    const relPath = requestUrl.slice(Math.max(0, requestUrl.indexOf("/label")));
+    const a = el("a", { class: "call", href: requestUrl, target: "_blank", rel: "noopener", title: `GET ${relPath}` });
     a.append(el("span", { class: `pill ${ok ? "ok" : "miss"}` }, ok ? "200" : String(r.status || 404)));
     if (r.source) a.append(el("span", { class: `pill ${r.source.tier}`, title: r.source.title }, r.source.label));
     a.append(el("span", { class: "curie" }, curie(iri, last.prefixes)));
-    a.append(el("span", { class: "path" }, requestPath.slice("/label".length)));
+    a.append(el("span", { class: "path" }, relPath.slice("/label".length)));
     if (ok) a.append(el("span", { class: "lbl" }, "→ " + r.label));
     if (r.elapsed != null) a.append(el("span", { class: "ms" }, `${r.elapsed}ms`));
     box.append(a);

@@ -1,7 +1,0 @@
-{"key":"labels/und/http://www.w3.org/1999/02/22-rdf-syntax-ns#type","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"http://www.w3.org/1999/02/22-rdf-syntax-ns#type\",\"prefLabel\":{\"@none\":\"type\"}}"}
-{"key":"labels/und/https://schema.org/Person","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/Person\",\"prefLabel\":{\"@none\":\"Person\"}}"}
-{"key":"labels/und/https://schema.org/Organization","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/Organization\",\"prefLabel\":{\"@none\":\"Organization\"}}"}
-{"key":"labels/und/https://schema.org/name","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/name\",\"prefLabel\":{\"@none\":\"Name\"}}"}
-{"key":"labels/und/https://schema.org/jobTitle","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/jobTitle\",\"prefLabel\":{\"@none\":\"Job Title\"}}"}
-{"key":"labels/und/https://schema.org/worksFor","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/worksFor\",\"prefLabel\":{\"@none\":\"Works For\"}}"}
-{"key":"labels/und/https://schema.org/url","body":"{\"@context\":\"__LABEL_CACHE_ORIGIN__/context/labels-v1.json\",\"@id\":\"https://schema.org/url\",\"prefLabel\":{\"@none\":\"URL\"}}"}

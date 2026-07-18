@@ -522,73 +522,74 @@ displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre
   <div class="step">
     <div class="num done">✓</div>
     <div class="step-body">
-      <h2>Example</h2>
-      <p class="note">Fetch the slice of your graph you want to render, then resolve a label for every IRI it
-      mentions. <code>/label</code> returns <code>application/ld+json</code>, so you can stream each response straight
-      back into your graph. This example parses the Turtle with <a href="https://github.com/rdfjs/N3.js">N3</a> and,
-      since N3 doesn't read JSON-LD, bridges the label docs to RDF/JS quads with
-      <a href="https://github.com/rubensworks/jsonld-streaming-parser.js">jsonld-streaming-parser</a> - but you can
-      use plain JavaScript or other RDF libraries. Here <code>ENDPOINT</code> is your SPARQL endpoint and
-      <code>BASE</code> your Cloudflare Worker URL:</p>
-      <pre><code>import { Parser, Store } from "n3";
-import { JsonLdParser } from "jsonld-streaming-parser";
+      <h2>The client library</h2>
+      <p class="note">The thin, zero-dependency
+      <a href="https://www.npmjs.com/package/@rdf-label-cache/client">@rdf-label-cache/client</a> is the
+      recommended path: it fires the lookups in parallel, prefers the browser cache, does the
+      untagged-then-language fallback, and picks a label - in a few lines. <code>BASE</code> is your
+      Cloudflare Worker URL and <code>iris</code> the IRIs your view mentions:</p>
+      <pre><code>npm add @rdf-label-cache/client</code></pre>
+      <pre><code>import { createLabelClient } from "@rdf-label-cache/client";
 
-// 1. Pull the slice of your KG you want to show - e.g. one resource - and
-//    parse it into a Store you can enrich in place.
-const ttl = await fetch(
-  `${ENDPOINT}?query=${encodeURIComponent(`DESCRIBE &lt;${subject}&gt;`)}`,
-  { headers: { Accept: "text/turtle" } },
-).then((r) =&gt; r.text());
-const store = new Store(new Parser().parse(ttl));
+// Construct once and reuse it - it keeps the connection warm and caches live.
+const labels = createLabelClient({ base: BASE });
+labels.preconnect();                        // browser: warm the connection early
 
-// 2. Collect every distinct IRI (subjects, predicates, IRI objects).
-const iris = [...new Set(
-  store.getQuads().flatMap((q) =&gt; [q.subject, q.predicate, q.object])
-    .filter((t) =&gt; t.termType === "NamedNode")
-    .map((t) =&gt; t.value),
-)];
-
-// 3. Stream each JSON-LD label doc's triples into the same Store - no
-//    intermediate serialization, language tags preserved ("Concept"@en).
-const mergeJsonLd = (doc) =&gt; new Promise((resolve, reject) =&gt; {
-  const p = new JsonLdParser();
-  p.on("data", (q) =&gt; store.addQuad(q));
-  p.on("error", reject).on("end", resolve);
-  p.write(JSON.stringify(doc));
-  p.end();
-});
-
-// Fire the lookups concurrently - one edge-cached GET apiece. No ?lang= fetches
-// the untagged label (labels/und/{iri}); add &amp;lang=xx for a specific language.
-await Promise.all(iris.map(async (iri) =&gt; {
-  const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
-  if (res.ok) await mergeJsonLd(await res.json());
-}));
-
-// `store` now holds your data + every label as triples.</code></pre>
-      <p class="note">Fire the label lookups concurrently - never one-at-a-time. See
-      <a href="https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md">the FAQ</a>
+// Resolve every IRI your view mentions - parallel, deduped, edge-cached, with
+// untagged-then-language fallback and a faithful label pick, all built in.
+const resolved = await labels.resolveMany(iris);
+// resolved: { "https://schema.org/Person": "Person", "https://schema.org/name": "name" }</code></pre>
+      <p class="note">Fire the lookups concurrently - never one-at-a-time (the library does).
+      See <a href="https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md">the FAQ</a>
       on why one-request-per-label is fine over modern HTTP.</p>
 
-      <p class="note reg">Each label doc carries an absolute <code>@context</code> URL, and by default the parser
-      re-fetches it once per doc. <strong>Cache it in your client instead.</strong> The context is versioned and
-      stable - <code>/context/labels-v1.json</code> doesn't change - so fetch it once, then hand
-      <code>JsonLdParser</code> a preloaded <code>context</code> / <code>documentLoader</code> that resolves it from
-      memory. Every label lookup then skips the context round-trip.</p>
+      <h3>Without a dependency — plain <code>fetch</code></h3>
+      <p class="note">The library is thin because the call is simple: one edge-cached GET per IRI, then
+      pick a label from the JSON-LD. If you'd rather not add a dependency, it's a handful of lines. No
+      <code>?lang=</code> is the untagged label (<code>labels/und/{iri}</code>); add
+      <code>&amp;lang=xx</code> for a language:</p>
+      <pre><code>// Your preference order across predicate terms; first hit wins.
+const ORDER = ["prefLabel", "label", "title", "name"];
+const first = (v) =&gt; (Array.isArray(v) ? v[0] : v);
+const pick = (doc) =&gt;
+  ORDER.map((t) =&gt; first(doc[t]?.["@none"] ?? Object.values(doc[t] ?? {})[0])).find(Boolean) ?? null;
+
+const resolved = Object.fromEntries(await Promise.all(iris.map(async (iri) =&gt; {
+  const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
+  return [iri, res.ok ? pick(await res.json()) : null];
+})));</code></pre>
+
+      <h3>Already using <a href="https://github.com/rdfjs/N3.js">n3</a> — labels as RDF</h3>
+      <p class="note">Keeping your graph in an n3 <code>Store</code>? Expand each label doc to RDF/JS quads
+      with the library's <code>toQuads</code> and add them straight in - no JSON-LD parser
+      (<code>jsonld-streaming-parser</code> and friends) needed. It caches the versioned
+      <code>@context</code> for you, so there's no per-doc context round-trip. Pass n3's
+      <code>DataFactory</code> for native quads; language tags are preserved (<code>"Concept"@en</code>):</p>
+      <pre><code>import { DataFactory, Store } from "n3";
+import { createLabelClient } from "@rdf-label-cache/client";
+
+const store = new Store(/* your parsed graph */);
+const labels = createLabelClient({ base: BASE });
+
+const docs = await labels.documentMany(iris);        // { iri: JSON-LD doc | null }
+for (const doc of Object.values(docs)) {
+  if (doc) store.addQuads(await labels.toQuads(doc, { factory: DataFactory }));
+}
+// store now holds your data + every label as triples.</code></pre>
 
       <h3>Get the most from the cache</h3>
-      <p class="note">Every <code>/label</code> response is cached at two layers - the Cloudflare edge (shared
-      across all your users) and the browser - driven by the <code>Cache-Control</code> header
-      (<code>max-age</code> for browsers, <code>s-maxage</code> for the edge, plus
-      <code>stale-while-revalidate</code>). A few things get the most out of it:</p>
+      <p class="note">The library already does all of this; it matters when you go raw. Every
+      <code>/label</code> response is cached at two layers - the Cloudflare edge (shared across all your
+      users) and the browser - driven by <code>Cache-Control</code> (<code>max-age</code> for browsers,
+      <code>s-maxage</code> for the edge, plus <code>stale-while-revalidate</code>):</p>
       <ul class="note" style="margin: 8px 0; padding-left: 20px; line-height: 1.8;">
         <li><strong>Use the default <code>fetch</code></strong> - never <code>cache: 'no-store'</code> or
         <code>reload</code>, which bypass both caches. Repeat lookups then return instantly, refreshed in the
         background.</li>
         <li><strong>Browser apps need no label cache of their own</strong> - the HTTP cache already de-dupes
-        across renders. The one thing worth adding is an in-flight de-dupe so a single render fires each IRI once.</li>
+        across renders; just an in-flight de-dupe so a single render fires each IRI once (the library does this).</li>
         <li><strong>Server-side callers</strong> (Node, another Worker) share no HTTP cache - keep a small
-        in-memory LRU keyed by <code>iri|lang</code>.</li>
+        in-memory LRU keyed by <code>iri|lang</code> (the library's <code>cache: "auto"</code> does this).</li>
         <li><strong>Changed a label?</strong> Purge the <code>labels</code> tag; returning browsers pick it up
         within the hour.</li>
       </ul>

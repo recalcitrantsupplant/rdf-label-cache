@@ -78,11 +78,15 @@ demo-local:
         echo "ERROR: local demo Worker did not become ready within 60 seconds." >&2
         exit 1
     fi
-    curl -fsS "http://localhost:$PORT/dev/seed"
-    echo
-    sed "s|__LABEL_CACHE_ORIGIN__|http://localhost:$PORT|g" demo/seed/widget.ndjson \
-        | curl -fsS -X POST --data-binary @- "http://localhost:$PORT/dev/load"
-    echo
+    # Seed the real public vocabularies through the PRODUCTION ingest pipeline
+    # (scripts/ingest.mjs), then load via /dev/load - the same faithful labels a
+    # real deployment serves (rdfs:label -> `label`, values verbatim, nothing
+    # coerced to prefLabel or humanized). The local demo now shows exactly what
+    # production does; no curated fixtures to drift out of sync.
+    echo "ingesting public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)..."
+    SEED_BASE="http://localhost:$PORT" node scripts/ingest.mjs
+    curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "http://localhost:$PORT/dev/load" >/dev/null
+    echo "seeded $(wc -l < dist/seed/manifest.ndjson) objects"
     echo "Demo ready: http://localhost:$PORT/ (playground: /demo)"
     wait "$PID"
 
@@ -156,6 +160,46 @@ typecheck:
 vendor-n3:
     ./scripts/vendor-n3.sh
 
+# Rebuild the self-hosted client bundle for the demo page
+# (demo/public/vendor/label-cache-client.mjs). Run after changing the client;
+# commit the regenerated file.
+vendor-label-client:
+    ./scripts/vendor-label-client.sh
+
+# Publish the client library (@rdf-label-cache/client) to npm.
+#
+# NORMAL FLOW is CI: bump the version in a PR, and .github/workflows/publish-client.yml
+# publishes on merge to main. Use this recipe for a DRY RUN (default) to preview the
+# tarball, or `live` only for a local/emergency publish - don't race CI on versions.
+#
+# Reads NPM_TOKEN from .env - a granular or automation token with 2FA bypass (a plain
+# token 403s on npm's publish 2FA gate). `npm test` builds + runs the suite first;
+# prepack rebuilds dist; publishConfig makes it public. On `live` it auto-bumps the
+# version (npm rejects republishing an existing one) - default patch, or pass
+# minor/major/<version>. --no-git-tag-version means it only edits package.json;
+# commit that yourself afterwards (the printed command). Dry-run by default:
+#   just publish-client            # build, test, show the tarball - publishes/bumps NOTHING
+#   just publish-client live       # bump patch + publish  (0.1.0 -> 0.1.1)
+#   just publish-client live minor # bump minor + publish  (0.1.0 -> 0.2.0)
+publish-client MODE="dry" BUMP="patch":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${NPM_TOKEN:?set NPM_TOKEN in .env (npm granular/automation token with 2FA bypass)}"
+    cd packages/label-cache-client
+    npm test
+    AUTH="--//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
+    if [ "{{MODE}}" = "live" ]; then
+        npm version {{BUMP}} --no-git-tag-version >/dev/null
+        NAME="$(node -p "require('./package.json').name")"
+        VERSION="$(node -p "require('./package.json').version")"
+        npm publish "$AUTH"
+        echo "✓ published ${NAME}@${VERSION}"
+        echo "  → commit the bump: git commit -am 'chore(client): release ${NAME}@${VERSION}'"
+    else
+        echo "== DRY RUN — nothing published or bumped. 'just publish-client live' bumps ({{BUMP}}) + publishes. =="
+        npm publish --dry-run "$AUTH"
+    fi
+
 # Seed the LOCAL (Miniflare) R2 bucket.
 seed:
     curl -s http://localhost:8787/dev/seed | jq
@@ -203,18 +247,16 @@ purge-token-set: _gen
     : "${PURGE_TOKEN:?set a random PURGE_TOKEN before running this recipe}"
     printf '%s' "$PURGE_TOKEN" | {{run}} wrangler secret put PURGE_TOKEN -c .wrangler.gen.toml
 
-# Seed the REAL R2 bucket via a throwaway --remote dev server, so no
-# seeding endpoint is exposed in production. Pass your deployed base URL, e.g.
+# Seed a deployed instance's REAL R2 with the public vocabularies via the
+# production pipeline (ingest -> S3 upload -> purge). project=<name> sets the
+# target bucket (label-cache-<project>); R2_* + PURGE_TOKEN come from .env. Pass
+# your deployed base URL (drives the embedded @context), e.g.
 #   just project=orders seed-remote https://label-cache-orders.<subdomain>.workers.dev
-seed-remote BASE: _gen
+seed-remote BASE:
     #!/usr/bin/env bash
     set -euo pipefail
-    {{run}} wrangler dev --remote -c .wrangler.gen.toml --var ENVIRONMENT:development --port 8788 > /tmp/lc-remote.log 2>&1 &
-    PID=$!
-    trap "kill $PID 2>/dev/null || true" EXIT
-    echo "waiting for remote dev server..."
-    for i in $(seq 1 60); do curl -sf -o /dev/null -X OPTIONS "http://localhost:8788/label" && break; sleep 1; done
-    curl -s "http://localhost:8788/dev/seed?base={{BASE}}" | jq
+    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders seed-remote <url>) or PROJECT in .env}"
+    R2_BUCKET="label-cache-$P" scripts/seed-remote.sh "{{BASE}}"
 
 # --- your own labels ---
 

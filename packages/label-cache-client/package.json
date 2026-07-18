@@ -1,0 +1,55 @@
+{
+  "name": "@rdf-label-cache/client",
+  "version": "0.1.1",
+  "description": "A thin, zero-dependency, isomorphic client for the RDF Label Cache - prefers the browser HTTP cache, parallel by default.",
+  "type": "module",
+  "sideEffects": false,
+  "license": "Apache-2.0",
+  "author": "recalcitrantsupplant",
+  "homepage": "https://github.com/recalcitrantsupplant/rdf-label-cache/tree/main/packages/label-cache-client#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/recalcitrantsupplant/rdf-label-cache.git",
+    "directory": "packages/label-cache-client"
+  },
+  "bugs": {
+    "url": "https://github.com/recalcitrantsupplant/rdf-label-cache/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node --test test/*.test.mjs",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "keywords": [
+    "rdf",
+    "label",
+    "jsonld",
+    "iri",
+    "cloudflare",
+    "cache",
+    "linked-data"
+  ]
+}

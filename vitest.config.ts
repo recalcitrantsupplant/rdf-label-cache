@@ -12,4 +12,10 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    // Only the Worker's own suite runs under the Workers pool. The standalone
+    // client library (packages/) ships its own `node:test` suite, run separately
+    // via `node --test` in scripts/ci.sh; keep vitest from globbing it.
+    include: ["test/**/*.test.ts"],
+  },
 });
