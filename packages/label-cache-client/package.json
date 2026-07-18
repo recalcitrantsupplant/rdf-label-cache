@@ -1,6 +1,6 @@
 {
   "name": "@rdf-label-cache/client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A thin, zero-dependency, isomorphic client for the RDF Label Cache - prefers the browser HTTP cache, parallel by default.",
   "type": "module",
   "sideEffects": false,
@@ -18,7 +18,10 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -40,5 +43,13 @@
   "devDependencies": {
     "typescript": "^6.0.3"
   },
-  "keywords": ["rdf", "label", "jsonld", "iri", "cloudflare", "cache", "linked-data"]
+  "keywords": [
+    "rdf",
+    "label",
+    "jsonld",
+    "iri",
+    "cloudflare",
+    "cache",
+    "linked-data"
+  ]
 }
