@@ -25,6 +25,32 @@ jobs:
   seed:
     runs-on: ubuntu-latest
     steps:
+      # Fail fast with an exact checklist if any required variable/secret is
+      # unset - GitHub can't ship pre-named placeholders, so a fresh fork starts
+      # empty. Runs before checkout/install so a misconfigured repo fails in
+      # seconds, not after setup. See "Get started fast" step 2 in README.md.
+      - name: Preflight — required Actions variables & secrets
+        env:
+          SEED_BASE: ${{ vars.SEED_BASE }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PURGE_TOKEN: ${{ secrets.PURGE_TOKEN }}
+        run: |
+          missing=()
+          for v in SEED_BASE R2_BUCKET CLOUDFLARE_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY PURGE_TOKEN; do
+            [ -z "${!v}" ] && missing+=("$v")
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "::error::Missing required config: ${missing[*]}"
+            echo "Set them under Settings → Secrets and variables → Actions:"
+            echo "  Variables: SEED_BASE (your Worker URL), R2_BUCKET (the bucket name)"
+            echo "  Secrets:   CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, PURGE_TOKEN"
+            echo "See 'Get started fast' step 2 in README.md."
+            exit 1
+          fi
+          echo "All required variables and secrets are set."
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
