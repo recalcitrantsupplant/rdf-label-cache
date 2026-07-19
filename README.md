@@ -64,10 +64,18 @@ No clone, no local Node — deploy from the browser, then seed from a GitHub Act
 **1. Deploy the Worker + R2 bucket.** Click the button. Cloudflare provisions the
 Worker and its R2 bucket from `wrangler.toml` and **clones this repo into your own
 GitHub** — that clone is where you do the rest. It comes up **empty**: every
-`/label` 404s until you seed (steps 3–4). *(No button? A one-time
+`/label` 404s until you seed (steps 4–5). *(No button? A one-time
 `just project=<you> deploy` from a local clone stands up the same thing.)*
 
-**2. Add your Cloudflare credentials to the repo** — **Settings → Secrets and
+**2. Add the seed workflow.** The deploy button can't copy GitHub Actions
+workflows into your repo (a GitHub security restriction — the button's token
+lacks the `workflow` scope), so add it once by hand: **Add file → Create new
+file**, name it `.github/workflows/seed-labels.yml`, and paste the contents of
+[`seed-labels.yml`](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/.github/workflows/seed-labels.yml)
+(use the **⧉ copy raw file** button there). Commit to your default branch — it
+then appears under the **Actions** tab.
+
+**3. Add your Cloudflare credentials to the repo** — **Settings → Secrets and
 variables → Actions**:
 
 | Kind | Name | Value |
@@ -78,11 +86,11 @@ variables → Actions**:
 | Secret | `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | an R2 API token (dashboard → R2 → Manage API Tokens) |
 | Secret | `PURGE_TOKEN` | a random value — **also** add it as a *Worker* secret (dashboard → your Worker → Settings → Variables) so purges are accepted |
 
-**3. Add your labels.** Drop RDF files (Turtle/N-Triples/…) into the
+**4. Add your labels.** Drop RDF files (Turtle/N-Triples/…) into the
 [`labels/`](labels/) folder and commit. A full instance-data dump is fine — only
 label/description triples are extracted. See [`labels/README.md`](labels/README.md).
 
-**4. Run the seed.** **Actions → seed-labels → Run workflow.** It ingests `labels/`,
+**5. Run the seed.** **Actions → seed-labels → Run workflow.** It ingests `labels/`,
 uploads to R2, and purges the edge. Tick **include common ontology labels** to also
 seed the bundled vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org).
 Re-run any time you change `labels/`.
