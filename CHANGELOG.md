@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v1.0.1...rdf-label-cache-v1.1.0) (2026-07-19)
+
+
+### Features
+
+* **seed:** fail fast with a checklist when seed config is missing ([#41](https://github.com/recalcitrantsupplant/rdf-label-cache/issues/41)) ([8626feb](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/8626feb87560e3c7565026e41c27208ac68f0b6a))
+* **seed:** make seed-labels a reusable workflow (add workflow_call) ([#43](https://github.com/recalcitrantsupplant/rdf-label-cache/issues/43)) ([edd84fc](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/edd84fc6e9e6394386035fa0e0e2af9a7dcb1c38))
+
 ## [1.0.1](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v1.0.0...rdf-label-cache-v1.0.1) (2026-07-19)
 
 
