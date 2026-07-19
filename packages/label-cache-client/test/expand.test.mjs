@@ -9,6 +9,7 @@ import {
   expandDocument,
   createLabelClient,
   pickLabel,
+  lruStore,
   DEFAULT_ORDER,
 } from "../dist/index.js";
 
@@ -219,4 +220,19 @@ test("client.toQuadsMany concatenates and skips null docs", async () => {
     { "@id": `${EX}b`, label: { en: "B" } },
   ]);
   assert.deepEqual(quads.map((q) => q.subject.value), [`${EX}a`, `${EX}b`]);
+});
+
+test("lruStore expires entries at its configured TTL", () => {
+  const store = lruStore(10, 0);
+  store.set("label", { "@id": `${EX}label` });
+  assert.equal(store.get("label"), undefined);
+});
+
+test("client treats an invalid success body as a miss", async () => {
+  const client = createLabelClient({
+    base: "https://host",
+    cache: false,
+    fetch: async () => new Response("not json", { status: 200 }),
+  });
+  assert.equal(await client.document(`${EX}bad`), null);
 });

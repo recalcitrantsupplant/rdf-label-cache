@@ -3,8 +3,8 @@
 // It is deliberately small - a canonical reference for *how* to consume the
 // service well, encoding the guidance in docs/consuming.md and docs/FAQ.md:
 //
-//   1. Fire label lookups in parallel, bounded to ~100 in-flight (Cloudflare's
-//      per-connection stream limit).                          [consuming.md §1]
+//   1. Fire label lookups in parallel, bounded to 100 in flight by default.
+//                                                              [consuming.md §1]
 //   2. Let the HTTP cache do the caching. We never bust the browser cache
 //      (no `cache: "no-store"`), so returning views cost 0 bytes on the wire.
 //      Browsers get an app-level in-flight de-dupe only; non-browser callers
@@ -12,8 +12,8 @@
 //                                                              [consuming.md §2]
 //   3. Preserve every predicate faithfully - the server never coerces to
 //      prefLabel, so the *consumer* picks a preference order.  [consuming.md §1]
-//   4. There is no server-side language fallback; a `?lang=` miss is corrected
-//      with a cheap, cached second call, client-side.       [consuming.md §1, FAQ]
+//   4. There is no server-side language fallback; the client applies an explicit
+//      fallback chain after a miss.                         [consuming.md §1, FAQ]
 //   5. Warm the connection early (browsers) via `<link rel="preconnect">`.
 //                                                              [consuming.md §4]
 //
@@ -130,9 +130,11 @@ export function pickLabel(
 // ---------------------------------------------------------------------------
 
 /**
- * A minimal document store. Implement this to plug in your own cache (Redis,
- * etc.). Only *successful* documents are stored; misses are never cached, so a
- * label seeded shortly after a 404 becomes visible on the next call.
+ * A minimal document store. Implement this to plug in your own in-process
+ * cache - `get` is synchronous, so an external backend (Redis, etc.) cannot
+ * sit behind it. Only *successful* documents are stored; misses are never
+ * cached, so a label seeded shortly after a 404 becomes visible on the next
+ * call.
  */
 export interface LabelStore {
   get(key: string): LabelDoc | undefined;
@@ -140,23 +142,27 @@ export interface LabelStore {
 }
 
 /**
- * A tiny insertion-order LRU. Label objects only change on a data refresh, so a
- * generous size and no TTL are safe; size it to your working set.
+ * A tiny insertion-order LRU with an expiry. The default TTL matches the
+ * service's one-hour browser max-age so long-lived server processes eventually
+ * observe refreshed labels.
  */
-export function lruStore(max = 1000): LabelStore {
-  const m = new Map<string, LabelDoc>();
+export function lruStore(max = 1000, ttlMs = 3_600_000): LabelStore {
+  const m = new Map<string, { doc: LabelDoc; storedAt: number }>();
   return {
     get(key) {
-      const doc = m.get(key);
-      if (doc !== undefined) {
-        m.delete(key); // bump recency
-        m.set(key, doc);
+      const entry = m.get(key);
+      if (entry === undefined) return undefined;
+      if (Date.now() - entry.storedAt >= ttlMs) {
+        m.delete(key);
+        return undefined;
       }
-      return doc;
+      m.delete(key); // bump recency
+      m.set(key, entry);
+      return entry.doc;
     },
     set(key, doc) {
       m.delete(key);
-      m.set(key, doc);
+      m.set(key, { doc, storedAt: Date.now() });
       if (m.size > max) m.delete(m.keys().next().value as string);
     },
   };
@@ -172,8 +178,8 @@ export interface LabelClientOptions {
   /** Predicate preference, first hit wins. Default {@link DEFAULT_ORDER}. */
   order?: readonly string[];
   /**
-   * Max in-flight requests. Cloudflare caps concurrent H2/H3 streams around
-   * 100; firing thousands unbounded just queues them. Default 100.
+   * Max in-flight requests. The default of 100 prevents unbounded request
+   * bursts while retaining useful parallelism.
    */
   concurrency?: number;
   /**
@@ -201,7 +207,7 @@ export interface ResolveOptions {
   /**
    * Language chain tried in order on a miss - the client's stand-in for the
    * server's (deliberately absent) fallback. Default: the requested language,
-   * then the untagged label. Each step is a cheap, separately-cached call.
+   * then the untagged label. Each step remains a separate cacheable resource.
    */
   fallback?: (string | null)[];
 }
@@ -277,7 +283,12 @@ export class LabelClient {
       return null; // network error - treat as a miss
     }
     if (!res.ok) return null; // 404 (not seeded) or any error - a miss, uncached
-    const doc = (await res.json()) as LabelDoc;
+    let doc: LabelDoc;
+    try {
+      doc = (await res.json()) as LabelDoc;
+    } catch {
+      return null;
+    }
     this.store?.set(url, doc);
     return doc;
   }
@@ -299,7 +310,7 @@ export class LabelClient {
   /**
    * Resolve many IRIs to labels concurrently (deduped, bounded to
    * {@link concurrency}). Returns a map of IRI → label (or `null`). This is the
-   * hot path: independent, edge-cached GETs multiplexed over one connection.
+   * hot path: independent, edge-cached GETs issued concurrently.
    */
   async resolveMany(iris: string[], opts: ResolveOptions = {}): Promise<Record<string, string | null>> {
     const out: Record<string, string | null> = {};
