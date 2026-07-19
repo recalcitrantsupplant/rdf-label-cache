@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Why RDF Label Cache?</title>
+<meta name="description" content="Why RDF applications can resolve reusable labels from an edge cache instead of repeatedly querying a knowledge graph." />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -138,11 +139,11 @@
     </div>
   </div>
 
-  <h2>What that buys you: cost and latency</h2>
+  <h2>What that buys you: a predictable cacheable read path</h2>
   <div class="stats">
-    <div class="stat"><div class="stat-n">$0.30<span>/ million requests</span></div><div class="stat-d">first 100k/day free · no egress fees</div></div>
-    <div class="stat"><div class="stat-n">&lt;50&nbsp;ms<span>for 95% of users</span></div><div class="stat-d">served from the nearest of 330+ cities</div></div>
-    <div class="stat"><div class="stat-n">shared<span>per region</span></div><div class="stat-d">one user warms it, everyone reuses it</div></div>
+    <div class="stat"><div class="stat-n">100k/day<span>Workers Free</span></div><div class="stat-d">daily request allowance</div></div>
+    <div class="stat"><div class="stat-n">$5/month<span>Workers Paid</span></div><div class="stat-d">includes 10 million requests</div></div>
+    <div class="stat"><div class="stat-n">tiered<span>Workers Cache</span></div><div class="stat-d">hits skip Worker execution and R2</div></div>
   </div>
   <div class="reasons">
     <div class="reason">
@@ -155,20 +156,19 @@
       everyone's data, hit rates on popular terms are very high.</p>
     </div>
     <div class="reason">
-      <h3>Every lookup costs almost nothing.</h3>
-      <p>Each request - hit or miss - is a single Cloudflare Workers
-      request: $0.30 per million (~$0.0000003 each), with the first 100,000 a day free. A hit is even cheaper in practice:
-      the Worker never runs, so no compute is billed and R2 is never read - you just pay the flat per-request rate. And
-      Cloudflare charges <strong>no bandwidth or egress fees at all</strong> - unlike the hyperscalers. Serving tens
-      of millions of lookups a month costs dollars.</p>
+      <h3>Pricing follows documented platform units.</h3>
+      <p>The Workers Free plan currently allows 100,000 requests per day. The Paid plan starts at $5 per month,
+      includes 10 million monthly requests, and charges $0.30 per additional million; CPU charges can also apply.
+      R2 has separate storage and operation pricing, with no Internet egress fee for direct R2 access. A cache hit still
+      counts as a Workers request, but it avoids Worker CPU and an R2 read. Check the
+      <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers</a> and
+      <a href="https://developers.cloudflare.com/r2/pricing/">R2</a> pricing pages for current rates.</p>
     </div>
     <div class="reason">
-      <h3>And it's faster than calling your backend.</h3>
-      <p>Workers, R2, and the cache are all on Cloudflare's
-      edge - the same network your request already lands on, not a hop out to a cloud region and then an app plus a
-      database. 95% of internet users are within 50&nbsp;ms of a Cloudflare data centre (most within 20&nbsp;ms), and a
-      cache hit is served right there. Resolving a label is typically quicker than a <em>single</em> round trip to your
-      origin - before that origin has queried anything.</p>
+      <h3>Cache hits avoid the application backend.</h3>
+      <p>A Workers Cache hit is returned before the Worker runs, so it avoids both application execution and an R2
+      lookup. Cloudflare operates a globally distributed network, but this project does not publish a latency percentile:
+      measure warm and cold behavior from the regions and clients relevant to your application.</p>
     </div>
   </div>
 

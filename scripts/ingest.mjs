@@ -29,7 +29,7 @@
 // `--input` accepts a single RDF file OR a directory. A directory ingests every
 // RDF file inside it (see RDF_EXTS) in sorted order, merging their quads before
 // extraction - the drop-a-folder-of-labels convention the GitHub Action seed
-// path uses (see docs/one-click-onboarding-design.md).
+// path uses (see "Get started fast" in README.md).
 //
 // Label/description predicates default to the JSON-LD context's families (see
 // LABEL_TERMS / DESC_TERMS, kept in sync with extract-labels.rq). Every harvested

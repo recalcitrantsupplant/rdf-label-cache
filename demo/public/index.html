@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Label Cache - landing</title>
+<title>RDF Label Cache | Edge-cached labels for RDF</title>
+<meta name="description" content="Resolve human-readable labels for RDF IRIs through a self-hosted Cloudflare Worker, Workers Cache, and R2." />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -99,16 +100,16 @@
     <p class="sub">RDF Label Cache compared to four common ways apps obtain labels today.</p>
     <table class="cmp">
       <tr><th>Approach</th><th>Stale?</th><th>Hits the KG?</th><th>Shared?</th></tr>
-      <tr class="win"><td>RDF Label Cache (edge CDN)</td><td class="good">until purge</td><td class="good">never</td><td class="good">globally</td></tr>
+      <tr class="win"><td>RDF Label Cache (edge CDN)</td><td class="good">TTL + purge policy</td><td class="good">never</td><td class="good">at the edge</td></tr>
       <tr><td>Hard-coded label table</td><td class="bad">yes</td><td class="good">no</td><td class="bad">no</td></tr>
       <tr><td>Label joins in every query</td><td class="good">no</td><td class="bad">heavily</td><td class="bad">no</td></tr>
       <tr><td>Follow-up label query</td><td class="good">no</td><td class="bad">every time</td><td class="bad">no</td></tr>
       <tr><td>Shadow "label" named graphs</td><td class="bad">drifts</td><td class="bad">yes</td><td class="bad">no</td></tr>
     </table>
     <div class="grid3" style="margin-top:26px">
-      <div class="card"><div class="big">$0.30</div><h3>per million requests</h3><p>First 100k/day free - hits and misses alike. No egress fees at all, unlike the hyperscalers.</p></div>
-      <div class="card"><div class="big">&lt;50ms</div><h3>for 95% of users</h3><p>Served from the nearest of 330+ cities - often faster than one origin round-trip.</p></div>
-      <div class="card"><div class="big">shared</div><h3>per region</h3><p>One user warms the cache; everyone routed there rides it. Common terms hit ~always.</p></div>
+      <div class="card"><div class="big">100k/day</div><h3>Workers Free allowance</h3><p>Requests are subject to the Free plan's daily limit; R2 includes separate monthly storage and operation allowances.</p></div>
+      <div class="card"><div class="big">$5/month</div><h3>Workers Paid base</h3><p>Includes 10 million requests per month; additional requests are currently $0.30 per million, plus billable CPU where applicable.</p></div>
+      <div class="card"><div class="big">tiered</div><h3>shared edge cache</h3><p>Reusable entries can be served without invoking the Worker or reading R2. Actual hit rate and latency depend on traffic.</p></div>
     </div>
     <p style="text-align:center;margin-top:22px"><a href="/why">Read the full write-up - cost, latency &amp; the shared-cache model <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></p>
   </div>

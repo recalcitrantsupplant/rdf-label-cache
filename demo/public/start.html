@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Getting started · RDF Label Cache</title>
+<meta name="description" content="Deploy RDF Label Cache to Cloudflare and seed R2 from GitHub Actions or a local ingestion pipeline." />
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -293,8 +294,8 @@
   <details class="why">
     <summary>Using npm or bun instead of pnpm</summary>
     <div class="why-body">
-      <p class="note">Examples use <strong>pnpm</strong> - recommended, since the committed lockfile gives reproducible,
-      age-pinned installs - but <strong>npm</strong> and <strong>bun</strong> work too. In shell commands, swap
+      <p class="note">Examples use <strong>pnpm</strong> - recommended, since the committed lockfile gives
+      reproducible installs. The underlying commands can be adapted to <strong>npm</strong> or <strong>bun</strong>. In shell commands, swap
       <code>pnpm install</code> → <code>npm install</code> / <code>bun install</code> and <code>pnpm wrangler …</code> →
       <code>npx wrangler …</code> / <code>bunx wrangler …</code>; the <code>node scripts/…</code> commands are identical
       on all three. For the <code>just</code> recipes, name your manager once and it threads through:
@@ -539,9 +540,9 @@ labels.preconnect();                        // browser: warm the connection earl
 // untagged-then-language fallback and a faithful label pick, all built in.
 const resolved = await labels.resolveMany(iris);
 // resolved: { "https://schema.org/Person": "Person", "https://schema.org/name": "name" }</code></pre>
-      <p class="note">Fire the lookups concurrently - never one-at-a-time (the library does).
+      <p class="note">Fire the lookups concurrently rather than serially (the library does).
       See <a href="https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md">the FAQ</a>
-      on why one-request-per-label is fine over modern HTTP.</p>
+      for the per-IRI cache rationale.</p>
 
       <h3>Without a dependency — plain <code>fetch</code></h3>
       <p class="note">The library is thin because the call is simple: one edge-cached GET per IRI, then

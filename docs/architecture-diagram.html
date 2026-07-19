@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RDF Label Cache - Architecture</title>
+  <title>Architecture | RDF Label Cache</title>
+<meta name="description" content="Current RDF Label Cache request flow across consumer caches, Workers Cache, the Worker, and R2." />
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --ink:#e7eaf0; --muted:#9aa4b2;
@@ -81,8 +82,9 @@
   <!-- ============ 1. COMPONENT / ARCHITECTURE OVERVIEW ============ -->
   <section>
     <h2>1 · Architecture overview</h2>
-    <p class="lead">Requests flow top-to-bottom. Workers Cache sits <em>in front of</em> the
-      Worker - cache hits are served without ever invoking it.</p>
+    <p class="lead">A browser may satisfy a normal fetch from its partitioned HTTP cache;
+      server-side users of the client may hit its bounded LRU. Network requests then reach
+      Workers Cache <em>in front of</em> the Worker, where edge hits skip Worker execution.</p>
 
     <svg viewBox="0 0 900 470" role="img" aria-label="Component architecture diagram">
       <defs>
@@ -96,8 +98,8 @@
 
       <!-- Client -->
       <rect x="330" y="10" width="240" height="60" rx="12" class="node"/>
-      <text class="lbl" x="450" y="38" text-anchor="middle">Client</text>
-      <text class="desc" x="450" y="56" text-anchor="middle">SPARQL UIs, catalogues, RDF tooling</text>
+      <text class="lbl" x="450" y="38" text-anchor="middle">Consumer + local cache</text>
+      <text class="desc" x="450" y="56" text-anchor="middle">browser HTTP cache · server client LRU</text>
 
       <line x1="450" y1="70" x2="450" y2="102" class="link" marker-end="url(#arw)"/>
       <text class="tag" x="462" y="90">HTTPS · GET /label?iri=…&amp;lang=</text>
@@ -136,7 +138,7 @@
       <rect x="300" y="386" width="300" height="72" rx="14" class="node r2"/>
       <rect x="300" y="386" width="6" height="72" rx="3" class="bar-r2"/>
       <text class="lbl" x="450" y="414" text-anchor="middle">R2 · label store</text>
-      <text class="desc" x="450" y="434" text-anchor="middle"><tspan class="mono">labels/{lang}/{iri}</tspan> · gzip blobs · JSON-LD</text>
+      <text class="desc" x="450" y="434" text-anchor="middle"><tspan class="mono">labels/{lang}/{iri}</tspan> · JSON-LD objects</text>
     </svg>
 
     <div class="legend">
@@ -149,7 +151,8 @@
   <!-- ============ 2. REQUEST LIFECYCLE FLOW ============ -->
   <section>
     <h2>2 · Request lifecycle</h2>
-    <p class="lead">The cold path only - a warm cache short-circuits at step&nbsp;2.</p>
+    <p class="lead">The network path only - a consumer-local cache may return before step&nbsp;1,
+      and a warm edge cache short-circuits at step&nbsp;2.</p>
 
     <svg viewBox="0 0 900 150" role="img" aria-label="Request lifecycle flow">
       <defs>
@@ -209,7 +212,7 @@
 
       <!-- participant heads : Client 120 · Cache 370 · Worker 620 · R2 830 -->
       <rect x="60" y="10" width="120" height="42" rx="9" class="node"/>
-      <text class="lbl sm" x="120" y="36" text-anchor="middle">Client</text>
+      <text class="lbl sm" x="120" y="36" text-anchor="middle">Consumer</text>
       <rect x="310" y="10" width="120" height="42" rx="9" class="node accent"/>
       <text class="lbl sm" x="370" y="36" text-anchor="middle">Cache</text>
       <rect x="560" y="10" width="120" height="42" rx="9" class="node"/>
@@ -239,9 +242,9 @@
       <line x1="370" y1="238" x2="612" y2="238" class="link" marker-end="url(#sq)"/>
       <text class="tag" x="392" y="232">miss → invoke</text>
       <line x1="620" y1="266" x2="822" y2="266" class="link r2" marker-end="url(#sqP)"/>
-      <text class="tag t-r2" x="642" y="260">r2.get(labels/…/lang)</text>
+      <text class="tag t-r2" x="642" y="260">r2.get(labels/{lang}/{iri})</text>
       <line x1="830" y1="294" x2="628" y2="294" class="link r2" marker-end="url(#sqP)"/>
-      <text class="tag t-r2" x="642" y="288">gzip bytes + metadata</text>
+      <text class="tag t-r2" x="642" y="288">JSON-LD bytes + metadata</text>
       <line x1="620" y1="322" x2="378" y2="322" class="link" marker-end="url(#sq)"/>
       <text class="tag" x="392" y="316">Response + Cache-Control/Tag → stored</text>
       <line x1="370" y1="350" x2="128" y2="350" class="link green" marker-end="url(#sqG)"/>
@@ -249,7 +252,7 @@
 
       <line x1="60" y1="376" x2="890" y2="376" class="divider"/>
       <text class="tag t-muted" x="60" y="400">Invalidation - ingestion pipeline calls
-        <tspan class="t-amber mono">ctx.cache.purge({ tags: ["public-labels"] })</tspan> after refreshing R2.</text>
+        <tspan class="t-amber mono">ctx.cache.purge({ tags: ["labels", "context"] })</tspan> after refreshing R2.</text>
     </svg>
 
     <div class="legend">
@@ -259,7 +262,7 @@
     </div>
   </section>
 
-  <footer>rdf-label-cache · architecture overview · see architecture.md &amp; 2026-07-06-workers-cache-migration.md</footer>
+  <footer>rdf-label-cache · current architecture overview · see architecture.md</footer>
 
 </div>
 </body>

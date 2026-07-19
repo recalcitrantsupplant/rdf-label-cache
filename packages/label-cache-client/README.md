@@ -7,15 +7,14 @@ the guidance from
 [`consuming.md`](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/consuming.md)
 and [`FAQ.md`](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md):
 
-- **Parallel by default, bounded to ~100 in flight** — the per-connection
-  H2/H3 stream limit. Independent, edge-cached GETs multiplexed over one warm
-  connection.
+- **Parallel by default, bounded to 100 in flight.** Independent, edge-cached
+  GETs are issued concurrently without an unbounded request burst.
 - **Prefers the browser cache.** It never busts it (no `cache: "no-store"`), so
-  a returning view is served from the browser's own HTTP cache at 0 bytes on the
-  wire. In the browser it adds only an in-flight de-dupe; outside the browser
+  a returning view can be served from the browser's own HTTP cache without a
+  network transfer. In the browser it adds only an in-flight de-dupe; outside the browser
   (Node/Workers/Deno — no shared HTTP cache) it keeps a small memo LRU.
-- **Client-side language fallback.** There is no server-side fallback; a
-  `?lang=` miss is corrected with a cheap, separately-cached second call.
+- **Client-side language fallback.** There is no server-side fallback; the
+  client can try another language after a miss.
 - **Warms the connection** with `preconnect()` (browsers).
 
 ## Install
@@ -94,7 +93,7 @@ even optional) dependency. Two supported routes:
 
 | Member | Purpose |
 |---|---|
-| `createLabelClient(opts)` / `new LabelClient(opts)` | Construct once, reuse — keeps the connection warm and caches live. |
+| `createLabelClient(opts)` / `new LabelClient(opts)` | Construct once and reuse it for in-flight de-duplication and server-side memoization. |
 | `.resolve(iri, { lang?, fallback? })` | IRI → label string (or `null`). |
 | `.resolveMany(iris, opts?)` | IRIs → `{ [iri]: label \| null }`, concurrent & deduped. |
 | `.document(iri, lang?)` / `.documentMany(iris, lang?)` | Raw JSON-LD (or `null` on a miss). |
@@ -103,7 +102,7 @@ even optional) dependency. Two supported routes:
 | `.url(iri, lang?)` | The request URL for a pair (for `<link rel=preload>`, debugging). |
 | `.preconnect()` | Browser: preconnect to the origin. No-op elsewhere. |
 | `pickLabel(doc, order?, lang?)` / `pickFromMap(map, lang)` | Pure pickers, usable without a client. |
-| `lruStore(max?)` | The default memo store; pass your own via `cache`. |
+| `lruStore(max?, ttlMs?)` | The default one-hour memo store; pass your own via `cache`. |
 
 ### Options
 
@@ -117,11 +116,14 @@ createLabelClient({
 });
 ```
 
-`cache: "auto"` turns the memo LRU **off in browsers** (the HTTP cache already
+`cache: "auto"` is the recommended default. It turns the memo LRU **off in browsers** (the HTTP cache already
 does this job and a hand-rolled map mostly duplicates it) and **on everywhere
-else** (server callers have no shared HTTP cache). Only successful documents are
-memoized — a miss is never cached, so a label seeded shortly after a 404 shows
-up on the next call.
+else** with a one-hour TTL (server callers have no shared HTTP cache). Use
+`cache: false` when the host already provides caching or every request must
+revalidate; pass a custom `LabelStore` (a synchronous, in-process store) to
+share entries between clients in the same process or tune sizing/TTL beyond
+`lruStore(max, ttlMs)`. Only successful documents are memoized, so a label
+seeded shortly after a 404 can appear on the next call.
 
 `order` is matched against the **term aliases** in the response (the object's
 keys, e.g. `prefLabel`), not IRIs. The default matches the aliases this
@@ -131,8 +133,7 @@ only a context that **renames** the aliases does — then pass your own `order`.
 
 ## Why so thin?
 
-Because the service is designed so the client *can* be thin: the edge cache,
-HPACK/QPACK header compression, and HTTP/3 stream multiplexing do the heavy
-lifting. The client's whole job is to fire requests in parallel, get out of the
-cache's way, and pick a label. See [the FAQ](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md)
-for why "one request per label" is the right shape.
+The service exposes ordinary cacheable HTTP resources. The client only needs to
+issue bounded parallel requests, avoid bypassing HTTP caches, apply language
+fallback, and pick a label. See [the FAQ](https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/docs/FAQ.md)
+for the per-IRI request rationale.

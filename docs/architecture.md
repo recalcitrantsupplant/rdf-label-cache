@@ -1,16 +1,11 @@
-# RDF Label Cache - Architecture Design Document
+# RDF Label Cache Architecture
 
-**Version:** 0.4 (draft)  
-**Status:** Design / Pre-implementation  
+**Status:** Current implementation
 **Platform:** Cloudflare Workers (Workers Cache) + R2
 
-> **Caching:** this document reflects the move to **Workers Cache** - a platform-managed,
-> regionally tiered cache in front of the Worker. See
-> [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for the
-> rationale, before/after, and migration checklist.
->
-> **FAQ:** design rationale for common objections - notably "it's one request per label,
-> isn't that slow?" - lives in [`FAQ.md`](./FAQ.md).
+This document describes the deployed 1.x architecture. Operational instructions
+live in [`DEPLOY.md`](./DEPLOY.md); consumer guidance lives in
+[`consuming.md`](./consuming.md).
 
 ---
 
@@ -18,9 +13,13 @@
 
 A globally distributed, low-latency HTTP service for resolving human-readable labels for RDF IRIs.
 
-Serves a curated set of well-known public namespaces from R2, fronted by Workers Cache. The stack is intentionally minimal: one Worker, one R2 bucket, platform-managed cache. No databases, no auth, no middleware.
+Serves a curated set of well-known public namespaces from R2, fronted by Workers
+Cache. The public stack is intentionally minimal: one Worker, one R2 bucket, and
+the platform-managed cache. It has no database or application-level auth.
 
-**Supported namespaces:** rdfs, owl, skos, skos-xl, dc, dcterms, schema.org, foaf, prov, void, xsd, rdf
+**Maintained public seed:** RDF, RDFS, OWL, SKOS, DCTERMS, DCAT, and Schema.org.
+The JSON-LD context also defines several common prefixes, but a prefix mapping
+does not imply that its vocabulary labels are present in a deployment.
 
 **Self-hosting:** the repo is designed to be cloned and deployed as-is. Private label deployments load their own labels into their own R2 bucket alongside (or instead of) the public ones. There is no published R2 bootstrap bucket or release tarball; use the included ingestion and upload pipeline.
 
@@ -79,8 +78,14 @@ resolve CURIEs before calling `/label`. The service exposes no prefix registry.
 
 ### 3.1 Component Overview
 
+The standalone [`architecture-diagram.html`](./architecture-diagram.html) includes
+the component overview and cache hit/miss sequence in a browser-friendly format.
+
 ```
-Client
+Consumer application
+  │
+  │ Browser: normal fetch may use the partitioned HTTP cache
+  │ Server: client library uses a bounded in-memory LRU by default
   │
   │ HTTPS
   ▼
@@ -118,7 +123,7 @@ Client
    └── MISS → 404
 ```
 
-No fallback chain, no proxy, no external calls. The Worker either finds the object in R2 or returns 404. Caching is driven entirely by the response `Cache-Control` header - the Worker no longer calls `cache.match`/`cache.put` itself (see the migration doc).
+No fallback chain, no proxy, no external calls. The Worker either finds the object in R2 or returns 404. Caching is driven entirely by the response `Cache-Control` header; the Worker does not call `cache.match` or `cache.put` itself.
 
 ---
 
@@ -234,13 +239,16 @@ Caching is enabled via config (`[cache] enabled = true`) and driven by the respo
 | 404 | `public, max-age=60` |
 | Context document | `public, max-age=31536000, immutable` (versioned URL, content never changes) |
 
-Every cacheable response also carries a scoped `Cache-Tag` header (`labels` for
-label responses, `context` for the JSON-LD context).
-Purge data tags on ontology refresh via `ctx.cache.purge({ tags: [...] })`. This
-invalidates the Cloudflare edge only: the one-year browser cache is an accepted
-static-RDF policy, so exceptional typo corrections require a new resource URL.
+Successful label and context responses carry scoped `Cache-Tag` headers
+(`labels` and `context`). Short-lived error responses are untagged. Purge data
+tags on ontology refresh via `ctx.cache.purge({ tags: [...] })`. This invalidates
+the Cloudflare edge only. Browser caches cannot be purged: after a label becomes
+stale, a browser may render its stored copy once while revalidating it in the
+background during the SWR window. A later request normally uses the refreshed
+value, but the one-hour `max-age` is not a hard staleness bound.
 
-See [2026-07-06-workers-cache-migration.md](./2026-07-06-workers-cache-migration.md) for migration detail and open caveats (404 cacheability, plan/GA status, `compatibility_date`).
+Cloudflare's Workers Caching configuration documentation is the source of truth
+for platform availability and behavior.
 
 ---
 
@@ -257,7 +265,7 @@ Storage is not a cost concern.
 ### Requests and reads
 
 Pricing below is a formula, not a traffic forecast, and was checked on
-2026-07-16 against [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
+2026-07-19 against [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/)
 and [R2 pricing](https://developers.cloudflare.com/r2/pricing/). Workers Cache
 hits avoid Worker CPU and R2 reads, but they are still Worker requests.
 
@@ -297,7 +305,8 @@ bucket_name = "label-cache-dev"
 ENVIRONMENT = "production"
 ```
 
-No secrets, no KV, no D1. `[cache] enabled = true` turns on Workers Cache; confirm it is available on the account plan and stable on the pinned `compatibility_date` (see migration doc caveat 2).
+No KV or D1 is required. `[cache] enabled = true` turns on Workers Cache. A
+`PURGE_TOKEN` Worker secret protects the data-refresh purge endpoint.
 
 ### 6.2 Label Data Bootstrap
 
@@ -311,9 +320,14 @@ Deploy your own instance. Load your private label objects into your R2 bucket us
 
 ### 6.4 Protecting a Private Deployment (Auth)
 
-The Worker itself has no auth logic. For access control, put an auth layer in front at the platform level - no code changes to the Worker needed.
+The Worker itself has no auth logic. Public deployments should contain only
+public labels. A private deployment must use a non-bypassable platform auth layer
+or implement an auth-first Worker gateway; do not add a bearer check behind the
+current front cache.
 
-**Cloudflare:** Cloudflare Access in front of the Worker. Configure with any IdP (Entra, Okta, Google, GitHub). Enforces JWT validity and group/role claims at the edge before the Worker is invoked. Free tier covers most private deployments.
+**Cloudflare:** Cloudflare Access can protect the Worker when every public route,
+preview hostname, and alternate origin is covered. The proposed native gateway
+design is documented in [`designs/private-label-auth.md`](./designs/private-label-auth.md).
 
 Other-cloud deployment support is parked. The service currently targets
 Cloudflare because Workers Cache and R2 are material parts of its behavior and
@@ -331,10 +345,11 @@ Per-namespace access control (user A can read namespace X but not Y) is delibera
 
 ### 6.6 Ontology Ingestion Pipeline
 
-A GitHub Action runs on a schedule (or on demand) to refresh public namespace data:
+The maintainer runs a manual GitHub Action when the public seed needs refreshing:
 
 ```
-1. Fetch authoritative ontology files (rdfs, owl, skos, dc, schema.org, foaf, prov, void)
+1. Load RDF, RDFS, OWL, and SKOS from the bundled Turtle files; fetch DCTERMS,
+   DCAT, and Schema.org from their maintained upstream sources
 2. Parse RDF (N-Triples or Turtle)
 3. Extract label triples (rdfs:label, skos:prefLabel, skos:altLabel, dcterms:title,
    rdfs:comment, skos:definition, dcterms:description, schema:name)
@@ -353,14 +368,11 @@ A GitHub Action runs on a schedule (or on demand) to refresh public namespace da
 
 ## 7. Open Questions / Future Work
 
-- **Bulk resolution** - `POST /labels` with an array of IRIs. Worker fetches each R2 key and concatenates pre-built objects into a JSON-LD array. No per-object processing needed. **Caveat:** an arbitrary batch is a near-unique cache key, so this bypasses per-IRI edge caching and moves work into Worker CPU - scope it to cold/bulk workloads; per-IRI `GET` over H2/H3 stays the hot path. See [`FAQ.md`](./FAQ.md) for the full rationale on the "one request per label" concern.
+- **Bulk resolution** - consider `POST /labels` only for cold server-to-server
+  workloads. Per-IRI `GET` remains the cache-friendly interactive path.
 - **Native authentication for private deployments** - built-in access control so a private label set can be served without standing up a platform auth layer in front. Today auth is delegated entirely to the edge (Cloudflare Access, APIM, Lambda@Edge — see §6.4); a first-class option (e.g. a shared-secret / bearer-token check in the Worker, or signed URLs) would let a private deployment protect itself out of the box. Per-namespace access control stays out of scope (§6.4).
-- **One-click onboarding (deploy, then seed).** Collapse "clone the repo and run five commands" into two clear phases:
-  - **Phase 1 - deploy the service.** A *Deploy to Cloudflare* button in the README (alongside enabling **Use this template** and a C3 `npm create cloudflare -- --template …` entry) stands up the Worker and provisions the bound R2 bucket in the user's own account - from a Cloudflare account alone, no terminal. **Limitation to design around:** the button deploys *code + resources*, not *data*, so R2 comes up **empty** and every `/label` 404s until Phase 2. The button flow also creates a repo in the user's GitHub, which doubles as their clone for Phase 2. The README must make the seed step loud so nobody expects labels to appear by magic (we ship nothing pre-loaded by design).
-  - **Phase 2 - seed the data.** Two first-class input paths, each ending in the existing `ingest` + `upload` sync to R2, and each with an **optional** public-ontology top-up (`seed-public`):
-    - **Local RDF** - drop files in a `labels/` folder (labels-only, *or* full RDF we strip the label/description triples out of) → one recipe ingests the folder and uploads.
-    - **SPARQL endpoint** - point us at an endpoint; `extract-labels` pulls the annotation triples, then the same ingest + upload path runs.
-  - **Build vs. buy:** most of the pipeline already exists (`ingest.mjs --input` already strips labels from arbitrary RDF; `extract-labels.rq`; `upload-seed.mjs`; `seed-public`). The new work is the button/template/C3 wiring, a folder-based (multi-file) ingest convention, and a single guided `just` entry point per path.
+- **Onboarding extensions** - add a hosted SPARQL seed workflow and optional
+  template/C3 entry points. The deploy button and file-based Action already ship.
 - **Label search** - full-text search across all stored labels (IRI → label and label → IRI). Requires an index; out of scope for the initial Worker but a natural companion service.
 - **`/.well-known/prefixes`** - canonical prefix map endpoint for tooling.
 - **Context versioning** - when a v2 context is needed, determine migration path (rewrite all R2 keys vs dual-serve both versions during transition).

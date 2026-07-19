@@ -2,7 +2,7 @@
 # Ingest YOUR label files from a folder and upload them to your R2 bucket - the
 # fork/self-host Phase-2 seed path (file mode). Runs in any fork from the
 # `seed-labels` GitHub Action once Cloudflare secrets are set, or locally.
-# See docs/one-click-onboarding-design.md.
+# See "Get started fast" in README.md.
 #
 # Data (R2) and code (Worker) have independent lifecycles: this runs on demand,
 # not on every deploy.

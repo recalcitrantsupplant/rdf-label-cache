@@ -1,8 +1,8 @@
 // Workers Cache strategy: the edge holds entries for a year (s-maxage) and is
 // invalidated by cache-tag purges after a data refresh. Browsers get a short
 // max-age instead, because nothing can evict an already-cached browser
-// response - a purge only reaches the Cloudflare edge, so a *change* becomes
-// visible to a returning browser within max-age (one hour) at worst.
+// response - a purge only reaches the Cloudflare edge, so browsers pick up a
+// *change* by revalidating once their copy is older than max-age (one hour).
 //
 // stale-while-revalidate lets a browser serve its cached copy instantly and
 // refresh in the background once past max-age. Without it, browsers cannot use
@@ -11,7 +11,9 @@
 // response is stale-on-arrival, forcing a blocking refetch on every request.
 // SWR moves that refetch into the background - the user gets an instant local
 // hit and the new value on the next request - at the cost of one stale render
-// for a returning user. Freshness is still bounded by max-age + the purge.
+// for a returning user. That means max-age is NOT a hard staleness bound: in
+// the usual case a later request uses the refreshed value, but the first
+// request past max-age may still render the old copy while SWR is allowed.
 //
 // Cache tags are deliberately scoped. `labels` is the full label-data scope;
 // there is no catch-all tag because code deploys use version-isolated cache.

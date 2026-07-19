@@ -8,10 +8,9 @@ what a consumer should actually do.
 
 ## 1. Fire label lookups in parallel
 
-Every label is an independent `GET /label?iri=…&lang=…`. They are not a batch and they do
-not depend on each other, so resolve them **concurrently** — never one at a time. Over
-Cloudflare's HTTP/2 and HTTP/3 they multiplex over a single connection and land within
-roughly one round trip.
+Every label is an independent `GET /label?iri=…&lang=…`. They do not depend on
+each other, so resolve them concurrently rather than in a serial loop. The client
+library does this with a default limit of 100 in-flight requests.
 
 Each response keeps every source predicate under its own term (`prefLabel`, `label`,
 `title`, `name`, …) and **never** collapses them into `prefLabel` — so *you* pick the
@@ -19,35 +18,18 @@ preference order. A term can also hold an **array** when the source had several
 values (e.g. multiple `altLabel`s). A small picker handles both:
 
 ```js
-// Your preference order across predicates - first hit wins.
-const ORDER = ["prefLabel", "label", "title", "name"];
-const first = (v) => (Array.isArray(v) ? v[0] : v); // a term may hold several
-const pickLang = (m) => m && (m["@none"] ?? m.en ?? Object.values(m)[0]);
-const pickLabel = (doc) => {
-  for (const term of ORDER) {
-    const v = first(pickLang(doc[term]));
-    if (v) return v;
-  }
-  return null;
-};
+import { createLabelClient } from "@rdf-label-cache/client";
 
-const labels = Object.fromEntries(await Promise.all(
-  iris.map(async (iri) => {
-    // no ?lang= -> untagged label; add &lang=xx for a specific language.
-    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
-    return [iri, res.ok ? pickLabel(await res.json()) : null];
-  }),
-));
+const client = createLabelClient({ base: BASE });
+const labels = await client.resolveMany(iris);
 ```
 
 There is no server-side language fallback: `?lang=en` is exactly `labels/en/{iri}`, and no
 `?lang=` is `labels/und/{iri}` (the untagged label). If your data mixes tagged and untagged
-labels, decide the order client-side and make a second call on a miss — cheap and cached.
+labels, decide the fallback order client-side. The client library supports this.
 
-Bound in-flight requests to **~100** (Cloudflare's per-connection stream limit). Firing
-thousands unbounded just queues them and can trip flow control. See
-[`FAQ.md`](./FAQ.md#its-one-http-request-per-label-isnt-that-slow--an-n1-problem) for the
-full transport rationale.
+If you use raw `fetch`, apply your own concurrency bound and predicate preference
+order. See [`FAQ.md`](./FAQ.md#why-one-request-per-label) for the design rationale.
 
 ---
 
@@ -64,9 +46,9 @@ change them:
 
 | Knob | Default | What it controls | Tune when |
 |---|---|---|---|
-| browser `max-age` | `3600` (1h) | Worst-case time a **changed** label keeps showing stale to a returning browser — a purge can't reach browsers | Lower for faster change propagation; raise if labels rarely change |
+| browser `max-age` | `3600` (1h) | When a browser copy becomes stale and should revalidate; a purge cannot reach browsers | Lower to start revalidation sooner; raise if labels rarely change |
 | edge `s-maxage` | `31536000` (1y) | How long the edge holds an entry — a **cost/efficiency** dial, *not* freshness (the tag purge overrides it) | Leave long |
-| `stale-while-revalidate` | `604800` (1w) | How far past `max-age` a browser serves its cached copy **instantly** while refreshing in the background | Raise toward `s-maxage` for near-always local hits; lower to bound returning-visitor staleness |
+| `stale-while-revalidate` | `604800` (1w) | How long after `max-age` a browser may serve stale content while refreshing in the background | Raise for more local reuse; lower to reduce permitted stale serving |
 | error/404 `max-age` | `60s`, untagged | How fast a newly-**added** label for a previously-missing IRI appears — no purge needed | Keep short |
 | tag purge | on change | Invalidate the edge after **editing** existing labels | Always, after changing an existing label |
 
@@ -76,15 +58,17 @@ forwarded age — not against when *it* fetched. Popular labels stay warm at the
 hours, so they arrive with `Age` already **past** `max-age=3600`: stale on arrival. Without
 `stale-while-revalidate` the browser then blocks and refetches on **every** request, so its
 own cache goes effectively unused for any warm entry. With it, a stale-but-within-window copy
-is served **instantly (0 bytes, ~2 ms)** while a background refresh pulls the current value in
-for next time. Returning visitors get local-cache speed; freshness stays bounded by `max-age`
-+ the purge, at the cost of one stale render immediately after a change.
+can be served immediately from local storage while a background refresh pulls the current
+value for a later request. In the usual successful revalidation case this costs one stale
+render after a change. The SWR window deliberately permits stale serving beyond `max-age`,
+so one hour is not a hard worst-case freshness bound.
 
 **Changes vs. additions** — only one needs a purge:
 
 - **Editing an existing label:** upload + purge the `labels` tag. The edge serves the new
-  value immediately; a returning browser picks it up within one request (SWR background
-  refresh) and within `max-age` at worst. Write-heavy label workloads that need instant,
+  value immediately; a returning browser may first render its stale copy while an SWR
+  background refresh runs, then normally use the new value on a later request. Write-heavy
+  label workloads that need instant,
   guaranteed correction are not a fit — version the resource URL instead.
 - **Adding a label for a new IRI:** no purge. An IRI never requested before simply misses to
   origin and returns the new value. If it had previously returned a 404, that 404 is cached
@@ -112,7 +96,8 @@ What you do on the client depends on where your code runs:
 - **Server-side / non-browser callers** (Node `fetch`, another Worker, a CLI) have **no
   shared HTTP cache** — every `fetch` hits the network. Here you *should* keep your own
   cache: a small in-memory LRU keyed by `iri|lang`. The responses only change on a
-  data refresh, so a generous TTL (hours) is safe; size it to your working set.
+  data refresh, so use a bounded TTL and size it to your working set. The provided
+  client defaults to a one-hour TTL outside browsers.
 
 ---
 

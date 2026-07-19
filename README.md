@@ -1,13 +1,14 @@
 # rdf-label-cache
 
 A globally distributed, low-latency HTTP service for resolving human-readable
-**labels for RDF IRIs**. One Cloudflare Worker, one R2 bucket, edge-cached. No
-database, no auth, no middleware - the Worker either finds a pre-materialized
-label in R2 or returns 404.
+**labels for RDF IRIs**. One Cloudflare Worker, one R2 bucket, edge-cached. The
+public read path has no database or middleware: the Worker either finds a
+pre-materialized label in R2 or returns 404. Private data requires an auth layer;
+see [`docs/architecture.md` section 6.4](docs/architecture.md#64-protecting-a-private-deployment-auth).
 
-Curated public namespaces (rdfs, owl, skos, dc/dcterms, schema.org, foaf, prov,
-void, xsd, rdf, …) are served as JSON-LD. Self-host it with your own labels by
-pointing it at your own R2 bucket.
+The maintained public seed covers RDF, RDFS, OWL, SKOS, DCTERMS, DCAT, and
+Schema.org. Self-host it with your own labels by pointing it at your own R2
+bucket.
 
 **▶ Live demo: https://label-cache-demo.dhabgood.workers.dev/**
 
@@ -25,8 +26,7 @@ GET /label?iri={encoded_iri}&lang=en  # a specific language (labels/en/{iri})
 GET /context/labels-v1.json           # shared JSON-LD context
 ```
 
-Public read routes support CORS (`GET`, `HEAD`, and `OPTIONS`). The registry is
-not an inventory of labels present in a particular R2 bucket.
+Public read routes support CORS (`GET`, `HEAD`, and `OPTIONS`).
 
 Example:
 
@@ -39,9 +39,8 @@ curl "https://<host>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2Fcore
 # never coerced to prefLabel; the consumer picks a preference order.
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the full design, and
-[`docs/FAQ.md`](docs/FAQ.md) for design rationale (including why "one request per label"
-is fine over HTTP/2/3).
+See [`docs/architecture.md`](docs/architecture.md) for the current architecture
+and [`docs/FAQ.md`](docs/FAQ.md) for design rationale.
 
 ## Run your own
 
@@ -182,29 +181,25 @@ prefix, and any namespace resolves without configuration.
 
 ### Consume from your app
 
-Once seeded (either path), resolve any cached IRI over plain HTTP. Request all the
-labels a view needs **in parallel** - they're independent, edge-cached `GET`s that
-multiplex over HTTP/2/3 (see [`docs/FAQ.md`](docs/FAQ.md)):
+Once seeded (either path), use the zero-dependency client. It resolves in
+parallel, de-duplicates in-flight lookups, lets the browser use its HTTP cache,
+and uses a bounded memo cache for server-side callers:
 
-```js
-// Each source predicate is kept under its own term; pick your preference order.
-const ORDER = ["prefLabel", "label", "title", "name"];
-const first = (v) => (Array.isArray(v) ? v[0] : v); // a term may hold several
-const pickLang = (m) => m && (m["@none"] ?? Object.values(m)[0]);
-const pickLabel = (doc) => ORDER.map((t) => first(pickLang(doc[t]))).find(Boolean) ?? null;
-
-const labels = Object.fromEntries(await Promise.all(
-  iris.map(async (iri) => {
-    // no ?lang= -> the untagged label; add &lang=xx for a specific language
-    const res = await fetch(`${BASE}/label?iri=${encodeURIComponent(iri)}`);
-    return [iri, res.ok ? pickLabel(await res.json()) : null];
-  }),
-));
+```bash
+pnpm add @rdf-label-cache/client
 ```
 
-`?lang=` maps straight to a key (`labels/en/{iri}`); no `?lang=` returns the untagged label
-(`labels/und/{iri}`). There's no server-side language fallback — if your data mixes tagged and
-untagged labels, try one then the other client-side (a second cheap, cached call).
+```js
+import { createLabelClient } from "@rdf-label-cache/client";
+
+const labelClient = createLabelClient({ base: BASE });
+labelClient.preconnect(); // browser only; safe to omit elsewhere
+const labels = await labelClient.resolveMany(iris);
+```
+
+The service still uses plain HTTP: use `fetch` directly if you do not want a
+dependency. `?lang=en` maps to `labels/en/{iri}`; omitting `?lang` returns the
+untagged label at `labels/und/{iri}`. Language fallback is a client concern.
 
 How to call the service well — parallel requests, client vs. edge caching, running one
 instance for many apps: [`docs/consuming.md`](docs/consuming.md). Full runbook:
@@ -213,9 +208,10 @@ demo's **Why RDF Label Cache?** page.
 
 ## Develop
 
-> Requires **Node 22+**, **pnpm** (or npm/bun), and **just** for the recipe-based
-> deployment path. Examples use **pnpm** - recommended, since the committed `pnpm-lock.yaml` gives
-> reproducible, age-pinned installs - but **npm** and **bun** work too. Swap
+> Requires **Node 22+**, **pnpm**, and **just** for the recipe-based deployment
+> path. Examples and CI use **pnpm**, and the committed `pnpm-lock.yaml` gives
+> reproducible installs. The underlying Node and Wrangler commands can also be
+> adapted to npm or Bun. Swap
 > `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
 > `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
 > all three. For the `just` recipes, name your manager once and it threads through:
@@ -296,10 +292,9 @@ private process in [SECURITY.md](SECURITY.md).
 Tracked in [`docs/architecture.md` §7](docs/architecture.md#7-open-questions--future-work).
 Headline items:
 
-- **One-click onboarding** — the *Deploy to Cloudflare* button and the file-folder
-  [seed Action](#get-started-fast) now ship. Remaining: the **SPARQL-endpoint** seed
-  mode and **Use this template** / C3 entries. Design:
-  [`docs/one-click-onboarding-design.md`](docs/one-click-onboarding-design.md).
+- **One-click onboarding** — the *Deploy to Cloudflare* button and file-folder
+  [seed Action](#get-started-fast) ship today. A hosted SPARQL-endpoint seed mode
+  and template/C3 entries remain future work.
 - **Native authentication for private deployments** — built-in access control so a private
   label set can protect itself without a platform auth layer in front (today auth is
   delegated to the edge; see [`docs/architecture.md` §6.4](docs/architecture.md#64-protecting-a-private-deployment-auth)).

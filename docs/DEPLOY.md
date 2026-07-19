@@ -1,6 +1,6 @@
 # Deploy & demo runbook
 
-Phase-1 deploy: static labels served from R2. Assumes a Cloudflare account.
+Deploy static labels from R2 through Workers Cache. Assumes a Cloudflare account.
 
 Prerequisites: Node 22+, pnpm (or an equivalent package manager), and
 [just](https://just.systems/) for the recipe path. A raw Wrangler path remains
@@ -49,8 +49,9 @@ just project=orders deploy       # publishes the Worker; prints its URL, e.g.
 
 ## Seed production R2
 
-The full label set (~3,200 terms: rdf, rdfs, owl, skos, dcterms, dcat, and all of
-schema.org) is produced by the ingestion pipeline and uploaded to R2 over the S3 API:
+The maintained public seed currently contains about 3,500 terms across RDF,
+RDFS, OWL, SKOS, DCTERMS, DCAT, and Schema.org. It is produced by the ingestion
+pipeline and uploaded to R2 over the S3 API:
 
 ```bash
 export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
@@ -66,7 +67,7 @@ default; set `R2_BUCKET` as above for your own project. From `just`, the
 
 `SEED_BASE` is the deployed origin, baked into each object's `@context` URL. R2 keys are
 case-sensitive, so `schema:Text` and `schema:text` stay distinct. In CI this runs from
-`.github/workflows/seed.yml` (manual + monthly), decoupled from code deploys - data and
+`.github/workflows/seed.yml` (manual only), decoupled from code deploys - data and
 Worker have independent lifecycles. See [architecture.md](./architecture.md) §6.6.
 
 Sources: `dcterms`, `dcat` (W3C DXWG GitHub mirror) and schema.org are fetched live;
@@ -110,8 +111,10 @@ curl "https://<your-url>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2F
   `max-age=3600, s-maxage=31536000, stale-while-revalidate=604800`. A successful
   admin purge invalidates the Cloudflare edge immediately; browsers cannot be
   purged, but `stale-while-revalidate` lets a returning browser serve its cached
-  copy instantly and refresh in the background, so a data refresh reaches it
-  within one request (bounded by the hour-long `max-age`). See
+  copy instantly and refresh it in the background. In the usual successful
+  revalidation case, a later request uses the refreshed value; the first stale
+  request may still render the old label, and `max-age` is not a hard upper bound
+  while stale serving is allowed. See
   [`docs/consuming.md`](./consuming.md#2-let-the-http-cache-do-the-caching) for
   the freshness model. Only the versioned context document stays `immutable` -
   its URL never changes content.
