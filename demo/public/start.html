@@ -180,9 +180,10 @@
     <a class="rail-group" href="#fast" data-step="fast">Fast path</a>
     <div class="rail-steps-wrap"><ol class="rail-steps">
       <li><a href="#fast-1" data-step="fast-1"><b>1</b> Deploy</a></li>
-      <li><a href="#fast-2" data-step="fast-2"><b>2</b> Add credentials</a></li>
-      <li><a href="#fast-3" data-step="fast-3"><b>3</b> Add labels</a></li>
-      <li><a href="#fast-4" data-step="fast-4"><b>4</b> Seed</a></li>
+      <li><a href="#fast-2" data-step="fast-2"><b>2</b> Add workflow</a></li>
+      <li><a href="#fast-3" data-step="fast-3"><b>3</b> Add credentials</a></li>
+      <li><a href="#fast-4" data-step="fast-4"><b>4</b> Add labels</a></li>
+      <li><a href="#fast-5" data-step="fast-5"><b>5</b> Seed</a></li>
     </ol></div>
   </div>
   <div class="rail-sec" data-railsec="full">
@@ -239,6 +240,14 @@
   <div class="step" id="fast-2">
     <div class="num">2</div>
     <div class="step-body">
+      <h2>Add the seed workflow</h2>
+      <p>The deploy button can't copy GitHub Actions workflows into your repo (a GitHub security restriction), so add it once by hand: <strong>Add file → Create new file</strong>, name it <code>.github/workflows/seed-labels.yml</code>, and paste the contents of <a href="https://github.com/recalcitrantsupplant/rdf-label-cache/blob/main/.github/workflows/seed-labels.yml" target="_blank" rel="noopener noreferrer">seed-labels.yml</a> (use the <strong>copy raw file</strong> button). Commit it, and <strong>seed-labels</strong> appears under the repo's <strong>Actions</strong> tab.</p>
+    </div>
+  </div>
+
+  <div class="step" id="fast-3">
+    <div class="num">3</div>
+    <div class="step-body">
       <h2>Add credentials</h2>
       <p>Gather these from the Cloudflare dashboard, then add them on the repo under
       <strong>Settings → Secrets and variables → Actions</strong> - <code>SEED_BASE</code> and
@@ -260,16 +269,16 @@
     </div>
   </div>
 
-  <div class="step" id="fast-3">
-    <div class="num">3</div>
+  <div class="step" id="fast-4">
+    <div class="num">4</div>
     <div class="step-body">
       <h2>Add labels</h2>
       <p>Drop RDF into the <code>labels/</code> folder and commit. A full instance-data dump is fine - only label and description triples are extracted.</p>
     </div>
   </div>
 
-  <div class="step" id="fast-4">
-    <div class="num">4</div>
+  <div class="step" id="fast-5">
+    <div class="num">5</div>
     <div class="step-body">
       <h2>Seed</h2>
       <p><strong>Actions → seed-labels → Run workflow</strong> (tick <em>include common ontology labels</em> for the bundled vocabularies).</p>

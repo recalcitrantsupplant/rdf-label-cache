@@ -7,7 +7,6 @@ name: seed-labels
 # fork's secrets are never exposed to an untrusted contribution.
 # See "Get started fast" in README.md.
 on:
-  # Run directly from this repo's Actions tab.
   workflow_dispatch:
     inputs:
       labels_dir:
@@ -16,18 +15,6 @@ on:
         type: string
       include_public:
         description: Also seed common ontology labels (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)
-        default: false
-        type: boolean
-  # Called as a reusable workflow from a fork's thin caller (the deploy button
-  # can't copy workflow files, so a fork adds a ~10-line caller that `uses:` this).
-  # `actions/checkout` runs in the caller's context, so it ingests the fork's
-  # labels/ and runs the fork's scripts/seed-labels.sh.
-  workflow_call:
-    inputs:
-      labels_dir:
-        default: labels
-        type: string
-      include_public:
         default: false
         type: boolean
 
@@ -41,7 +28,7 @@ jobs:
       # Fail fast with an exact checklist if any required variable/secret is
       # unset - GitHub can't ship pre-named placeholders, so a fresh fork starts
       # empty. Runs before checkout/install so a misconfigured repo fails in
-      # seconds, not after setup. See "Get started fast" step 2 in README.md.
+      # seconds, not after setup. See "Get started fast" step 3 in README.md.
       - name: Preflight — required Actions variables & secrets
         env:
           SEED_BASE: ${{ vars.SEED_BASE }}
@@ -60,7 +47,7 @@ jobs:
             echo "Set them under Settings → Secrets and variables → Actions:"
             echo "  Variables: SEED_BASE (your Worker URL), R2_BUCKET (the bucket name)"
             echo "  Secrets:   CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, PURGE_TOKEN"
-            echo "See 'Get started fast' step 2 in README.md."
+            echo "See 'Get started fast' step 3 in README.md."
             exit 1
           fi
           echo "All required variables and secrets are set."
