@@ -1,10 +1,14 @@
 name: deploy-demo
 
-# Manual redeploy of the maintainer demo (the automatic deploy happens in
-# release.yml when a release is cut). Maintainer repo only; needs Cloudflare
-# secrets, which forks don't have.
+# Redeploys the maintainer demo. Runs automatically on pushes to main that touch
+# the static demo site (demo/public/**), on a cut release (release.yml), or
+# manually. Maintainer repo only; needs Cloudflare secrets, which forks lack.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'demo/public/**'
 
 permissions:
   contents: read
