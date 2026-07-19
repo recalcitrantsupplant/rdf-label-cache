@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v1.0.0...rdf-label-cache-v1.0.1) (2026-07-19)
+
+
+### Bug Fixes
+
+* **client:** memo-cache TTL, invalid-body guard, honest store docs (0.1.2) ([c2e12a3](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/c2e12a34f1769476a14a135ff6e2a227b87f4fdd))
+
 ## [1.0.0](https://github.com/recalcitrantsupplant/rdf-label-cache/releases/tag/rdf-label-cache-v1.0.0) (2026-07-18)
 
 First stable release of RDF Label Cache.
