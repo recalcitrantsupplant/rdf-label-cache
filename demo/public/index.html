@@ -62,14 +62,6 @@
   .st h3 { margin: 3px 0 3px; font-size: 16px; } .st p { margin: 0; color: var(--muted); font-size: 14px; }
   .st code { display: inline-block; margin-top: 4px; max-width: 100%; overflow-wrap: anywhere; }
   footer { padding: 40px 24px 60px; text-align: center; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
-  .paths { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; margin-top: 10px; text-align: left; }
-  @media (max-width:760px){ .paths { grid-template-columns: 1fr; } }
-  .path { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--panel); }
-  .path.fast { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
-  .path-h { margin: 0 0 4px; font-size: 17px; }
-  .path-sub { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
-  .path .steps { margin-top: 2px; }
-  .path .st { padding: 12px 0; }
 </style>
 </head>
 <body>
@@ -118,31 +110,13 @@
 <section id="deploy" class="block">
   <div class="wrap deploy">
     <h2 class="sh">Deploy your own</h2>
-    <p class="sub">Two paths — both end with your labels in your own R2 bucket. It ships empty; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your own IRIs and any ontologies you reference (Schema.org, DCAT etc.)</p>
-    <div class="paths">
-      <div class="path fast">
-        <h3 class="path-h">Get started fast</h3>
-        <p class="path-sub">No clone, no local Node — deploy from the browser, seed from a GitHub Action. Best for vocabularies &amp; small/modest label sets.</p>
-        <div class="steps">
-          <div class="st"><span class="n">1</span><div><h3>Create a Worker and R2 bucket in Cloudflare with a single click</h3><p>The deploy button — in the <a href="/start">full guide</a> — provisions the Worker + R2 bucket and clones the repo into your GitHub.</p></div></div>
-          <div class="st"><span class="n">2</span><div><h3>Add the seed workflow</h3><p>The button can't copy GitHub Actions workflows — add <code>.github/workflows/seed-labels.yml</code> once (see the <a href="/start">full guide</a>).</p></div></div>
-          <div class="st"><span class="n">3</span><div><h3>Add credentials</h3><p>Set <code>SEED_BASE</code> + <code>R2_BUCKET</code> and the R2 / purge secrets on the repo.</p></div></div>
-          <div class="st"><span class="n">4</span><div><h3>Add labels</h3><p>Drop RDF into the <code>labels/</code> folder and commit.</p></div></div>
-          <div class="st"><span class="n">5</span><div><h3>Run the seed</h3><p><strong>Actions → seed-labels → Run workflow.</strong> Optionally tick “include common ontology labels”.</p></div></div>
-        </div>
-      </div>
-      <div class="path">
-        <h3 class="path-h">Larger datasets</h3>
-        <p class="path-sub">Clone + pipeline, on your machine or your own CI. Best for large label sets, frequent refreshes &amp; full control.</p>
-        <div class="steps">
-          <div class="st"><span class="n">1</span><div><h3>Clone &amp; install</h3><code>git clone https://github.com/recalcitrantsupplant/rdf-label-cache &amp;&amp; just install</code></div></div>
-          <div class="st"><span class="n">2</span><div><h3>Dump annotation properties</h3><p>One SPARQL <code>CONSTRUCT</code> → labels + descriptions for every IRI your data mentions.</p></div></div>
-          <div class="st"><span class="n">3</span><div><h3>Cloudflare &amp; credentials</h3><p>Create the R2 bucket, deploy the Worker, make an R2 API token.</p></div></div>
-          <div class="st"><span class="n">4</span><div><h3>Generate &amp; upload</h3><code>just project=&lt;you&gt; ingest upload</code></div></div>
-        </div>
-      </div>
+    <p class="sub">Three moves, whichever path you take. It ships empty; you populate <a href="https://developers.cloudflare.com/r2/">R2</a> once with your own IRIs and any ontologies you reference (Schema.org, DCAT etc.)</p>
+    <div class="steps">
+      <div class="st"><span class="n">1</span><div><h3>Deploy the Worker + R2 bucket</h3><p>One click with the <strong>Deploy to Cloudflare</strong> button, or one command from a clone. Comes up empty — every <code>/label</code> 404s until you seed.</p></div></div>
+      <div class="st"><span class="n">2</span><div><h3>Get your labels</h3><p>Drop RDF into the <code>labels/</code> folder, or <code>CONSTRUCT</code> them from your triplestore — only label &amp; description triples are kept.</p></div></div>
+      <div class="st"><span class="n">3</span><div><h3>Load them into R2</h3><p>A browser <strong>GitHub Action</strong> for vocabularies &amp; small/modest sets, or the local <code>just</code> pipeline for large sets &amp; frequent refreshes.</p></div></div>
     </div>
-    <p class="scope-note">The fast path uploads through GitHub Actions — for small/modest RDF, and re-running is an upsert, not a mirror. For large label sets, or more robust synchronisation than a GitHub Action, use the clone + pipeline path.</p>
+    <p class="scope-note">The GitHub Action path re-runs as an upsert, not a mirror, and suits small/modest RDF. For large label sets or more robust sync, use the clone + pipeline path.</p>
     <p style="text-align:center;margin-top:22px"><a href="/start">Full guide - every command, copy-paste ready <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></p>
   </div>
 </section>
