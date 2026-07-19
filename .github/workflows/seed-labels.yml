@@ -7,6 +7,7 @@ name: seed-labels
 # fork's secrets are never exposed to an untrusted contribution.
 # See "Get started fast" in README.md.
 on:
+  # Run directly from this repo's Actions tab.
   workflow_dispatch:
     inputs:
       labels_dir:
@@ -15,6 +16,18 @@ on:
         type: string
       include_public:
         description: Also seed common ontology labels (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)
+        default: false
+        type: boolean
+  # Called as a reusable workflow from a fork's thin caller (the deploy button
+  # can't copy workflow files, so a fork adds a ~10-line caller that `uses:` this).
+  # `actions/checkout` runs in the caller's context, so it ingests the fork's
+  # labels/ and runs the fork's scripts/seed-labels.sh.
+  workflow_call:
+    inputs:
+      labels_dir:
+        default: labels
+        type: string
+      include_public:
         default: false
         type: boolean
 
