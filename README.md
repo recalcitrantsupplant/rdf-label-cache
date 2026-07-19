@@ -164,7 +164,7 @@ namespace resolves once its labels are uploaded. Then create an **R2 API token**
 **4. Generate & upload your label objects**
 
 ```bash
-# SEED_BASE + R2_* from your .env (copy .env.example); project sets R2_BUCKET
+# SEED_BASE + R2_* from your .env (copy env.example); project sets R2_BUCKET
 just ingest                    # data.ttl → dist/seed/manifest.ndjson
 just project=orders upload     # → R2, over the S3 API
 ```

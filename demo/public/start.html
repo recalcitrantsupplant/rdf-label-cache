@@ -449,7 +449,7 @@ just project=orders deploy        # prints your Cloudflare Worker URL → SEED_B
     <div class="step-body">
       <h2>Configuration</h2>
       <div class="config">
-        <p>You now have every value from step&nbsp;3 - put them in <code>.env</code> (copy <code>.env.example</code>)
+        <p>You now have every value from step&nbsp;3 - put them in <code>.env</code> (copy <code>env.example</code>)
         or export them in your shell. The generate &amp; upload step reads them:</p>
         <dl>
           <dt>PROJECT</dt>
@@ -476,7 +476,7 @@ export R2_BUCKET=label-cache-orders
 export CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
 node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
-      <pre class="cmd just"><code># PROJECT + SEED_BASE + R2_* come from your .env (see .env.example)
+      <pre class="cmd just"><code># PROJECT + SEED_BASE + R2_* come from your .env (see env.example)
 just ingest                       # → dist/seed/manifest.ndjson
 just project=orders upload        # → R2, over the S3 API (sets R2_BUCKET)</code></pre>
       <p class="note"><code>ingest</code> prints a per-namespace summary of the terms it wrote - no namespace needs

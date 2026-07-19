@@ -1,4 +1,4 @@
-# Recipes auto-load a `.env` file (copy .env.example → .env). Or export the
+# Recipes auto-load a `.env` file (copy env.example → .env). Or export the
 # same vars in your shell - either way these are what the deploy + seed need:
 #   PROJECT               names your Worker + bucket, both label-cache-<PROJECT>
 #   SEED_BASE             your deployed Worker URL (https://<worker>.workers.dev)
