@@ -16,8 +16,6 @@ bucket.
 seed your labels from a GitHub Action — no clone, no local tooling. Steps:
 [Get started fast](#get-started-fast).
 
-[![Deploy to Cloudflare](docs/deploy-to-cloudflare.svg)](https://deploy.workers.cloudflare.com/?url=https://github.com/recalcitrantsupplant/rdf-label-cache)
-
 ## API
 
 ```
