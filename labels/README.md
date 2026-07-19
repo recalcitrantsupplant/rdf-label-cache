@@ -1,8 +1,8 @@
 # Your labels go here
 
 Drop RDF files in this folder and the **seed-labels** GitHub Action ingests every
-one of them into your R2 bucket. This is the file-based Phase-2 seed path from
-[`docs/one-click-onboarding-design.md`](../docs/one-click-onboarding-design.md).
+one of them into your R2 bucket. See the repository
+[`README`](../README.md#get-started-fast) for setup and credential instructions.
 
 - **Accepted formats:** Turtle/N-Triples/TriG/N-Quads — `.ttl`, `.turtle`,
   `.nt`, `.n3`, `.nq`, `.trig`. Non-RDF files (like this README) are skipped.
@@ -16,8 +16,8 @@ one of them into your R2 bucket. This is the file-based Phase-2 seed path from
   `scripts/ingest.mjs`).
 
 Then run the **seed-labels** workflow (Actions tab → *Run workflow*) once your
-Cloudflare secrets/variables are set. See the design doc for the full runbook.
+Cloudflare secrets/variables are set.
 
 > Committing labels here puts them in your git history. Fine for public or modest
-> label sets; for large dumps or sensitive labels prefer a private repo or the
-> (deferred) SPARQL-endpoint seed path.
+> label sets; for large dumps or sensitive labels prefer a private repo or run
+> the local ingestion pipeline without committing the source data.

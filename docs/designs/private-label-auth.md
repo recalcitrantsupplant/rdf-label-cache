@@ -3,7 +3,8 @@
 **Status:** Proposed  
 **Date:** 2026-07-16  
 **Target:** Cloudflare Workers + Workers Caching + private R2  
-**Supersedes:** The simplified private-auth guidance in `architecture.md` section 6.4
+**Scope:** Proposed native authentication for deployments that cannot rely only
+on an external platform policy.
 
 ## 1. Summary
 
@@ -68,7 +69,7 @@ Multi-issuer, multi-tenant, per-namespace authorization, and opaque tokens are e
 - Accept access tokens from common cloud and SaaS identity providers without provider-specific code in the request path.
 - Validate authentication and authorization on every private request, including an inner cache hit.
 - Share cached bytes only between principals that are allowed to receive identical bytes.
-- Preserve the existing R2 object format, compression, streaming, language variants, and tag-based invalidation.
+- Preserve the existing R2 object format, streaming, language variants, and tag-based invalidation.
 - Fail closed when identity configuration, token validation, or authorization is uncertain.
 - Keep public-only deployments as simple and fast as they are now.
 
@@ -92,8 +93,8 @@ Workers Caching -> default Worker fetch -> PUBLIC_LABELS.get(r2Key)
 Successful labels use:
 
 ```http
-Cache-Control: public, max-age=31536000, immutable
-Cache-Tag: all,labels,labels:<namespace>
+Cache-Control: public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800
+Cache-Tag: labels
 ```
 
 That is correct for public data. It is unsafe to add a bearer check inside the current cached handler without changing the cache topology. Cloudflare documents that enabling Workers Caching causes the cache to be checked before the Worker entrypoint runs. It also documents that requests containing `Authorization` can still be cached when the response explicitly includes `public`, `must-revalidate`, or `s-maxage`.
@@ -151,7 +152,7 @@ The browser should not send an ID token merely because it is a JWT. An ID token 
 
 ### 6.2 Gateway processing
 
-For `GET /label`, `GET /namespaces`, and any private context route:
+For `GET /label` and any private context route:
 
 1. Reject unsupported methods and oversized authorization headers.
 2. Read exactly one supported credential source.
@@ -204,7 +205,10 @@ The gateway also canonicalizes:
 - Optional representation selectors.
 - The internal host and scheme.
 
-On an inner cache miss, `PrivateLabels` maps the request to R2 and streams the existing compressed object. On a hit, the private entrypoint does not run, but this is safe because the uncached gateway has already validated and authorized the request.
+On an inner cache miss, `PrivateLabels` maps the request to R2 and streams the
+existing JSON-LD object. On a hit, the private entrypoint does not run, but this
+is safe because the uncached gateway has already validated and authorized the
+request.
 
 ### 6.4 Response behavior
 
@@ -295,7 +299,7 @@ JWT validation proves claims were issued by a trusted authority. Authorization s
 Any valid token with `labels:read` can read every label in this deployment.
 
 ```text
-R2 key:          labels/{iri}/{lang}
+R2 key:          labels/{lang}/{iri}
 Cache partition: private-v1
 ```
 
@@ -308,7 +312,7 @@ This is the common case and should be implemented first.
 The token contains a trusted tenant identifier, or the Worker maps issuer plus subject to one. R2 and cache keys must both include the tenant boundary.
 
 ```text
-R2 key:          tenants/{storageTenant}/labels/{iri}/{lang}
+R2 key:          tenants/{storageTenant}/labels/{lang}/{iri}
 Cache partition: hash(issuer, tenant, policyVersion)
 ```
 
@@ -409,7 +413,7 @@ R2 bucket bindings do not require a public bucket URL. For private deployments:
 - Use a separate private bucket when public and private labels coexist.
 - Remove `public` cache metadata from newly ingested private objects as defense in depth; the Worker must set final response policy explicitly.
 - Scope ingestion credentials to the required bucket and operations.
-- Keep gzip and content metadata unchanged.
+- Preserve content metadata supplied by the uploader.
 - For multi-tenancy, add the tenant prefix described in section 8.2.
 
 The binding is the only runtime read path. There is no reason to give end users R2 credentials or signed R2 URLs.
@@ -542,7 +546,7 @@ Useful for temporary share links or clients unable to send headers. They are bea
 2. Add strict one-issuer JWT validation and `labels:read` authorization.
 3. Split the default gateway from the cached `PrivateLabels` entrypoint.
 4. Keep the current R2 key layout and use one constant private cache partition.
-5. Protect labels, namespaces, and private context routes.
+5. Protect label and private context routes.
 6. Return private/no-store external cache headers as specified.
 7. Add CORS allowlist support.
 8. Make deployment validation fail when required auth variables are absent.
@@ -608,4 +612,3 @@ Deployed integration tests must prove:
 - [Cloudflare Access authorization cookies](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/)
 - [RFC 9068: JWT Profile for OAuth 2.0 Access Tokens](https://datatracker.ietf.org/doc/html/rfc9068)
 - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html)
-
