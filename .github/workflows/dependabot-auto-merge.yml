@@ -1,0 +1,43 @@
+name: dependabot-auto-merge
+
+# Turn on GitHub's auto-merge for Dependabot patch/minor bumps, so routine
+# updates land without a manual click. Majors always stay for a human.
+#
+# Auto-merge does NOT merge immediately: main's `protect-main` ruleset requires
+# the `ci` and `commitlint` checks, so GitHub holds the PR until both are green
+# and merges it then. A red check means it just sits there.
+#
+# WHY pull_request_target
+# Workflows triggered by Dependabot's `pull_request` get a READ-ONLY token, which
+# can't enable auto-merge. `pull_request_target` runs in the base-repo context
+# with the permissions below. That is only safe because this job never checks out
+# or executes PR code - it reads metadata and calls the gh CLI. Do not add a
+# checkout step here.
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository_owner == 'recalcitrantsupplant'
+    runs-on: ubuntu-latest
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Both ecosystems (npm + github-actions), patch and minor only. The npm
+      # updates are grouped into one PR, and for a grouped PR fetch-metadata
+      # reports the HIGHEST semver change in the group - so a batch containing
+      # any major is left alone entirely.
+      - if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: echo "::notice::Major update (${{ steps.meta.outputs.dependency-names }}) - merge manually after review."

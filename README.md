@@ -280,7 +280,8 @@ by key, so changed labels update in place. Override the port with `PORT=8790`.
   maintains a release PR, and merging it tags `vX.Y.Z` + cuts a GitHub Release.
 - **Supply-chain**: Dependabot with a 7-day `cooldown` (won't adopt a release
   until it's a week old); commit messages linted by commitlint (+ a local husky
-  hook).
+  hook). Patch and minor bumps auto-merge once `ci` + `commitlint` pass
+  (`dependabot-auto-merge.yml`); majors wait for a human.
 
 ## Contributing
 
