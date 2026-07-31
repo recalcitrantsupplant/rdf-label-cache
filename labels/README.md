@@ -13,7 +13,7 @@ one of them into your R2 bucket. See the repository
   **full instance-data dump works** — non-label triples are ignored.
 - **Multiple files** are merged; a subject accumulates every value it carries
   across files (exact duplicates collapse; multi-valued terms become arrays — see
-  `scripts/ingest.mjs`).
+  `scripts/pipeline/ingest.mjs`).
 
 Then run the **seed-labels** workflow (Actions tab → *Run workflow*) once your
 Cloudflare secrets/variables are set.

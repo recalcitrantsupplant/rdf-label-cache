@@ -22,6 +22,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: ./scripts/commitlint.sh
+      - run: ./scripts/ops/commitlint.sh
         env:
           GITHUB_BASE_REF: ${{ github.base_ref }}

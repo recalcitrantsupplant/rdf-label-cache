@@ -11,13 +11,13 @@
 // Output is a manifest (dist/seed/manifest.ndjson: one {key, body} per line),
 // not a file tree - keys like schema/Text and schema/text are distinct in R2
 // but collide as paths on case-insensitive filesystems. Upload with
-// scripts/upload-seed.mjs (S3 API). Keys are lang-FIRST (labels/{lang}/{iri}) so
+// scripts/pipeline/upload-seed.mjs (S3 API). Keys are lang-FIRST (labels/{lang}/{iri}) so
 // the fixed lang segment can't collide with the slashed IRI, and each language
 // is a listable prefix. Language tags are preserved faithfully - untagged
 // literals stay untagged (served on a no-`lang` request); nothing is coerced.
 //
 // Sources: w3.org namespace docs are Cloudflare-challenged (403 to scripts), so
-// rdf/rdfs/owl/skos are hand-curated Turtle under scripts/vocab/. dcterms, dcat
+// rdf/rdfs/owl/skos are hand-curated Turtle under scripts/pipeline/vocab/. dcterms, dcat
 // (via the W3C DXWG GitHub mirror) and schema.org fetch cleanly.
 //
 // Modes:
@@ -42,7 +42,7 @@ import { fileURLToPath } from "node:url";
 import N3 from "n3";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(HERE, "..");
+const ROOT = join(HERE, "..", "..");
 const OUT = join(ROOT, "dist", "seed");
 // SEED_BASE is the deployed origin, baked into every object's @context URL.
 // Required and explicit: a wrong/placeholder value silently bakes the wrong host
@@ -69,7 +69,7 @@ const ONLY = onlyIdx > -1
 // predicates. A (term, language) may carry several values - all are preserved.
 // Precedence ("prefer prefLabel over label over …") is a CONSUMER concern; we
 // store every predicate faithfully and the client picks. Kept in sync with the
-// JSON-LD context (CONTEXT_DOC) and scripts/extract-labels.rq.
+// JSON-LD context (CONTEXT_DOC) and scripts/pipeline/extract-labels.rq.
 //
 // The only merges are genuine synonyms, not precedence choices: the two schema.org
 // rows are one predicate under http+https, and schema:description is folded into
@@ -147,7 +147,7 @@ const SOURCES = [
 ];
 
 async function loadText(src) {
-  if (src.file) return readFile(join(ROOT, "scripts", src.file), "utf8");
+  if (src.file) return readFile(join(HERE, src.file), "utf8");
   const res = await fetch(src.url, { headers: { "User-Agent": "labelcache-ingest/1.0" } });
   if (!res.ok) throw new Error(`${src.url} → HTTP ${res.status}`);
   return res.text();

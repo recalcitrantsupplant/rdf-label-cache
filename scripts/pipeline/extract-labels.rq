@@ -1,7 +1,7 @@
 # Extract the annotation properties (labels + descriptions) for every IRI your
 # data uses - your own entities AND the public-vocabulary terms they reference.
 # Run against your SPARQL endpoint (see `just extract-labels`); the Turtle it
-# returns is the input to `scripts/ingest.mjs`.
+# returns is the input to `scripts/pipeline/ingest.mjs`.
 #
 # The predicate set below mirrors ingest.mjs' LABEL_TERMS / DESC_TERMS so the SPARQL
 # and file paths extract the same annotation props. Keep the two in sync; ingest

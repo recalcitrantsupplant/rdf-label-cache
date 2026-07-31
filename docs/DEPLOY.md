@@ -19,7 +19,7 @@ just demo-local
 ```
 
 The recipe starts the demo Worker, then seeds it through the **production ingest
-pipeline** (`scripts/ingest.mjs`) and loads the result via `/dev/load` - the same
+pipeline** (`scripts/pipeline/ingest.mjs`) and loads the result via `/dev/load` - the same
 public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org) and the same
 faithful labels a real deployment serves, with each object's `@context` baked to
 the local origin. So the local demo shows exactly what production does - no curated
@@ -58,10 +58,10 @@ export SEED_BASE=https://label-cache-orders.<subdomain>.workers.dev
 export R2_BUCKET=label-cache-orders
 export CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
 export PURGE_TOKEN=...           # same value installed with purge-token-set
-./scripts/seed.sh            # = pnpm seed:ingest (fetch + parse) then pnpm seed:upload
+./scripts/ops/seed.sh            # = pnpm seed:ingest (fetch + parse) then pnpm seed:upload
 ```
 
-(`./scripts/seed.sh` targets the maintainer demo bucket `label-cache-demo` by
+(`./scripts/ops/seed.sh` targets the maintainer demo bucket `label-cache-demo` by
 default; set `R2_BUCKET` as above for your own project. From `just`, the
 `project=` recipes set it for you.)
 
@@ -71,10 +71,10 @@ case-sensitive, so `schema:Text` and `schema:text` stay distinct. In CI this run
 Worker have independent lifecycles. See [architecture.md](./architecture.md) §6.6.
 
 Sources: `dcterms`, `dcat` (W3C DXWG GitHub mirror) and schema.org are fetched live;
-`rdf/rdfs/owl/skos` are hand-curated Turtle under `scripts/vocab/` because w3.org's
+`rdf/rdfs/owl/skos` are hand-curated Turtle under `scripts/pipeline/vocab/` because w3.org's
 namespace docs sit behind a Cloudflare bot challenge (403 to scripts).
 
-`just seed-remote <url>` (or `scripts/seed-remote.sh <url>`) is a one-command wrapper
+`just seed-remote <url>` (or `scripts/ops/seed-remote.sh <url>`) is a one-command wrapper
 for the same full seed — a thin shim over `seed.sh` that takes the base URL as an
 argument and runs ingest → S3 upload → purge:
 
@@ -101,8 +101,8 @@ curl "https://<your-url>/label?iri=http%3A%2F%2Fwww.w3.org%2F2004%2F02%2Fskos%2F
 
 - **Custom domain (optional):** attach a route in `wrangler.toml` or the dashboard, then
   re-run `seed-remote` with the custom base so `@context` URLs match the public host.
-- **Seed data**: the full set comes from the ingestion pipeline (`scripts/ingest.mjs` +
-  `scripts/upload-seed.mjs`; see "Seed production R2" above). The 12-term sample in
+- **Seed data**: the full set comes from the ingestion pipeline (`scripts/pipeline/ingest.mjs` +
+  `scripts/pipeline/upload-seed.mjs`; see "Seed production R2" above). The 12-term sample in
   `src/routes/dev-seed.ts` is now only a local/dev smoke test.
 - **Workers Cache** is enabled by `[cache] enabled = true` in both Worker
   configurations. It sits in front of the Worker; code deployments use the

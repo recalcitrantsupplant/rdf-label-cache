@@ -2,7 +2,7 @@
 # Install deps, typecheck, and run the full test suite.
 # Called by .github/workflows/ci.yml and runnable locally from the repo root.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 echo "==> Installing dependencies (frozen lockfile)"
 pnpm install --frozen-lockfile
@@ -25,9 +25,9 @@ node --test packages/label-cache-client/test/*.test.mjs
 # the committed copy has drifted from the client source (it has before: the
 # bundle sat at 0.1.0 while the package was 0.1.1).
 echo "==> Demo vendor bundle: verify in sync"
-./scripts/vendor-label-client.sh
+./scripts/ops/vendor-label-client.sh
 if ! git diff --exit-code -- demo/public/vendor/label-cache-client.mjs; then
   echo "ERROR: demo/public/vendor/label-cache-client.mjs is out of date." >&2
-  echo "Run ./scripts/vendor-label-client.sh and commit the result." >&2
+  echo "Run ./scripts/ops/vendor-label-client.sh and commit the result." >&2
   exit 1
 fi

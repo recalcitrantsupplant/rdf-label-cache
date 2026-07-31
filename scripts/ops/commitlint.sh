@@ -2,7 +2,7 @@
 # Lint commit messages against Conventional Commits.
 # In a PR (GITHUB_BASE_REF set) lints base..HEAD; otherwise lints the last commit.
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 BASE="${GITHUB_BASE_REF:-}"
 if [ -n "$BASE" ]; then

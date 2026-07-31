@@ -6,6 +6,11 @@
 #   R2_ACCESS_KEY_ID      R2 API token access key id
 #   R2_SECRET_ACCESS_KEY  R2 API token secret
 #   SPARQL_ENDPOINT       (optional) your triplestore, for `just bootstrap`
+#
+# Recipes are thin: each one exports its settings and calls a script in
+# scripts/ops/, which is where the actual logic lives (and stays runnable
+# without `just`). scripts/pipeline/ holds the label pipeline itself - ingest,
+# upload, and the SPARQL queries.
 set dotenv-load := true
 
 # One project = one Worker + one R2 bucket, both named `label-cache-<project>`,
@@ -22,6 +27,10 @@ pm := "pnpm"
 package := if pm == "pnpm" { "corepack pnpm" } else { pm }
 run := if pm == "npm" { "npx" } else if pm == "bun" { "bunx" } else { "corepack pnpm exec" }
 
+# Passed to every script; scripts/ops/lib.sh turns PM back into a runner and
+# PROJECT into the label-cache-<project> bucket name.
+env := "PM=" + pm + " PROJECT=" + quote(project)
+
 default: dev
 
 # Fill in .env first (SPARQL_ENDPOINT + R2 creds), then: just bootstrap
@@ -30,18 +39,7 @@ default: dev
 # bucket, deploy, ingest, upload.
 # One-shot: install → extract labels → create bucket → deploy → seed R2.
 bootstrap ENDPOINT="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders bootstrap) or PROJECT in .env}"
-    EP="{{ENDPOINT}}"; EP="${EP:-${SPARQL_ENDPOINT:-}}"
-    : "${EP:?pass an endpoint (just bootstrap <url>) or set SPARQL_ENDPOINT in .env}"
-    just pm={{pm}} install
-    just extract-labels "$EP"
-    just pm={{pm}} project="$P" bucket
-    just pm={{pm}} project="$P" deploy
-    just ingest
-    just pm={{pm}} project="$P" upload
-    echo "✓ done - labels are live at ${SEED_BASE:-your Worker URL}"
+    {{env}} scripts/ops/bootstrap.sh {{quote(ENDPOINT)}}
 
 # Install dependencies.
 install:
@@ -52,43 +50,10 @@ install:
 dev:
     {{run}} wrangler dev --var ENVIRONMENT:development
 
-# Run the demo UI locally, seed local R2, and keep the server attached. Stop with Ctrl-C.
+# Run the demo UI locally, seed local R2, and keep the server attached. Stop with
+# Ctrl-C. Override the port with PORT=8790.
 demo-local:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    PORT="${PORT:-8787}"
-    if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
-        echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just demo-local)." >&2
-        exit 1
-    fi
-    {{run}} wrangler dev --config demo/wrangler.demo.toml --var ENVIRONMENT:development --port "$PORT" &
-    PID=$!
-    cleanup() { kill "$PID" 2>/dev/null || true; }
-    trap cleanup EXIT INT TERM
-    echo "waiting for local demo Worker on :$PORT..."
-    for _ in $(seq 1 60); do
-        if ! kill -0 "$PID" 2>/dev/null; then
-            wait "$PID"
-            exit $?
-        fi
-        if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then break; fi
-        sleep 1
-    done
-    if ! curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
-        echo "ERROR: local demo Worker did not become ready within 60 seconds." >&2
-        exit 1
-    fi
-    # Seed the real public vocabularies through the PRODUCTION ingest pipeline
-    # (scripts/ingest.mjs), then load via /dev/load - the same faithful labels a
-    # real deployment serves (rdfs:label -> `label`, values verbatim, nothing
-    # coerced to prefLabel or humanized). The local demo now shows exactly what
-    # production does; no curated fixtures to drift out of sync.
-    echo "ingesting public vocabularies (rdf, rdfs, owl, skos, dcterms, dcat, schema.org)..."
-    SEED_BASE="http://localhost:$PORT" node scripts/ingest.mjs
-    curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "http://localhost:$PORT/dev/load" >/dev/null
-    echo "seeded $(wc -l < dist/seed/manifest.ndjson) objects"
-    echo "Demo ready: http://localhost:$PORT/ (playground: /demo)"
-    wait "$PID"
+    {{env}} scripts/ops/demo-local.sh
 
 # Build + serve YOUR labels locally - no Cloudflare account, no deploy. Point at a
 # Turtle file (full instance data OR labels-only; non-label triples are ignored) or
@@ -101,56 +66,7 @@ demo-local:
 #   PUBLIC=1 just dev-local                    # also load the bundled public vocab labels
 # Stop with Ctrl-C. Override the port with PORT=8790.
 dev-local:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    PORT="${PORT:-8787}"
-    if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
-        echo "ERROR: http://localhost:$PORT is already serving a Worker; choose another port (PORT=8790 just dev-local)." >&2
-        exit 1
-    fi
-    BASE="http://localhost:$PORT"
-    TTL="${INPUT:-data.ttl}"
-    EP="${ENDPOINT:-}"
-    # A SPARQL endpoint is extracted to the Turtle file first (scripts/extract-labels.rq).
-    if [ -n "$EP" ]; then
-        just pm={{pm}} extract-labels "$EP" "$TTL"
-    fi
-    if [ ! -f "$TTL" ]; then
-        echo "ERROR: no '$TTL' - pass input=<file.ttl> or endpoint=<sparql-url>." >&2
-        exit 1
-    fi
-    # Local dev Worker: in-memory Miniflare R2, /dev/load enabled by the development
-    # ENVIRONMENT override. Same invocation as `just dev`.
-    {{run}} wrangler dev --var ENVIRONMENT:development --port "$PORT" &
-    PID=$!
-    cleanup() { kill "$PID" 2>/dev/null || true; }
-    trap cleanup EXIT INT TERM
-    echo "waiting for local Worker on :$PORT..."
-    for _ in $(seq 1 60); do
-        if ! kill -0 "$PID" 2>/dev/null; then wait "$PID"; exit $?; fi
-        if curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then break; fi
-        sleep 1
-    done
-    if ! curl -sf -o /dev/null -X OPTIONS "http://localhost:$PORT/label"; then
-        echo "ERROR: local Worker did not become ready within 60 seconds." >&2
-        exit 1
-    fi
-    # Optional: the bundled public vocabularies (rdfs/skos/owl/... your data may
-    # reference but not label itself). Loaded FIRST so your own labels below win any
-    # (IRI, language) overlap - /dev/load overwrites by key.
-    if [ -n "${PUBLIC:-}" ]; then
-        SEED_BASE="$BASE" node scripts/ingest.mjs
-        curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "$BASE/dev/load" >/dev/null
-        echo "loaded bundled public vocab"
-    fi
-    # Your labels: extract annotation triples from the dump into a manifest (each
-    # object's @context baked to the local origin), then load into R2. The manifest
-    # also carries context/labels-v1.json, so /context resolves locally too.
-    SEED_BASE="$BASE" node scripts/ingest.mjs --input "$TTL"
-    curl -fsS -X POST --data-binary @dist/seed/manifest.ndjson "$BASE/dev/load"
-    echo
-    echo "Ready: your labels are live at $BASE/label?iri=<encoded-iri>"
-    wait "$PID"
+    {{env}} scripts/ops/dev-local.sh
 
 typecheck:
     {{run}} tsc --noEmit
@@ -158,47 +74,22 @@ typecheck:
 # Rebuild the self-hosted N3 browser bundle for the demo page (demo/public/vendor/n3.mjs).
 # Run after bumping `n3` or `esbuild` in package.json; commit the regenerated file.
 vendor-n3:
-    ./scripts/vendor-n3.sh
+    ./scripts/ops/vendor-n3.sh
 
 # Rebuild the self-hosted client bundle for the demo page
 # (demo/public/vendor/label-cache-client.mjs). Run after changing the client;
 # commit the regenerated file.
 vendor-label-client:
-    ./scripts/vendor-label-client.sh
+    ./scripts/ops/vendor-label-client.sh
 
-# Publish the client library (@rdf-label-cache/client) to npm.
-#
-# NORMAL FLOW is CI: bump the version in a PR, and .github/workflows/publish-client.yml
-# publishes on merge to main. Use this recipe for a DRY RUN (default) to preview the
-# tarball, or `live` only for a local/emergency publish - don't race CI on versions.
-#
-# Reads NPM_TOKEN from .env - a granular or automation token with 2FA bypass (a plain
-# token 403s on npm's publish 2FA gate). `npm test` builds + runs the suite first;
-# prepack rebuilds dist; publishConfig makes it public. On `live` it auto-bumps the
-# version (npm rejects republishing an existing one) - default patch, or pass
-# minor/major/<version>. --no-git-tag-version means it only edits package.json;
-# commit that yourself afterwards (the printed command). Dry-run by default:
+# Publish the client library (@rdf-label-cache/client) to npm. Dry-run by default:
 #   just publish-client            # build, test, show the tarball - publishes/bumps NOTHING
 #   just publish-client live       # bump patch + publish  (0.1.0 -> 0.1.1)
 #   just publish-client live minor # bump minor + publish  (0.1.0 -> 0.2.0)
+# NORMAL FLOW is CI (.github/workflows/publish-client.yml on merge to main) - use
+# this only for a preview or an emergency publish. See the script for the details.
 publish-client MODE="dry" BUMP="patch":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    : "${NPM_TOKEN:?set NPM_TOKEN in .env (npm granular/automation token with 2FA bypass)}"
-    cd packages/label-cache-client
-    npm test
-    AUTH="--//registry.npmjs.org/:_authToken=${NPM_TOKEN}"
-    if [ "{{MODE}}" = "live" ]; then
-        npm version {{BUMP}} --no-git-tag-version >/dev/null
-        NAME="$(node -p "require('./package.json').name")"
-        VERSION="$(node -p "require('./package.json').version")"
-        npm publish "$AUTH"
-        echo "✓ published ${NAME}@${VERSION}"
-        echo "  → commit the bump: git commit -am 'chore(client): release ${NAME}@${VERSION}'"
-    else
-        echo "== DRY RUN — nothing published or bumped. 'just publish-client live' bumps ({{BUMP}}) + publishes. =="
-        npm publish --dry-run "$AUTH"
-    fi
+    scripts/ops/publish-client.sh {{MODE}} {{BUMP}}
 
 # Seed the LOCAL (Miniflare) R2 bucket.
 seed:
@@ -211,41 +102,18 @@ login:
 
 # Create this project's R2 bucket (one-time). Requires project=<name>.
 bucket:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders bucket) or PROJECT in .env}"
-    # `wrangler r2 bucket list` has no --json output, so parse the `name:` lines
-    # and exact-match: a substring test would let e.g. label-cache-foo-staging
-    # shadow label-cache-foo and silently skip creation.
-    BUCKETS="$({{run}} wrangler r2 bucket list | awk '$1 == "name:" { print $2 }')"
-    if grep -Fxq "label-cache-$P" <<<"$BUCKETS"; then
-        echo "R2 bucket label-cache-$P already exists"
-    else
-        {{run}} wrangler r2 bucket create "label-cache-$P"
-    fi
-
-# Generate .wrangler.gen.toml for `project` from wrangler.toml, rewriting the
-# Worker name + bound bucket to label-cache-<project>. The R2 binding can't read
-# an env var, so real deploys go through this templated config. Private helper.
-_gen:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders deploy) or PROJECT in .env}"
-    sed -E 's/^name = ".*"/name = "label-cache-'"$P"'"/; s/^bucket_name = ".*"/bucket_name = "label-cache-'"$P"'"/' \
-        wrangler.toml > .wrangler.gen.toml
+    {{env}} scripts/ops/bucket.sh
 
 # Deploy this project's Worker (label-cache-<project>). Requires project=<name>.
-deploy: _gen
-    {{run}} wrangler deploy -c .wrangler.gen.toml
+# Generates .wrangler.gen.toml first (the R2 binding can't read an env var).
+deploy:
+    {{env}} scripts/ops/deploy.sh
 
 # Install the purge token as a Worker secret. Generate it first, for example:
 #   export PURGE_TOKEN="$(openssl rand -base64 48)"
 # Store the same token in the secret manager used by your seed job.
-purge-token-set: _gen
-    #!/usr/bin/env bash
-    set -euo pipefail
-    : "${PURGE_TOKEN:?set a random PURGE_TOKEN before running this recipe}"
-    printf '%s' "$PURGE_TOKEN" | {{run}} wrangler secret put PURGE_TOKEN -c .wrangler.gen.toml
+purge-token-set:
+    {{env}} scripts/ops/purge-token-set.sh
 
 # Seed a deployed instance's REAL R2 with the public vocabularies via the
 # production pipeline (ingest -> S3 upload -> purge). project=<name> sets the
@@ -253,35 +121,23 @@ purge-token-set: _gen
 # your deployed base URL (drives the embedded @context), e.g.
 #   just project=orders seed-remote https://label-cache-orders.<subdomain>.workers.dev
 seed-remote BASE:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders seed-remote <url>) or PROJECT in .env}"
-    R2_BUCKET="label-cache-$P" scripts/seed-remote.sh "{{BASE}}"
+    {{env}} scripts/ops/seed-remote.sh {{quote(BASE)}}
 
 # --- your own labels ---
 
 # Extract label + description triples for every IRI your data uses from a SPARQL
-# endpoint (runs scripts/extract-labels.rq), saving Turtle to data.ttl. e.g.
+# endpoint (runs scripts/pipeline/extract-labels.rq), saving Turtle to data.ttl. e.g.
 #   just extract-labels https://my-endpoint/sparql
-extract-labels ENDPOINT OUT="data.ttl":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    curl -sf "{{ENDPOINT}}" \
-        --data-urlencode query@scripts/extract-labels.rq \
-        -H "Accept: text/turtle" \
-        -o "{{OUT}}"
-    echo "wrote {{OUT}} ($(wc -l < "{{OUT}}" | tr -d ' ') lines)"
+extract-labels ENDPOINT="" OUT="data.ttl":
+    scripts/ops/extract-labels.sh {{quote(ENDPOINT)}} {{quote(OUT)}}
 
 # Build the R2 manifest from your dump → dist/seed/manifest.ndjson
 ingest INPUT="data.ttl":
-    node scripts/ingest.mjs --input {{INPUT}}
+    node scripts/pipeline/ingest.mjs --input {{INPUT}}
 
 # Upload the manifest to R2 (needs project=<name> + R2_* env vars - see the guide).
 upload:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders upload) or PROJECT in .env}"
-    R2_BUCKET="label-cache-$P" node scripts/upload-seed.mjs
+    {{env}} scripts/ops/upload.sh
 
 # --- public ontology labels ---
 
@@ -291,35 +147,14 @@ upload:
 # skos,rdf,rdfs. Additive to your own labels in R2 - run before or after ingest.
 # Seed PUBLIC vocabulary labels into R2 (all, or a chosen subset).
 seed-public NAMESPACES="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    P="{{project}}"; : "${P:?set project=<name> (e.g. just project=orders seed-public) or PROJECT in .env}"
-    : "${SEED_BASE:?set SEED_BASE (your deployed Worker URL, for the embedded @context)}"
-    if [ -n "{{NAMESPACES}}" ]; then
-        node scripts/ingest.mjs --only "{{NAMESPACES}}"
-    else
-        node scripts/ingest.mjs
-    fi
-    R2_BUCKET="label-cache-$P" node scripts/upload-seed.mjs
+    {{env}} scripts/ops/seed-public.sh {{quote(NAMESPACES)}}
 
-# Runs scripts/coverage-report.rq; heed its warning about large datasets. Pass
-# an endpoint or set SPARQL_ENDPOINT in .env.
+# Runs scripts/pipeline/coverage-report.rq; heed its warning about large datasets.
+# Pass an endpoint or set SPARQL_ENDPOINT in .env.
 # Report namespaces your data USES but doesn't LABEL - a shopping list for seed-public.
 coverage-report ENDPOINT="":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    EP="{{ENDPOINT}}"; EP="${EP:-${SPARQL_ENDPOINT:-}}"
-    : "${EP:?pass an endpoint (just coverage-report <url>) or set SPARQL_ENDPOINT in .env}"
-    curl -sf "$EP" \
-        --data-urlencode query@scripts/coverage-report.rq \
-        -H "Accept: text/csv" | column -t -s,
+    scripts/ops/coverage-report.sh {{quote(ENDPOINT)}}
 
 # Smoke-test a deployed instance. Pass the base URL.
 demo BASE:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    enc() { python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1]))" "$1"; }
-    # bundled public vocab is untagged, so no ?lang= -> resolves the `und` key
-    echo "# skos:Concept"; curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2004/02/skos/core#Concept')" | jq
-    echo "# owl:Class";    curl -s "{{BASE}}/label?iri=$(enc 'http://www.w3.org/2002/07/owl#Class')" | jq
-    echo "# context";      curl -s "{{BASE}}/context/labels-v1.json" | jq -c '.["@context"] | keys | "\(length) prefixes/terms"'
+    scripts/ops/smoke-test.sh {{quote(BASE)}}

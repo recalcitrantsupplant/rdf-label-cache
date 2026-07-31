@@ -4,7 +4,7 @@
 # locally. Requires CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the env
 # (set as GitHub Actions secrets for CI).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 : "${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
 : "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
@@ -22,6 +22,6 @@ pnpm wrangler deploy --config demo/wrangler.demo.toml
 
 # Workers Cache is version-isolated by default, so code deploys do not reuse
 # prior-version responses and do not require a broad cache purge. Data refreshes
-# are handled separately by the mandatory purge in scripts/seed*.sh.
+# are handled separately by the mandatory purge in scripts/ops/seed*.sh.
 
-echo "==> Deployed. Seed data is managed separately via scripts/seed-remote.sh"
+echo "==> Deployed. Seed data is managed separately via scripts/ops/seed-remote.sh"

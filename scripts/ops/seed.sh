@@ -10,7 +10,7 @@
 #   R2_BUCKET             bucket name (default: label-cache-demo, the demo instance)
 #   PURGE_TOKEN           required to purge cached labels after upload
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 # This script seeds the maintainer demo instance; its bucket defaults accordingly.
 export R2_BUCKET="${R2_BUCKET:-label-cache-demo}"
@@ -24,10 +24,10 @@ export R2_BUCKET="${R2_BUCKET:-label-cache-demo}"
 : "${PURGE_TOKEN:?set PURGE_TOKEN (required to invalidate cached data)}"
 
 echo "==> Ingesting ontologies → dist/seed/manifest.ndjson"
-SEED_BASE="$SEED_BASE" node scripts/ingest.mjs
+SEED_BASE="$SEED_BASE" node scripts/pipeline/ingest.mjs
 
 echo "==> Uploading to R2 ($R2_BUCKET)"
-node scripts/upload-seed.mjs
+node scripts/pipeline/upload-seed.mjs
 
 # Data changed → invalidate edge cache. Browsers refresh on their own within
 # the hour (labels are served with a short browser max-age).
