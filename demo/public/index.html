@@ -41,12 +41,14 @@
   .btn.ghost { background: transparent; color: var(--accent); }
   h2.sh { font-size: 30px; letter-spacing: -.02em; text-align: center; margin: 0 0 6px; }
   .sub { text-align: center; color: var(--muted); font-size: 16px; margin: 0 auto 28px; max-width: 60ch; }
+  h3.mini-sh { font-size: 20px; letter-spacing: -.01em; text-align: center; margin: 34px 0 6px; }
   .scope-note { text-align: center; color: var(--faint); font-size: 13.5px; margin: 18px auto 0; max-width: 52ch; }
   .block { padding: 64px 24px; border-top: 1px solid var(--line); }
   #demo-sec { padding-top: 40px; }
   code { font-family: var(--mono); font-size: .85em; background: var(--code); padding: 1px 5px; border-radius: 4px; }
   .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 8px; }
-  @media (max-width:760px){ .grid3 { grid-template-columns: 1fr; } .hero h1 { font-size: 34px; } }
+  .grid2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-top: 8px; }
+  @media (max-width:760px){ .grid3, .grid2 { grid-template-columns: 1fr; } .hero h1 { font-size: 34px; } }
   .card { border: 1px solid var(--line); border-radius: 14px; padding: 20px; background: var(--panel); }
   .card .big { font-size: 30px; font-weight: 800; letter-spacing: -.02em; color: var(--good); }
   .card h3 { margin: 0 0 6px; font-size: 15px; } .card p { margin: 0; color: var(--muted); font-size: 14px; }
@@ -98,11 +100,7 @@
       <tr><td>Follow-up label query</td><td class="good">no</td><td class="bad">every time</td><td class="bad">no</td></tr>
       <tr><td>Shadow "label" named graphs</td><td class="bad">drifts</td><td class="bad">yes</td><td class="bad">no</td></tr>
     </table>
-    <div class="grid3" style="margin-top:26px">
-      <div class="card"><div class="big">100k/day</div><h3>Workers Free allowance</h3><p>Requests are subject to the Free plan's daily limit; R2 includes separate monthly storage and operation allowances.</p></div>
-      <div class="card"><div class="big">$5/month</div><h3>Workers Paid base</h3><p>Includes 10 million requests per month; additional requests are currently $0.30 per million, plus billable CPU where applicable.</p></div>
-      <div class="card"><div class="big">tiered</div><h3>shared edge cache</h3><p>Reusable entries can be served without invoking the Worker or reading R2. Actual hit rate and latency depend on traffic.</p></div>
-    </div>
+    <p class="sub" style="margin:26px auto 0; max-width:64ch">Free and open source (Apache-2.0), self-hosted on your own Cloudflare account. Reusable entries are served from the tiered edge cache without invoking the Worker or reading R2.</p>
     <p style="text-align:center;margin-top:22px"><a href="/why">Read the full write-up - cost, latency &amp; the shared-cache model <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></p>
   </div>
 </section>
@@ -118,6 +116,13 @@
     </div>
     <p class="scope-note">The GitHub Action path re-runs as an upsert, not a mirror, and suits small/modest RDF. For large label sets or more robust sync, use the clone + pipeline path.</p>
     <p style="text-align:center;margin-top:22px"><a href="/start">Full guide - every command, copy-paste ready <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></p>
+    <h3 class="mini-sh">What it costs to run</h3>
+    <p class="sub" style="margin-bottom:0">It runs in your Cloudflare account, on your plan. Nothing is billed by this project.</p>
+    <div class="grid2">
+      <div class="card"><div class="big">free tier</div><h3>Most deployments</h3><p>Workers Free covers 100k requests/day, and R2 has its own monthly storage and operation allowances.</p></div>
+      <div class="card"><div class="big">10M/month</div><h3>If you outgrow it</h3><p>Cloudflare's paid plans lift the limits at low rates - 10 million requests included, then cents per million, plus billable CPU where applicable.</p></div>
+    </div>
+    <p style="text-align:center;margin-top:22px"><a href="/why">Cost, latency &amp; the shared-cache model in detail <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="M12 5l7 7-7 7"/></svg></a></p>
   </div>
 </section>
 
