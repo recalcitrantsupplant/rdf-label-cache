@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="apple-touch-icon" href="/favicon-180.png" />
-<!-- Self-hosted bundles (scripts/vendor-*.sh); warm the same-origin requests
+<!-- Self-hosted bundles (scripts/ops/vendor-*.sh); warm the same-origin requests
      early so the auto-render on load isn't gated on a cold fetch. n3 parses the
      Turtle; the label-cache client is the real library this demo consumes. -->
 <link rel="modulepreload" href="/vendor/n3.mjs" />
@@ -208,10 +208,10 @@
 <script type="module">
 // N3 (the Turtle parser) is bundled and self-hosted at /vendor/n3.mjs — a single
 // same-origin request, no third-party CDN at runtime. Regenerate the bundle with
-// ./scripts/vendor-n3.sh. The <link rel="modulepreload"> in <head> warms it early.
+// ./scripts/ops/vendor-n3.sh. The <link rel="modulepreload"> in <head> warms it early.
 import { Parser } from "/vendor/n3.mjs";
 // The demo consumes its own service through the real client library
-// (@rdf-label-cache/client), self-hosted the same way (./scripts/vendor-label-client.sh).
+// (@rdf-label-cache/client), self-hosted the same way (./scripts/ops/vendor-label-client.sh).
 import { createLabelClient, pickLabel, pickFromMap } from "/vendor/label-cache-client.mjs";
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";

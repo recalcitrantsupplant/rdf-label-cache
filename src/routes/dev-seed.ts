@@ -26,7 +26,7 @@ const CONTEXT_DOC = {
 
 // Each optional field is a JSON-LD term mapping a distinct predicate - nothing is
 // coerced to prefLabel. An array becomes a multi-valued language entry (a subject
-// can carry several, e.g. altLabels). Mirrors scripts/ingest.mjs' emitted shape.
+// can carry several, e.g. altLabels). Mirrors scripts/pipeline/ingest.mjs' emitted shape.
 const TERM_FIELDS = ["prefLabel", "label", "altLabel", "title", "name", "definition", "comment", "description"] as const;
 
 interface LabelEntry {

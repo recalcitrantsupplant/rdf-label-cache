@@ -19,4 +19,4 @@ jobs:
           node-version: 22
           cache: pnpm
       # All logic lives in the script; the workflow only sets up the toolchain.
-      - run: ./scripts/ci.sh
+      - run: ./scripts/ops/ci.sh

@@ -394,9 +394,9 @@ WHERE {
           you can ingest straight into R2 - no dump needed.</p>
           <pre class="cmd just"><code>just seed-public                  # all bundled vocabularies
 just seed-public skos,rdf,rdfs    # …or only the ones you name</code></pre>
-          <pre class="cmd shell"><code>node scripts/ingest.mjs                    # all bundled vocabularies
-node scripts/ingest.mjs --only skos,rdf    # …or only the ones you name
-node scripts/upload-seed.mjs</code></pre>
+          <pre class="cmd shell"><code>node scripts/pipeline/ingest.mjs                    # all bundled vocabularies
+node scripts/pipeline/ingest.mjs --only skos,rdf    # …or only the ones you name
+node scripts/pipeline/upload-seed.mjs</code></pre>
           <details class="why">
             <summary>How much does seeding all of them cost?</summary>
             <div class="why-body">
@@ -412,7 +412,7 @@ node scripts/upload-seed.mjs</code></pre>
           <p class="note">Report the namespaces your data uses but doesn't itself label - then seed just those:</p>
           <pre class="cmd just"><code>just coverage-report https://your-endpoint/sparql</code></pre>
           <pre class="cmd shell"><code>curl -sf https://your-endpoint/sparql \
-  --data-urlencode query@scripts/coverage-report.rq \
+  --data-urlencode query@scripts/pipeline/coverage-report.rq \
   -H 'Accept: text/csv' | column -t -s,</code></pre>
           <p class="note">Feed the namespaces it lists back to <code>seed-public</code>. It scans every IRI in the graph,
           so run it against an offline copy or a dump - not a large production endpoint.</p>
@@ -483,8 +483,8 @@ just project=orders deploy        # prints your Cloudflare Worker URL → SEED_B
       <pre class="cmd shell"><code>export SEED_BASE=https://label-cache-orders.&lt;subdomain&gt;.workers.dev
 export R2_BUCKET=label-cache-orders
 export CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=...
-node scripts/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
-node scripts/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
+node scripts/pipeline/ingest.mjs --input data.ttl    # → dist/seed/manifest.ndjson
+node scripts/pipeline/upload-seed.mjs                 # → R2, over the S3 API</code></pre>
       <pre class="cmd just"><code># PROJECT + SEED_BASE + R2_* come from your .env (see env.example)
 just ingest                       # → dist/seed/manifest.ndjson
 just project=orders upload        # → R2, over the S3 API (sets R2_BUCKET)</code></pre>
@@ -500,7 +500,7 @@ just project=orders upload        # → R2, over the S3 API (sets R2_BUCKET)</co
       <em>terms</em>, not baked-in fields - they're defined by the shared <code>@context</code> served at
       <code>SEED_BASE/context/labels-v1.json</code>, which is what tells a consumer that <code>prefLabel</code>
       expands to <code>skos:prefLabel</code>. To use your own vocabularies, edit that context. It's generated from
-      the <code>CONTEXT_DOC</code> object in <code>scripts/ingest.mjs</code>, then re-uploaded by
+      the <code>CONTEXT_DOC</code> object in <code>scripts/pipeline/ingest.mjs</code>, then re-uploaded by
       <code>just&nbsp;upload</code>.</p>
 
       <h4>Add a namespace prefix &amp; term</h4>
@@ -514,7 +514,7 @@ displayName: { "@id": "ex:displayName", "@container": "@language" },</code></pre
 
       <h4>Also cache a new annotation property</h4>
       <p class="note">To actually populate that key from your data, add its predicate IRI to
-      <code>DEFAULT_LABEL_PREDS</code> or <code>DEFAULT_DESC_PREDS</code> in <code>scripts/ingest.mjs</code> so ingest picks it up.</p>
+      <code>DEFAULT_LABEL_PREDS</code> or <code>DEFAULT_DESC_PREDS</code> in <code>scripts/pipeline/ingest.mjs</code> so ingest picks it up.</p>
 
       <p class="note">Then re-run <code>just&nbsp;ingest &amp;&amp; just&nbsp;upload</code>. (If you also use the
       local smoke test, mirror the change in <code>src/routes/dev-seed.ts</code>'s <code>CONTEXT_DOC</code>.)</p>

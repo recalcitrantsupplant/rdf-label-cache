@@ -178,8 +178,8 @@ just project=orders upload     # → R2, over the S3 API
 ```
 
 Raw shell instead? `SEED_BASE=… R2_BUCKET=… CLOUDFLARE_ACCOUNT_ID=… R2_ACCESS_KEY_ID=…
-R2_SECRET_ACCESS_KEY=… node scripts/ingest.mjs --input data.ttl && node
-scripts/upload-seed.mjs`.
+R2_SECRET_ACCESS_KEY=… node scripts/pipeline/ingest.mjs --input data.ttl && node
+scripts/pipeline/upload-seed.mjs`.
 
 Objects are keyed lang-first by the full IRI (`labels/und/https://schema.org/name`,
 `labels/en/http://purl.org/dc/terms/title`) - browsable in R2, each language a listable
@@ -219,7 +219,7 @@ demo's **Why RDF Label Cache?** page.
 > reproducible installs. The underlying Node and Wrangler commands can also be
 > adapted to npm or Bun. Swap
 > `pnpm install` → `npm install` / `bun install` and `pnpm wrangler …` →
-> `npx wrangler …` / `bunx wrangler …`; the `node scripts/…` commands are identical on
+> `npx wrangler …` / `bunx wrangler …`; the `node scripts/pipeline/…` commands are identical on
 > all three. For the `just` recipes, name your manager once and it threads through:
 > `just pm=npm bootstrap`.
 
@@ -272,8 +272,9 @@ by key, so changed labels update in place. Override the port with `PORT=8790`.
 ## CI / releases
 
 - **CI** (`.github/workflows/ci.yml`) runs typecheck + tests on every push and PR.
-  All logic lives in `scripts/` (`ci.sh`, `deploy-demo.sh`, …); workflows only
-  set up the toolchain and call the scripts.
+  All logic lives in `scripts/ops/` (`ci.sh`, `deploy-demo.sh`, …); workflows and
+  `just` recipes only set up the toolchain and call the scripts. The label
+  pipeline itself (ingest, upload, SPARQL queries) is in `scripts/pipeline/`.
 - **Releases** use [release-please](https://github.com/googleapis/release-please):
   push [Conventional Commits](https://www.conventionalcommits.org/) to `main`; it
   maintains a release PR, and merging it tags `vX.Y.Z` + cuts a GitHub Release.
@@ -286,7 +287,7 @@ by key, so changed labels update in place. Override the port with `PORT=8790`.
 Contributions welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). In short: fork, branch,
 open a PR, and use [Conventional Commits](https://www.conventionalcommits.org/) (enforced
 by commitlint on every PR and by a local husky hook). CI must be green — run
-`./scripts/ci.sh` (typecheck + tests) before pushing.
+`./scripts/ops/ci.sh` (typecheck + tests) before pushing.
 
 ## License
 

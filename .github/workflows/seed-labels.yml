@@ -58,11 +58,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: ./scripts/seed-labels.sh
+      - run: ./scripts/ops/seed-labels.sh
         env:
           LABELS_DIR: ${{ inputs.labels_dir }}
           # workflow_dispatch booleans arrive as strings; map to the non-empty
-          # flag scripts/seed-labels.sh expects (and '' when unchecked).
+          # flag scripts/ops/seed-labels.sh expects (and '' when unchecked).
           INCLUDE_PUBLIC: ${{ inputs.include_public && '1' || '' }}
           # Set these as repository Variables (Settings → Secrets and variables →
           # Actions → Variables). SEED_BASE is your deployed Worker URL.

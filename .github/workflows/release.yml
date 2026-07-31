@@ -41,8 +41,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: ./scripts/ci.sh
-      - run: ./scripts/deploy-demo.sh
+      - run: ./scripts/ops/ci.sh
+      - run: ./scripts/ops/deploy-demo.sh
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

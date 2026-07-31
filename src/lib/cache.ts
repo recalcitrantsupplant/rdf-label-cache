@@ -20,7 +20,7 @@
 export const DATA_CACHE = "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
 // The versioned context URL never changes content (enforced at upload by
-// scripts/upload-seed.mjs), so browsers may hold it forever.
+// scripts/pipeline/upload-seed.mjs), so browsers may hold it forever.
 export const IMMUTABLE = "public, max-age=31536000, immutable";
 
 // Errors self-expire quickly instead of being cached forever, so a label that

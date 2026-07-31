@@ -161,7 +161,7 @@ to English.
 
 > **Note:** the `wrangler r2 object put` CLI can't write these keys (it truncates `#` as a
 > URL fragment and percent-decodes `%`). Seed via the R2 binding (`/dev/load` locally) or
-> the S3 API (`scripts/upload-seed.mjs`), both of which store keys verbatim.
+> the S3 API (`scripts/pipeline/upload-seed.mjs`), both of which store keys verbatim.
 
 **Namespace dumps** (`namespaces/{ns}/*.json`) are omitted. Schema.org has ~2,500 terms; a full dump would be tens of MB and has no clear use case for per-IRI resolution. Use the ingestion pipeline output directly if bulk access is needed.
 

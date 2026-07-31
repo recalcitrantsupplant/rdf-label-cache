@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Upload the ingest manifest (dist/seed/manifest.ndjson) to R2 via the S3 API.
 //
-// Bulk seeding for a real deployment - see scripts/seed-local.sh for the slow,
+// Bulk seeding for a real deployment - see scripts/ops/seed-local.sh for the slow,
 // dev-only miniflare path. Objects are PUT concurrently; keys are the exact
 // strings from the manifest (case-sensitive, so schema/Text and schema/text
 // stay distinct).
@@ -21,7 +21,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AwsClient } from "aws4fetch";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MANIFEST = join(ROOT, "dist", "seed", "manifest.ndjson");
 
 const {

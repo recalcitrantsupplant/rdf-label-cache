@@ -12,7 +12,7 @@
 # a dump. `?namespace` may come back as "http://" / "https://" for host-only IRIs
 # (no path or fragment); identify those by hand.
 #
-# "Unlabelled" here mirrors scripts/ingest.mjs's label predicates (rdfs:label,
+# "Unlabelled" here mirrors scripts/pipeline/ingest.mjs's label predicates (rdfs:label,
 # skos:prefLabel): an IRI counts as covered if it carries either one.
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>

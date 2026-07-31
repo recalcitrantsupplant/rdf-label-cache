@@ -29,7 +29,7 @@
  * object is one `(IRI, lang)` pair, in practice a map holds exactly ONE key:
  * the real language tag (e.g. `en`), or `@none` for an untagged literal. The
  * value is a string, or an array when the source carried several (e.g.
- * multiple `altLabel`s). See scripts/ingest.mjs.
+ * multiple `altLabel`s). See scripts/pipeline/ingest.mjs.
  */
 export type LangMap = Record<string, string | string[] | undefined>;
 
@@ -86,7 +86,7 @@ export interface RdfDataFactory {
  * aliases** (the document's keys, e.g. `prefLabel`) - NOT IRIs like
  * `skos:prefLabel`. The picker reads `doc[alias]`, so it never resolves an IRI;
  * these are just the aliases the service's default context emits (in step with
- * scripts/ingest.mjs). First hit across terms wins.
+ * scripts/pipeline/ingest.mjs). First hit across terms wins.
  *
  * A term keeps its alias even when a deployment maps it to a different IRI (e.g.
  * `name` → foaf:name rather than schema:name), so IRI remapping needs no change

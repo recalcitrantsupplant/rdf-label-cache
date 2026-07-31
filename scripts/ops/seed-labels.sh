@@ -17,7 +17,7 @@
 #   LABELS_DIR            folder of RDF files to ingest (default: labels)
 #   INCLUDE_PUBLIC        non-empty = also seed the bundled public vocabularies
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 LABELS_DIR="${LABELS_DIR:-labels}"
 
@@ -40,16 +40,16 @@ fi
 # (IRI, language) key - upload overwrites by key, so the later pass takes effect.
 if [ -n "${INCLUDE_PUBLIC:-}" ]; then
   echo "==> Ingesting bundled public vocabularies → dist/seed/manifest.ndjson"
-  SEED_BASE="$SEED_BASE" node scripts/ingest.mjs
+  SEED_BASE="$SEED_BASE" node scripts/pipeline/ingest.mjs
   echo "==> Uploading public vocab to R2 ($R2_BUCKET)"
-  node scripts/upload-seed.mjs
+  node scripts/pipeline/upload-seed.mjs
 fi
 
 echo "==> Ingesting $LABELS_DIR/ → dist/seed/manifest.ndjson"
-SEED_BASE="$SEED_BASE" node scripts/ingest.mjs --input "$LABELS_DIR"
+SEED_BASE="$SEED_BASE" node scripts/pipeline/ingest.mjs --input "$LABELS_DIR"
 
 echo "==> Uploading to R2 ($R2_BUCKET)"
-node scripts/upload-seed.mjs
+node scripts/pipeline/upload-seed.mjs
 
 # Data changed → invalidate edge cache. Browsers refresh on their own within the
 # hour (labels are served with a short browser max-age).

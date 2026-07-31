@@ -18,30 +18,35 @@ git clone https://github.com/recalcitrantsupplant/rdf-label-cache && cd rdf-labe
 pnpm install                 # frozen lockfile in CI; commit lockfile changes
 ```
 
-Everything CI runs is in `scripts/`, so you can reproduce it locally:
+Everything CI runs is in `scripts/ops/`, so you can reproduce it locally:
 
 ```bash
-./scripts/ci.sh              # install (frozen) + typecheck + test — the full CI gate
+./scripts/ops/ci.sh              # install (frozen) + typecheck + test — the full CI gate
 # or individually:
 pnpm typecheck               # tsc --noEmit
 pnpm test                    # vitest (Workers pool)
 ```
 
-CI runs `./scripts/ci.sh` on every push and PR (`.github/workflows/ci.yml`). Keep it
+CI runs `./scripts/ops/ci.sh` on every push and PR (`.github/workflows/ci.yml`). Keep it
 green — PRs that fail typecheck or tests won't merge.
 
 ## Making a change
 
 1. Branch off `main` (`git switch -c fix/thing` or `feat/thing`).
 2. Make the change **with tests** — the suite must cover new behaviour and keep passing.
-3. Run `./scripts/ci.sh` locally.
+3. Run `./scripts/ops/ci.sh` locally.
 4. Open a PR against `main`. Keep it focused; describe the *why*, not just the *what*.
 
 Project conventions worth matching:
 
 - **Thin workflows, logic in scripts.** GitHub Actions only check out, set up the
-  toolchain, and call a `scripts/*.sh` script. Put real logic in a versioned script so it
-  runs identically locally and in CI.
+  toolchain, and call a `scripts/ops/*.sh` script. The `just` recipes are thin the same
+  way. Put real logic in a versioned script so it runs identically locally, in CI, and
+  under `just`.
+- **Two script folders.** `scripts/pipeline/` is the label pipeline itself — ingest,
+  upload, and the SPARQL queries it runs. `scripts/ops/` is everything that drives it:
+  CI, deploys, seeding, local dev servers, vendor bundles. Shared bash helpers live in
+  `scripts/ops/lib.sh`.
 - **IRI-keyed, namespace-agnostic.** The Worker builds the R2 key from the IRI; don't add
   per-namespace registration or config.
 - **One PR, one release entry.** Squash-merge focused PRs and use the final squash
