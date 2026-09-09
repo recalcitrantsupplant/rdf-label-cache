@@ -1,0 +1,71 @@
+name: dependabot-vendor
+
+# Dependabot's pull_request token cannot write back to its branch. This runs in
+# the trusted base-repository context, but executes a PR checkout only after
+# ensuring the PR changes dependency manifests and generated vendor files.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dependabot-vendor-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository_owner == 'recalcitrantsupplant'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify changed files are safe to process
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          test -n "$changed_files"
+
+          while IFS= read -r file; do
+            case "$file" in
+              package.json|pnpm-lock.yaml|demo/public/vendor/n3.mjs|demo/public/vendor/label-cache-client.mjs) ;;
+              *)
+                echo "::error::Refusing to execute a Dependabot PR with unexpected changed file: $file"
+                exit 1
+                ;;
+            esac
+          done <<< "$changed_files"
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: ./scripts/ops/vendor-n3.sh
+      - run: ./scripts/ops/vendor-label-client.sh
+
+      - name: Commit refreshed vendor bundles
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet -- demo/public/vendor/n3.mjs demo/public/vendor/label-cache-client.mjs; then
+            echo "Vendor bundles are already current."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add demo/public/vendor/n3.mjs demo/public/vendor/label-cache-client.mjs
+          git commit --no-verify -m "chore(demo): refresh vendored bundles"
+          git push origin "HEAD:refs/heads/$HEAD_REF"

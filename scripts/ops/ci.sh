@@ -21,13 +21,13 @@ echo "==> Client library: build & test (packages/label-cache-client)"
 node_modules/.bin/tsc -p packages/label-cache-client/tsconfig.json
 node --test packages/label-cache-client/test/*.test.mjs
 
-# The demo serves a self-hosted bundle of the client; regenerate it and fail if
-# the committed copy has drifted from the client source (it has before: the
-# bundle sat at 0.1.0 while the package was 0.1.1).
-echo "==> Demo vendor bundle: verify in sync"
+# The demo serves self-hosted browser bundles; regenerate both and fail if a
+# committed copy has drifted from its source or bundler version.
+echo "==> Demo vendor bundles: verify in sync"
+./scripts/ops/vendor-n3.sh
 ./scripts/ops/vendor-label-client.sh
-if ! git diff --exit-code -- demo/public/vendor/label-cache-client.mjs; then
-  echo "ERROR: demo/public/vendor/label-cache-client.mjs is out of date." >&2
-  echo "Run ./scripts/ops/vendor-label-client.sh and commit the result." >&2
+if ! git diff --exit-code -- demo/public/vendor/n3.mjs demo/public/vendor/label-cache-client.mjs; then
+  echo "ERROR: demo vendor bundles are out of date." >&2
+  echo "Run ./scripts/ops/vendor-n3.sh and ./scripts/ops/vendor-label-client.sh, then commit the results." >&2
   exit 1
 fi
