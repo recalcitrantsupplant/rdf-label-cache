@@ -21,16 +21,16 @@
   },
   "packageManager": "pnpm@11.3.0",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
-    "@cloudflare/workers-types": "^5.20260818.1",
-    "@commitlint/cli": "^21.2.2",
-    "@commitlint/config-conventional": "^21.2.2",
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@cloudflare/workers-types": "^5.20261007.1",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "aws4fetch": "1.0.20",
     "esbuild": "0.28.2",
     "husky": "^9.1.7",
-    "n3": "2.2.0",
+    "n3": "2.13.9",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.124.0"
+    "vitest": "^5.0.3",
+    "wrangler": "^4.148.0"
   }
 }
