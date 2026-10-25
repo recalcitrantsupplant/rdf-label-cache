@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: dependabot-vendor-${{ github.event.pull_request.number }}
@@ -69,3 +70,12 @@ jobs:
           git add demo/public/vendor/n3.mjs demo/public/vendor/label-cache-client.mjs
           git commit --no-verify -m "chore(demo): refresh vendored bundles"
           git push origin "HEAD:refs/heads/$HEAD_REF"
+
+      # Explicit dispatch runs without manual approval even with GITHUB_TOKEN.
+      # Check the new commit, not the SHA from before the generated-file push.
+      # Always dispatch so retrying this job also recovers a failed dispatch.
+      - name: Run required checks on the refreshed branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$HEAD_REF"

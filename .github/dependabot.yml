@@ -8,10 +8,14 @@ updates:
     # Supply-chain hardening: don't open update PRs until a release is 7 days old.
     cooldown:
       default-days: 7
-    # Batch all npm updates into a single PR to cut review noise.
+    # Keep routine updates separate so a major cannot block their auto-merge.
     groups:
       npm-dependencies:
         patterns: ["*"]
+        update-types: [minor, patch]
+      npm-major-dependencies:
+        patterns: ["*"]
+        update-types: [major]
 
   - package-ecosystem: github-actions
     directory: "/"
@@ -22,3 +26,7 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+        update-types: [minor, patch]
+      github-actions-major:
+        patterns: ["*"]
+        update-types: [major]

@@ -30,7 +30,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Both ecosystems (npm + github-actions), patch and minor only. The npm
-      # updates are grouped into one PR, and for a grouped PR fetch-metadata
+      # minor/patch updates are grouped separately from majors. fetch-metadata
       # reports the HIGHEST semver change in the group - so a batch containing
       # any major is left alone entirely.
       - if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
