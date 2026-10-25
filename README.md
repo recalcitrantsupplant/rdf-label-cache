@@ -275,6 +275,11 @@ by key, so changed labels update in place. Override the port with `PORT=8790`.
   All logic lives in `scripts/ops/` (`ci.sh`, `deploy-demo.sh`, …); workflows and
   `just` recipes only set up the toolchain and call the scripts. The label
   pipeline itself (ingest, upload, SPARQL queries) is in `scripts/pipeline/`.
+- **Demo bundles** are generated from the lockfile-pinned dependencies during CI
+  and automatically by Wrangler before demo development or deployment. The
+  generated `demo/public/vendor/*.mjs` files are ignored by Git; dependency updates
+  do not need generated-file commits. To build them directly, run
+  `./scripts/ops/build-demo.sh` after installing dependencies.
 - **Releases** use [release-please](https://github.com/googleapis/release-please):
   push [Conventional Commits](https://www.conventionalcommits.org/) to `main`; it
   maintains a release PR, and merging it tags `vX.Y.Z` + cuts a GitHub Release.

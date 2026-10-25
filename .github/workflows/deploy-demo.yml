@@ -1,7 +1,7 @@
 name: deploy-demo
 
 # Redeploys the maintainer demo. Runs automatically on pushes to main that touch
-# the static demo site (demo/public/**), on a cut release (release.yml), or
+# demo sources, build scripts, or dependencies, on a cut release (release.yml), or
 # manually. Maintainer repo only; needs Cloudflare secrets, which forks lack.
 on:
   workflow_dispatch:
@@ -9,6 +9,13 @@ on:
     branches: [main]
     paths:
       - 'demo/public/**'
+      - 'demo/wrangler.demo.toml'
+      - 'packages/label-cache-client/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'scripts/ops/build-demo.sh'
+      - 'scripts/ops/vendor-*'
 
 permissions:
   contents: read

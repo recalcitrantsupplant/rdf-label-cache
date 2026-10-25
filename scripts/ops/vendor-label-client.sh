@@ -8,7 +8,7 @@
 # ESM file instead of importing from a third-party CDN at runtime. The client is
 # zero-dependency, so the bundle is just the library itself.
 #
-# Re-run this after changing the client (or bumping esbuild):
+# Built automatically by CI and the demo Wrangler custom build:
 #   ./scripts/ops/vendor-label-client.sh
 set -euo pipefail
 
