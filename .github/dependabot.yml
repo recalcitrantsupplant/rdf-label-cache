@@ -10,10 +10,20 @@ updates:
       default-days: 7
     # Keep routine updates separate so a major cannot block their auto-merge.
     groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+      npm-security-major:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: [major]
       npm-dependencies:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
       npm-major-dependencies:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [major]
 
@@ -24,9 +34,19 @@ updates:
     cooldown:
       default-days: 7
     groups:
+      github-actions-security:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: [minor, patch]
+      github-actions-security-major:
+        applies-to: security-updates
+        patterns: ["*"]
+        update-types: [major]
       github-actions:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [minor, patch]
       github-actions-major:
+        applies-to: version-updates
         patterns: ["*"]
         update-types: [major]
