@@ -3,6 +3,16 @@ allowBuilds:
   sharp: true
   workerd: true
 
+# Temporary security patches for transitive dependencies. Version selectors keep
+# newer upstream releases free to use their own dependency versions.
+overrides:
+  # Vitest's automatically installed Vite peer remains on the old lockfile version.
+  'vite@>=8.0.0 <8.1.6': 8.1.6
+  # Miniflare pins 7.29.1; patched in 7.30.1 (including GHSA-xjj6-f33q-929c).
+  'undici@>=7.18.0 <7.30.1': 7.30.1
+  # @cloudflare/vitest-plugin pins this version; patched in 4.6.6.
+  'zod@4.6.5': 4.6.6
+
 # Supply-chain note: the 7-day minimum-package-age guard is enforced via
 # Dependabot `cooldown` (.github/dependabot.yml) - the point where new versions
 # actually enter the repo. pnpm's `minimumReleaseAge` is intentionally NOT set
