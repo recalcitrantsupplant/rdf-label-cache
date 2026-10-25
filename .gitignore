@@ -4,4 +4,5 @@
 .wrangler.gen.toml
 node_modules/
 dist/
+demo/public/vendor/*.mjs
 .DS_Store

@@ -4,33 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
-  # The vendor bot explicitly requests checks after pushing generated bundles.
-  # GITHUB_TOKEN pushes do not start unattended pull_request workflows.
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  dependabot-commitlint:
-    # Avoid publishing a second check named commitlint on ordinary PR events.
-    name: ${{ github.event_name == 'workflow_dispatch' && 'commitlint' || 'dependabot-dispatch-guard' }}
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    steps:
-      # Match commitlint.yml's Dependabot exemption, but verify the live PR
-      # rather than trusting a branch prefix or an input supplied by the caller.
-      - name: Verify this is the current head of an open Dependabot PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          prs="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
-            -f head="$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" -f state=open)"
-          jq --exit-status --arg sha "$GITHUB_SHA" --arg repo "$GITHUB_REPOSITORY" \
-            'any(.[]; .user.login == "dependabot[bot]" and .head.sha == $sha and .head.repo.full_name == $repo)' <<< "$prs"
-
   ci:
     runs-on: ubuntu-latest
     steps:

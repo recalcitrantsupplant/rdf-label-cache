@@ -5,6 +5,12 @@ name = "label-cache-demo"
 main = "../src/index.ts"
 compatibility_date = "2025-04-19"
 
+# Generate ignored browser bundles for both local development and deployment.
+[build]
+cwd = ".."
+command = "./scripts/ops/build-demo.sh"
+watch_dir = ["../scripts/ops", "../packages/label-cache-client/src"]
+
 [cache]
 enabled = true
 
