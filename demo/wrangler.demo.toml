@@ -6,10 +6,11 @@ main = "../src/index.ts"
 compatibility_date = "2025-04-19"
 
 # Generate ignored browser bundles for both local development and deployment.
+# Custom build commands run from the caller's directory; invoke Wrangler from
+# the repository root, as scripts/ops/demo-local.sh and deploy-demo.sh do.
 [build]
-cwd = ".."
 command = "./scripts/ops/build-demo.sh"
-watch_dir = ["../scripts/ops", "../packages/label-cache-client/src"]
+watch_dir = ["./scripts/ops", "./packages/label-cache-client/src"]
 
 [cache]
 enabled = true
