@@ -287,6 +287,15 @@ by key, so changed labels update in place. Override the port with `PORT=8790`.
   until it's a week old); commit messages linted by commitlint (+ a local husky
   hook). Patch and minor bumps auto-merge once `ci` + `commitlint` pass
   (`dependabot-auto-merge.yml`); majors wait for a human.
+- **Dependency maintenance**: security updates are enabled separately from weekly
+  version updates and bypass the ordinary seven-day cooldown. Minor/patch security
+  fixes are grouped separately from majors and auto-merge after CI passes.
+  `dependency-health.yml` audits the committed lockfile daily and fails when known
+  vulnerabilities remain, including fixes blocked by upstream version pins.
+  Its weekly report (also available through **Run workflow**) checks each temporary
+  override in isolation and lists any that can be removed. Review major-update PRs
+  periodically; remove eligible overrides in a PR with passing CI. These checks do
+  not change dependencies or push commits.
 
 ## Contributing
 
