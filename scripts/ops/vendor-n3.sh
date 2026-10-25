@@ -7,7 +7,7 @@
 # into one same-origin ESM file served from our own edge. Zero third-party
 # requests, version-pinned via package.json, reproducible from the lockfile.
 #
-# Re-run this after bumping `n3` (or `esbuild`) in package.json:
+# Built automatically by CI and the demo Wrangler custom build:
 #   ./scripts/ops/vendor-n3.sh
 set -euo pipefail
 
