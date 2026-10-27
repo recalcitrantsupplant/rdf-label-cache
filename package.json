@@ -23,8 +23,8 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.7",
     "@cloudflare/workers-types": "^5.20261024.1",
-    "@commitlint/cli": "^21.2.3",
-    "@commitlint/config-conventional": "^21.2.3",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "aws4fetch": "1.0.20",
     "esbuild": "0.28.2",
     "husky": "^9.1.7",
