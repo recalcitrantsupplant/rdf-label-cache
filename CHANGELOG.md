@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v1.1.0...rdf-label-cache-v1.1.1) (2026-10-25)
+
+
+### Bug Fixes
+
+* **deps:** patch vulnerable development dependencies ([#66](https://github.com/recalcitrantsupplant/rdf-label-cache/issues/66)) ([85f0e52](https://github.com/recalcitrantsupplant/rdf-label-cache/commit/85f0e52dd4c49365712757a7b776c0d11cfb039e))
+
 ## [1.1.0](https://github.com/recalcitrantsupplant/rdf-label-cache/compare/rdf-label-cache-v1.0.1...rdf-label-cache-v1.1.0) (2026-07-19)
 
 
