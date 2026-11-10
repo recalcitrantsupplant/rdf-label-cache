@@ -21,8 +21,8 @@
   },
   "packageManager": "pnpm@11.3.0",
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.4.8",
-    "@cloudflare/workers-types": "^5.20261027.1",
+    "@cloudflare/vitest-plugin": "^1.5.1",
+    "@cloudflare/workers-types": "^5.20261103.1",
     "@commitlint/cli": "^21.2.4",
     "@commitlint/config-conventional": "^21.2.4",
     "aws4fetch": "1.0.20",
@@ -30,7 +30,7 @@
     "husky": "^9.1.7",
     "n3": "2.13.12",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.153.0"
+    "vitest": "^5.1.0",
+    "wrangler": "^4.157.0"
   }
 }
